@@ -8,6 +8,7 @@ import { ImportFrameworkFromEndpoint } from '../application/case/endpoints/Impor
 import { GetCFPackage } from '../application/case/endpoints/GetCFPackage'
 import { FrameworksController } from '../interfaces/http/http-admin/controllers/FrameworksController'
 import { CFPackagesControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/CFPackagesController'
+import { DiscoveryControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/DiscoveryController'
 import { KeyManager } from '../infrastructure/oauth/KeyManager'
 import { JwtSignerImpl } from '../infrastructure/oauth/JwtSignerImpl'
 import { FileOAuthClientRepository } from '../infrastructure/oauth/FileOAuthClientRepository'
@@ -24,6 +25,7 @@ export interface Container {
   controllers: {
     v1p1: {
       cfPackages: CFPackagesControllerV1p1
+      discovery: DiscoveryControllerV1p1
     }
     admin: {
       frameworks: FrameworksController
@@ -89,6 +91,7 @@ export async function buildContainer(): Promise<Container> {
   // Initialize controllers
   const frameworksController = new FrameworksController(createFramework, importFramework)
   const cfPackagesControllerV1p1 = new CFPackagesControllerV1p1(getCFPackage)
+  const discoveryControllerV1p1 = new DiscoveryControllerV1p1()
   const tokenController = new TokenController(issueToken)
 
   return {
@@ -98,7 +101,8 @@ export async function buildContainer(): Promise<Container> {
     store,
     controllers: {
       v1p1: {
-        cfPackages: cfPackagesControllerV1p1
+        cfPackages: cfPackagesControllerV1p1,
+        discovery: discoveryControllerV1p1
       },
       admin: {
         frameworks: frameworksController
