@@ -28,7 +28,18 @@ export function createServer (container: Container): express.Express {
   app.use('/admin', authMiddleware)
 
   registerV1p1Routes(app, {
-    cfPackagesController: container.controllers.v1p1.cfPackages
+    cfPackagesController: container.controllers.v1p1.cfPackages,
+    cfDocumentsController: container.controllers.v1p1.cfDocuments,
+    getAllCFDocumentsController: container.controllers.v1p1.getAllCFDocuments,
+    cfItemsController: container.controllers.v1p1.cfItems,
+    cfAssociationsController: container.controllers.v1p1.cfAssociations,
+    cfItemAssociationsController: container.controllers.v1p1.cfItemAssociations,
+    cfRubricsController: container.controllers.v1p1.cfRubrics,
+    cfSubjectsController: container.controllers.v1p1.cfSubjects,
+    cfConceptsController: container.controllers.v1p1.cfConcepts,
+    cfAssociationGroupingsController: container.controllers.v1p1.cfAssociationGroupings,
+    cfItemTypesController: container.controllers.v1p1.cfItemTypes,
+    cfLicensesController: container.controllers.v1p1.cfLicenses
   })
 
   registerAdminRoutes(app, {

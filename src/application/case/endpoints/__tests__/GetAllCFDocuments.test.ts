@@ -1,0 +1,201 @@
+import { GetAllCFDocuments } from '../GetAllCFDocuments'
+import { FileFrameworkStore } from '../../../../infrastructure/persistence/file/FileFrameworkStore'
+
+describe('GetAllCFDocuments', () => {
+  let mockStore: jest.Mocked<FileFrameworkStore>
+  let getAllCFDocuments: GetAllCFDocuments
+
+  beforeEach(() => {
+    mockStore = {
+      getAllDocuments: jest.fn()
+    } as any
+
+    getAllCFDocuments = new GetAllCFDocuments(mockStore)
+  })
+
+  describe('execute', () => {
+    const tenantId = 'test-tenant'
+    const caseVersion = '1.1'
+
+    it('should return empty CFDocumentSet when no documents found', async () => {
+      mockStore.getAllDocuments.mockReturnValue([])
+
+      const result = await getAllCFDocuments.execute({ tenantId, caseVersion })
+
+      expect(result).toEqual({
+        CFDocumentSet: {
+          CFDocuments: []
+        }
+      })
+    })
+
+    it('should return CFDocumentSet with documents', async () => {
+      const documents = [
+        {
+          sourcedId: 'doc-1',
+          title: 'Document 1',
+          language: 'en',
+          frameworkType: 'curriculum',
+          subject: 'Mathematics',
+          version: '1.0',
+          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+          currentFile: 'file1.json'
+        },
+        {
+          sourcedId: 'doc-2',
+          title: 'Document 2',
+          language: 'en',
+          frameworkType: 'curriculum',
+          subject: 'Science',
+          version: '1.0',
+          lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
+          currentFile: 'file2.json'
+        }
+      ]
+
+      mockStore.getAllDocuments.mockReturnValue(documents as any)
+
+      const result = await getAllCFDocuments.execute({ tenantId, caseVersion })
+
+      expect(result).toEqual({
+        CFDocumentSet: {
+          CFDocuments: expect.arrayContaining([
+            expect.objectContaining({
+              identifier: 'doc-1',
+              title: 'Document 1',
+              CFPackageURI: expect.objectContaining({
+                identifier: 'doc-1'
+              })
+            }),
+            expect.objectContaining({
+              identifier: 'doc-2',
+              title: 'Document 2',
+              CFPackageURI: expect.objectContaining({
+                identifier: 'doc-2'
+              })
+            })
+          ])
+        }
+      })
+    })
+
+    it('should apply pagination', async () => {
+      const documents = Array.from({ length: 10 }, (_, i) => ({
+        sourcedId: `doc-${i}`,
+        title: `Document ${i}`,
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+        currentFile: `file${i}.json`
+      }))
+
+      mockStore.getAllDocuments.mockReturnValue(documents as any)
+
+      const result = await getAllCFDocuments.execute({
+        tenantId,
+        caseVersion,
+        limit: 5,
+        offset: 2
+      })
+
+      expect(result).toEqual({
+        CFDocumentSet: {
+          CFDocuments: expect.arrayContaining([
+            expect.objectContaining({ identifier: 'doc-2' }),
+            expect.objectContaining({ identifier: 'doc-3' }),
+            expect.objectContaining({ identifier: 'doc-4' }),
+            expect.objectContaining({ identifier: 'doc-5' }),
+            expect.objectContaining({ identifier: 'doc-6' })
+          ])
+        },
+        total: 10,
+        limit: 5,
+        offset: 2
+      })
+      expect(result.CFDocumentSet.CFDocuments).toHaveLength(5)
+    })
+
+    it('should apply sorting', async () => {
+      const documents = [
+        {
+          sourcedId: 'doc-2',
+          title: 'B Document',
+          lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
+          currentFile: 'file2.json'
+        },
+        {
+          sourcedId: 'doc-1',
+          title: 'A Document',
+          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+          currentFile: 'file1.json'
+        }
+      ]
+
+      mockStore.getAllDocuments.mockReturnValue(documents as any)
+
+      const result = await getAllCFDocuments.execute({
+        tenantId,
+        caseVersion,
+        sort: 'title',
+        orderBy: 'asc'
+      })
+
+      expect(result.CFDocumentSet.CFDocuments[0].title).toBe('A Document')
+      expect(result.CFDocumentSet.CFDocuments[1].title).toBe('B Document')
+    })
+
+    it('should apply filtering', async () => {
+      const documents = [
+        {
+          sourcedId: 'doc-1',
+          title: 'Mathematics Framework',
+          subject: 'Mathematics',
+          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+          currentFile: 'file1.json'
+        },
+        {
+          sourcedId: 'doc-2',
+          title: 'Science Framework',
+          subject: 'Science',
+          lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
+          currentFile: 'file2.json'
+        }
+      ]
+
+      mockStore.getAllDocuments.mockReturnValue(documents as any)
+
+      const result = await getAllCFDocuments.execute({
+        tenantId,
+        caseVersion,
+        filter: 'mathematics'
+      })
+
+      expect(result.CFDocumentSet.CFDocuments).toHaveLength(1)
+      expect(result.CFDocumentSet.CFDocuments[0].title).toBe('Mathematics Framework')
+    })
+
+    it('should apply field selection', async () => {
+      const documents = [
+        {
+          sourcedId: 'doc-1',
+          title: 'Test Document',
+          language: 'en',
+          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+          currentFile: 'file1.json'
+        }
+      ]
+
+      mockStore.getAllDocuments.mockReturnValue(documents as any)
+
+      const result = await getAllCFDocuments.execute({
+        tenantId,
+        caseVersion,
+        fields: ['identifier', 'title']
+      })
+
+      expect(result.CFDocumentSet.CFDocuments[0]).toEqual({
+        identifier: 'doc-1',
+        title: 'Test Document'
+      })
+    })
+  })
+})
+

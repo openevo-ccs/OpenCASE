@@ -26,6 +26,26 @@ export class OpenAPISpecGenerator {
         {
           name: 'PackagesManager',
           description: 'The set of service operations that manage access to the Competency Framework Packages as a whole. A Competency Framework Package is a package that contains all of the artifacts that are used for the definition of a Competency Framework Document.'
+        },
+        {
+          name: 'DocumentsManager',
+          description: 'The set of service operations that manage access to Competency Framework Documents.'
+        },
+        {
+          name: 'ItemsManager',
+          description: 'The set of service operations that manage access to Competency Framework Items.'
+        },
+        {
+          name: 'AssociationsManager',
+          description: 'The set of service operations that manage access to Competency Framework Associations.'
+        },
+        {
+          name: 'RubricsManager',
+          description: 'The set of service operations that manage access to Competency Framework Rubrics.'
+        },
+        {
+          name: 'DefinitionsManager',
+          description: 'The set of service operations that manage access to Competency Framework Definitions (Concepts, Subjects, Licenses, Item Types, Association Groupings).'
         }
       ],
       paths: {
@@ -128,6 +148,471 @@ export class OpenAPISpecGenerator {
                   }
                 }
               }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFDocuments': {
+          get: {
+            operationId: 'getAllCFDocuments',
+            summary: 'The REST read request message for the getAllCFDocuments() API call.',
+            tags: ['DocumentsManager'],
+            description: 'This is a request to the service provider to provide the information for all Competency Framework Documents. Supports pagination, sorting, filtering, and field selection.',
+            parameters: [
+              {
+                name: 'limit',
+                in: 'query',
+                required: false,
+                description: 'The maximum number of records to be contained in the response.',
+                schema: { type: 'integer', minimum: 1 }
+              },
+              {
+                name: 'offset',
+                in: 'query',
+                required: false,
+                description: 'The number of the first record to be supplied in the segmented response message.',
+                schema: { type: 'integer', minimum: 0 }
+              },
+              {
+                name: 'sort',
+                in: 'query',
+                required: false,
+                description: 'The sort criteria to be used for the records in the response message.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'orderBy',
+                in: 'query',
+                required: false,
+                description: 'The form of ordering for response to the sorted request.',
+                schema: { type: 'string', enum: ['asc', 'desc'] }
+              },
+              {
+                name: 'filter',
+                in: 'query',
+                required: false,
+                description: 'The filtering rules to be applied when identifying the records.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'fields',
+                in: 'query',
+                required: false,
+                description: 'Comma-separated list of fields that should be supplied in the response message.',
+                schema: { type: 'string' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: { $ref: '#/components/schemas/CFDocumentSetDType' }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Resource not found.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFDocuments/{sourcedId}': {
+          get: {
+            operationId: 'getCFDocument',
+            summary: 'The REST read request message for the getCFDocument() API call.',
+            tags: ['DocumentsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework Document.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Document.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFDocument: { $ref: '#/components/schemas/CFDocumentDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFItems/{sourcedId}': {
+          get: {
+            operationId: 'getCFItem',
+            summary: 'The REST read request message for the getCFItem() API call.',
+            tags: ['ItemsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework Item.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Item.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFItem: { $ref: '#/components/schemas/CFItemDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFItemAssociations/{sourcedId}': {
+          get: {
+            operationId: 'getCFItemAssociations',
+            summary: 'The REST read request message for the getCFItemAssociations() API call.',
+            tags: ['AssociationsManager'],
+            description: 'This is a request to the service provider to provide the set of Competency Framework Associations for the specific Competency Framework Item.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Item.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: { $ref: '#/components/schemas/CFAssociationSetDType' }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFAssociations/{sourcedId}': {
+          get: {
+            operationId: 'getCFAssociation',
+            summary: 'The REST read request message for the getCFAssociation() API call.',
+            tags: ['AssociationsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework Association.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Association.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFAssociation: { $ref: '#/components/schemas/CFAssociationDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFRubrics/{sourcedId}': {
+          get: {
+            operationId: 'getCFRubric',
+            summary: 'The REST read request message for the getCFRubric() API call.',
+            tags: ['RubricsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework Rubric.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Rubric.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFRubric: { $ref: '#/components/schemas/CFRubricDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFSubjects/{sourcedId}': {
+          get: {
+            operationId: 'getCFSubject',
+            summary: 'The REST read request message for the getCFSubject() API call.',
+            tags: ['DefinitionsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework Subject.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Subject.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFSubject: { $ref: '#/components/schemas/CFSubjectDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFConcepts/{sourcedId}': {
+          get: {
+            operationId: 'getCFConcept',
+            summary: 'The REST read request message for the getCFConcept() API call.',
+            tags: ['DefinitionsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework Concept.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Concept.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFConcept: { $ref: '#/components/schemas/CFConceptDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFAssociationGroupings/{sourcedId}': {
+          get: {
+            operationId: 'getCFAssociationGrouping',
+            summary: 'The REST read request message for the getCFAssociationGrouping() API call.',
+            tags: ['DefinitionsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework Association Grouping.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Association Grouping.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFAssociationGrouping: { $ref: '#/components/schemas/CFAssociationGroupingDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFItemTypes/{sourcedId}': {
+          get: {
+            operationId: 'getCFItemType',
+            summary: 'The REST read request message for the getCFItemType() API call.',
+            tags: ['DefinitionsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework Item Type.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Item Type.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFItemType: { $ref: '#/components/schemas/CFItemTypeDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'unrestricted'
+          }
+        },
+        '/ims/case/v1p1/CFLicenses/{sourcedId}': {
+          get: {
+            operationId: 'getCFLicense',
+            summary: 'The REST read request message for the getCFLicense() API call.',
+            tags: ['DefinitionsManager'],
+            description: 'This is a request to the service provider to provide the information for the specific Competency Framework License.',
+            parameters: [
+              {
+                name: 'sourcedId',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework License.',
+                schema: { type: 'string', format: 'uuid' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'This is the response when the request has been completed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        CFLicense: { $ref: '#/components/schemas/CFLicenseDType' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'An invalid selection field was supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Server refuses to take action.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              404: { description: 'Either the supplied identifier is unknown or an invalid UUID has been supplied.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              429: { description: 'The server is receiving too many requests.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              default: { description: 'Default error response.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
             },
             'x-1edtech-confidentiality': 'unrestricted'
           }
@@ -405,6 +890,39 @@ export class OpenAPISpecGenerator {
               extensions: {
                 type: 'object',
                 additionalProperties: true
+              }
+            }
+          },
+          CFDocumentSetDType: {
+            type: 'object',
+            properties: {
+              CFDocumentSet: {
+                type: 'object',
+                required: ['CFDocuments'],
+                properties: {
+                  CFDocuments: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/CFDocumentDType' }
+                  }
+                }
+              },
+              total: { type: 'integer' },
+              limit: { type: 'integer' },
+              offset: { type: 'integer' }
+            }
+          },
+          CFAssociationSetDType: {
+            type: 'object',
+            properties: {
+              CFAssociationSet: {
+                type: 'object',
+                required: ['CFAssociations'],
+                properties: {
+                  CFAssociations: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/CFAssociationDType' }
+                  }
+                }
               }
             }
           },

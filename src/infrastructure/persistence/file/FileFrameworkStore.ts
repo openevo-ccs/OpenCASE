@@ -445,4 +445,21 @@ export class FileFrameworkStore {
       'utf8'
     )
   }
+
+  // Helper methods for accessing indexes
+  getDocumentIdForItem (tenantId: TenantId, version: CaseVersion, itemId: string): string | null {
+    const entry = this.itemsIndex.get(tenantId)?.get(version)?.get(itemId)
+    return entry?.docSourcedId ?? null
+  }
+
+  getDocumentIdForAssociation (tenantId: TenantId, version: CaseVersion, assocId: string): string | null {
+    const entry = this.assocIndex.get(tenantId)?.get(version)?.get(assocId)
+    return entry?.docSourcedId ?? null
+  }
+
+  getAllDocuments (tenantId: TenantId, version: CaseVersion): DocumentMetadata[] {
+    const versionMap = this.documents.get(tenantId)?.get(version)
+    if (!versionMap) return []
+    return Array.from(versionMap.values())
+  }
 }
