@@ -119,24 +119,45 @@ describe('FileCFPackageRepository', () => {
         tenantId,
         caseVersion: version,
         sourcedId: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: 'Test Document',
         lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       });
+
+      const docURI = document.toJSON().uri;
 
       const item = CFItem.create({
         tenantId,
         caseVersion: version,
         sourcedId: 'item-1',
-        fullStatement: 'Statement 1'
+        uri: '/ims/case/v1p1/CFItems/item-1',
+        fullStatement: 'Statement 1',
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+        CFDocumentURI: {
+          title: 'Document',
+          identifier: 'doc-123',
+          uri: docURI
+        }
       });
 
       const association = CFAssociation.create({
         tenantId,
         caseVersion: version,
         sourcedId: 'assoc-1',
-        originNode: 'item-1',
-        destinationNode: 'item-2',
-        associationType: 'isChildOf'
+        uri: '/ims/case/v1p1/CFAssociations/assoc-1',
+        associationType: 'isChildOf',
+        originNodeURI: {
+          title: 'Item 1',
+          identifier: 'item-1',
+          uri: '/ims/case/v1p1/CFItems/item-1'
+        },
+        destinationNodeURI: {
+          title: 'Item 2',
+          identifier: 'item-2',
+          uri: '/ims/case/v1p1/CFItems/item-2'
+        },
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       });
 
       const pkg = new CFPackage({
@@ -180,6 +201,8 @@ describe('FileCFPackageRepository', () => {
         tenantId,
         caseVersion: version,
         sourcedId: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: 'Test Document',
         lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       });
@@ -225,6 +248,8 @@ describe('FileCFPackageRepository', () => {
         tenantId,
         caseVersion: version,
         sourcedId: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: 'Test Document',
         lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       });

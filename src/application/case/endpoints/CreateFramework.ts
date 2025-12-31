@@ -13,6 +13,7 @@ export interface CreateFrameworkCommand {
     items?: any[];
     associations?: any[];
     rubrics?: any[];
+    definitions?: any;
   };
 }
 
@@ -23,13 +24,20 @@ export class CreateFramework {
     const { tenantId, caseVersion, payload } = cmd;
 
     const document = CFDocument.fromRaw(tenantId, caseVersion, payload.document);
-    const items = (payload.items ?? []).map(i => CFItem.fromRaw(tenantId, caseVersion, i));
+    const docId = document.sourcedId;
+    const docJSON = document.toJSON();
+    const docURI = docJSON.uri;
+    
+    const items = (payload.items ?? []).map(i => 
+      CFItem.fromRaw(tenantId, caseVersion, i, docId, docURI)
+    );
     const associations = (payload.associations ?? []).map(a =>
       CFAssociation.fromRaw(tenantId, caseVersion, a)
     );
     const rubrics = payload.rubrics ?? [];
+    const definitions = payload.definitions ?? null;
 
-    const pkg = new CFPackage({ document, items, associations, rubrics });
+    const pkg = new CFPackage({ document, items, associations, rubrics, definitions });
 
     await this.pkgRepo.saveNewVersion(tenantId, caseVersion, pkg);
   }

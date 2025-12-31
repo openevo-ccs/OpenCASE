@@ -21,7 +21,7 @@ describe('CFPackagesControllerV1p1', () => {
     responseStatus = jest.fn().mockReturnValue({ json: responseJson });
 
     mockRequest = {
-      params: { id: 'doc-123' },
+      params: { id: '550e8400-e29b-41d4-a716-446655440000' }, // Valid UUID
       header: jest.fn()
     };
 
@@ -36,11 +36,9 @@ describe('CFPackagesControllerV1p1', () => {
       const result = {
         CFPackage: {
           CFDocument: { 
-            sourcedId: 'doc-123', 
+            identifier: 'doc-123', 
             title: 'Test',
-            lastChangeDateTime: '2024-01-01T00:00:00.000Z',
-            tenantId: 'test-tenant',
-            caseVersion: '1.1' as const
+            lastChangeDateTime: '2024-01-01T00:00:00.000Z'
           },
           CFItems: [],
           CFAssociations: [],
@@ -50,27 +48,26 @@ describe('CFPackagesControllerV1p1', () => {
 
       mockGetCFPackage.execute.mockResolvedValue(result);
       (mockRequest as any).tenantId = 'test-tenant';
+      mockRequest.params = { id: '550e8400-e29b-41d4-a716-446655440000' }; // Valid UUID
 
       await controller.getById(mockRequest as Request, mockResponse as Response);
 
       expect(mockGetCFPackage.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
         caseVersion: '1.1',
-        docId: 'doc-123'
+        docId: '550e8400-e29b-41d4-a716-446655440000'
       });
+      expect(responseStatus).toHaveBeenCalledWith(200);
       expect(responseJson).toHaveBeenCalledWith(result);
-      expect(responseStatus).not.toHaveBeenCalled();
     });
 
     it('should use default tenantId when not in request', async () => {
       const result = {
         CFPackage: {
           CFDocument: { 
-            sourcedId: 'doc-123', 
+            identifier: 'doc-123', 
             title: 'Test',
-            lastChangeDateTime: '2024-01-01T00:00:00.000Z',
-            tenantId: 'demo',
-            caseVersion: '1.1' as const
+            lastChangeDateTime: '2024-01-01T00:00:00.000Z'
           },
           CFItems: [],
           CFAssociations: [],
@@ -80,40 +77,55 @@ describe('CFPackagesControllerV1p1', () => {
 
       mockGetCFPackage.execute.mockResolvedValue(result);
       delete (mockRequest as any).tenantId;
+      mockRequest.params = { id: '550e8400-e29b-41d4-a716-446655440000' }; // Valid UUID
 
       await controller.getById(mockRequest as Request, mockResponse as Response);
 
       expect(mockGetCFPackage.execute).toHaveBeenCalledWith({
         tenantId: 'demo',
         caseVersion: '1.1',
-        docId: 'doc-123'
+        docId: '550e8400-e29b-41d4-a716-446655440000'
       });
+      expect(responseStatus).toHaveBeenCalledWith(200);
       expect(responseJson).toHaveBeenCalledWith(result);
     });
 
     it('should return 404 when package is not found', async () => {
       mockGetCFPackage.execute.mockResolvedValue(null);
       (mockRequest as any).tenantId = 'test-tenant';
+      mockRequest.params = { id: '550e8400-e29b-41d4-a716-446655440000' }; // Valid UUID
 
       await controller.getById(mockRequest as Request, mockResponse as Response);
 
       expect(mockGetCFPackage.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
         caseVersion: '1.1',
-        docId: 'doc-123'
+        docId: '550e8400-e29b-41d4-a716-446655440000'
       });
       expect(responseStatus).toHaveBeenCalledWith(404);
-      expect(responseJson).toHaveBeenCalledWith({ error: 'CFPackage not found' });
+      expect(responseJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imsx_codeMajor: 'failure',
+          imsx_severity: 'error'
+        })
+      );
     });
 
     it('should handle errors from query', async () => {
       const error = new Error('Database error');
       mockGetCFPackage.execute.mockRejectedValue(error);
       (mockRequest as any).tenantId = 'test-tenant';
+      mockRequest.params = { id: '550e8400-e29b-41d4-a716-446655440000' }; // Valid UUID
 
-      await expect(
-        controller.getById(mockRequest as Request, mockResponse as Response)
-      ).rejects.toThrow('Database error');
+      await controller.getById(mockRequest as Request, mockResponse as Response);
+
+      expect(responseStatus).toHaveBeenCalledWith(500);
+      expect(responseJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imsx_codeMajor: 'failure',
+          imsx_severity: 'error'
+        })
+      );
     });
   });
 });

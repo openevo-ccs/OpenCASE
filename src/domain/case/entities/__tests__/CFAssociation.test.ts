@@ -11,9 +11,19 @@ describe('CFAssociation', () => {
         tenantId,
         caseVersion,
         sourcedId: 'assoc-123',
-        originNode: 'item-1',
-        destinationNode: 'item-2',
-        associationType: 'isChildOf'
+        uri: '/ims/case/v1p1/CFAssociations/assoc-123',
+        associationType: 'isChildOf',
+        originNodeURI: {
+          title: 'Item 1',
+          identifier: 'item-1',
+          uri: '/ims/case/v1p1/CFItems/item-1'
+        },
+        destinationNodeURI: {
+          title: 'Item 2',
+          identifier: 'item-2',
+          uri: '/ims/case/v1p1/CFItems/item-2'
+        },
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       };
 
       const assoc = CFAssociation.create(props);
@@ -27,9 +37,19 @@ describe('CFAssociation', () => {
         tenantId,
         caseVersion,
         sourcedId: '',
-        originNode: 'item-1',
-        destinationNode: 'item-2',
-        associationType: 'isChildOf'
+        uri: '/ims/case/v1p1/CFAssociations/assoc-123',
+        associationType: 'isChildOf',
+        originNodeURI: {
+          title: 'Item 1',
+          identifier: 'item-1',
+          uri: '/ims/case/v1p1/CFItems/item-1'
+        },
+        destinationNodeURI: {
+          title: 'Item 2',
+          identifier: 'item-2',
+          uri: '/ims/case/v1p1/CFItems/item-2'
+        },
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       };
 
       expect(() => CFAssociation.create(props)).toThrow('CFAssociation.sourcedId is required');
@@ -40,11 +60,21 @@ describe('CFAssociation', () => {
         tenantId,
         caseVersion,
         sourcedId: 'assoc-123',
-        originNode: 'item-1',
-        destinationNode: 'item-2',
+        uri: '/ims/case/v1p1/CFAssociations/assoc-123',
         associationType: 'isChildOf',
+        originNodeURI: {
+          title: 'Item 1',
+          identifier: 'item-1',
+          uri: '/ims/case/v1p1/CFItems/item-1'
+        },
+        destinationNodeURI: {
+          title: 'Item 2',
+          identifier: 'item-2',
+          uri: '/ims/case/v1p1/CFItems/item-2'
+        },
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
         sequenceNumber: 1,
-        extensions: [{ type: 'custom', data: { key: 'value' } }]
+        extensions: { custom: { key: 'value' } }
       };
 
       const assoc = CFAssociation.create(props);
@@ -65,8 +95,8 @@ describe('CFAssociation', () => {
       const assoc = CFAssociation.fromRaw(tenantId, caseVersion, raw);
 
       expect(assoc.sourcedId).toBe('assoc-123');
-      expect(assoc.toJSON().originNode).toBe('item-1');
-      expect(assoc.toJSON().destinationNode).toBe('item-2');
+      expect(assoc.toJSON().originNodeURI).toBeDefined();
+      expect(assoc.toJSON().destinationNodeURI).toBeDefined();
       expect(assoc.toJSON().associationType).toBe('isChildOf');
       expect(assoc.toJSON().sequenceNumber).toBe(1);
     });
@@ -78,22 +108,33 @@ describe('CFAssociation', () => {
         tenantId,
         caseVersion,
         sourcedId: 'assoc-123',
-        originNode: 'item-1',
-        destinationNode: 'item-2',
+        uri: '/ims/case/v1p1/CFAssociations/assoc-123',
         associationType: 'isChildOf',
+        originNodeURI: {
+          title: 'Item 1',
+          identifier: 'item-1',
+          uri: '/ims/case/v1p1/CFItems/item-1'
+        },
+        destinationNodeURI: {
+          title: 'Item 2',
+          identifier: 'item-2',
+          uri: '/ims/case/v1p1/CFItems/item-2'
+        },
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
         sequenceNumber: 1
       };
 
       const assoc = CFAssociation.create(props);
       const json = assoc.toJSON();
 
-      expect(json.sourcedId).toBe('assoc-123');
-      expect(json.originNode).toBe('item-1');
-      expect(json.destinationNode).toBe('item-2');
+      expect(json.identifier).toBe('assoc-123');
+      expect(json.originNodeURI).toBeDefined();
+      expect(json.destinationNodeURI).toBeDefined();
       expect(json.associationType).toBe('isChildOf');
       expect(json.sequenceNumber).toBe(1);
-      expect(json.tenantId).toBe(tenantId);
-      expect(json.caseVersion).toBe(caseVersion);
+      expect(json.tenantId).toBeUndefined();
+      expect(json.caseVersion).toBeUndefined();
+      expect(json.sourcedId).toBeUndefined();
     });
   });
 });

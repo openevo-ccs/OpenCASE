@@ -1,24 +1,47 @@
 import { Request, Response } from 'express';
 import { GetCFPackage } from '../../../../../application/case/endpoints/GetCFPackage';
+import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter';
 
 export class CFPackagesControllerV1p1 {
   constructor(private readonly getCFPackage: GetCFPackage) {}
 
   getById = async (req: Request, res: Response) => {
-    const tenantId = (req as any).tenantId ?? 'demo';
-    const docId = req.params.id;
+    try {
+      const tenantId = (req as any).tenantId ?? 'demo';
+      const docId = req.params.id;
 
-    const result = await this.getCFPackage.execute({
-      tenantId,
-      caseVersion: '1.1',
-      docId
-    });
+      // Validate UUID format (basic check)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(docId)) {
+        return res.status(404).json(StatusInfoFormatter.invalidUUID('The supplied identifier is not a valid UUID.'));
+      }
 
-    if (!result) {
-      return res.status(404).json({ error: 'CFPackage not found' });
+      const result = await this.getCFPackage.execute({
+        tenantId,
+        caseVersion: '1.1',
+        docId
+      });
+
+      if (!result) {
+        return res.status(404).json(StatusInfoFormatter.notFound('The requested CFPackage was not found.'));
+      }
+
+      return res.status(200).json(result);
+    } catch (error: any) {
+      // Handle different error types
+      if (error.status === 401) {
+        return res.status(401).json(StatusInfoFormatter.unauthorized(error.message));
+      }
+      if (error.status === 403) {
+        return res.status(403).json(StatusInfoFormatter.forbidden(error.message));
+      }
+      if (error.status === 429) {
+        return res.status(429).json(StatusInfoFormatter.serverBusy(error.message));
+      }
+      
+      // Default to 500 for unexpected errors
+      return res.status(500).json(StatusInfoFormatter.internalError(error.message || 'An internal server error occurred.'));
     }
-
-    res.json(result);
   };
 }
 

@@ -13,6 +13,8 @@ describe('CFPackage', () => {
       tenantId,
       caseVersion,
       sourcedId: 'doc-123',
+      uri: '/ims/case/v1p1/CFDocuments/doc-123',
+      creator: 'Test Creator',
       title: 'Test Document',
       lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
     });
@@ -23,7 +25,14 @@ describe('CFPackage', () => {
       tenantId,
       caseVersion,
       sourcedId: id,
-      fullStatement: `Statement for ${id}`
+      uri: `/ims/case/v1p1/CFItems/${id}`,
+      fullStatement: `Statement for ${id}`,
+      lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+      CFDocumentURI: {
+        title: 'Document',
+        identifier: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123'
+      }
     });
   };
 
@@ -32,9 +41,19 @@ describe('CFPackage', () => {
       tenantId,
       caseVersion,
       sourcedId: id,
-      originNode: 'item-1',
-      destinationNode: 'item-2',
-      associationType: 'isChildOf'
+      uri: `/ims/case/v1p1/CFAssociations/${id}`,
+      associationType: 'isChildOf',
+      originNodeURI: {
+        title: 'Item 1',
+        identifier: 'item-1',
+        uri: '/ims/case/v1p1/CFItems/item-1'
+      },
+      destinationNodeURI: {
+        title: 'Item 2',
+        identifier: 'item-2',
+        uri: '/ims/case/v1p1/CFItems/item-2'
+      },
+      lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
     });
   };
 

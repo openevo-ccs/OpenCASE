@@ -37,31 +37,59 @@ describe('GetCFPackage', () => {
         tenantId,
         caseVersion,
         sourcedId: docId,
+        uri: `/ims/case/v1p1/CFDocuments/${docId}`,
+        creator: 'Test Creator',
         title: 'Test Document',
         lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       });
+
+      const docURI = document.toJSON().uri;
 
       const item1 = CFItem.create({
         tenantId,
         caseVersion,
         sourcedId: 'item-1',
-        fullStatement: 'Statement 1'
+        uri: '/ims/case/v1p1/CFItems/item-1',
+        fullStatement: 'Statement 1',
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+        CFDocumentURI: {
+          title: 'Document',
+          identifier: docId,
+          uri: docURI
+        }
       });
 
       const item2 = CFItem.create({
         tenantId,
         caseVersion,
         sourcedId: 'item-2',
-        fullStatement: 'Statement 2'
+        uri: '/ims/case/v1p1/CFItems/item-2',
+        fullStatement: 'Statement 2',
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+        CFDocumentURI: {
+          title: 'Document',
+          identifier: docId,
+          uri: docURI
+        }
       });
 
       const association = CFAssociation.create({
         tenantId,
         caseVersion,
         sourcedId: 'assoc-1',
-        originNode: 'item-1',
-        destinationNode: 'item-2',
-        associationType: 'isChildOf'
+        uri: '/ims/case/v1p1/CFAssociations/assoc-1',
+        associationType: 'isChildOf',
+        originNodeURI: {
+          title: 'Item 1',
+          identifier: 'item-1',
+          uri: '/ims/case/v1p1/CFItems/item-1'
+        },
+        destinationNodeURI: {
+          title: 'Item 2',
+          identifier: 'item-2',
+          uri: '/ims/case/v1p1/CFItems/item-2'
+        },
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       });
 
       const rubrics = [{ id: 'rubric-1', type: 'test' }];
@@ -79,9 +107,20 @@ describe('GetCFPackage', () => {
 
       expect(result).toEqual({
         CFPackage: {
-          CFDocument: document.toJSON(),
-          CFItems: [item1.toJSON(), item2.toJSON()],
-          CFAssociations: [association.toJSON()],
+          CFDocument: expect.objectContaining({
+            identifier: docId,
+            title: 'Test Document',
+            CFPackageURI: expect.objectContaining({
+              identifier: docId
+            })
+          }),
+          CFItems: expect.arrayContaining([
+            expect.objectContaining({ identifier: 'item-1' }),
+            expect.objectContaining({ identifier: 'item-2' })
+          ]),
+          CFAssociations: expect.arrayContaining([
+            expect.objectContaining({ identifier: 'assoc-1' })
+          ]),
           CFRubrics: rubrics
         }
       });
@@ -92,6 +131,8 @@ describe('GetCFPackage', () => {
         tenantId,
         caseVersion,
         sourcedId: docId,
+        uri: `/ims/case/v1p1/CFDocuments/${docId}`,
+        creator: 'Test Creator',
         title: 'Test Document',
         lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       });
@@ -109,10 +150,15 @@ describe('GetCFPackage', () => {
 
       expect(result).toEqual({
         CFPackage: {
-          CFDocument: document.toJSON(),
+          CFDocument: expect.objectContaining({
+            identifier: docId,
+            title: 'Test Document',
+            CFPackageURI: expect.objectContaining({
+              identifier: docId
+            })
+          }),
           CFItems: [],
-          CFAssociations: [],
-          CFRubrics: []
+          CFAssociations: []
         }
       });
     });

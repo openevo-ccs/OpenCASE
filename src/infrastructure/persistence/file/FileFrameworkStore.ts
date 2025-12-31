@@ -184,7 +184,7 @@ export class FileFrameworkStore {
     tenantId: TenantId,
     version: CaseVersion,
     docId: string
-  ): Promise<{ document: any, items?: any[], associations?: any[], rubrics?: any[] } | null> {
+  ): Promise<{ document: any, items?: any[], associations?: any[], rubrics?: any[], definitions?: any } | null> {
     logger.info({ tenantId, version, docId }, 'loadDocumentBundle')
     const meta = this.documents.get(tenantId)?.get(version)?.get(docId)
     if (!meta) return null

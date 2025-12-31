@@ -11,6 +11,8 @@ describe('CFDocument', () => {
         tenantId,
         caseVersion,
         sourcedId: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: 'Test Document',
         lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
       };
@@ -28,6 +30,8 @@ describe('CFDocument', () => {
         tenantId,
         caseVersion,
         sourcedId: '',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: 'Test Document',
         lastChangeDateTime: new Date()
       };
@@ -40,6 +44,8 @@ describe('CFDocument', () => {
         tenantId,
         caseVersion,
         sourcedId: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: '',
         lastChangeDateTime: new Date()
       };
@@ -52,6 +58,8 @@ describe('CFDocument', () => {
         tenantId,
         caseVersion,
         sourcedId: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: 'Test Document',
         description: 'Test description',
         subject: 'Mathematics',
@@ -62,7 +70,7 @@ describe('CFDocument', () => {
         adoptionStatus: 'adopted',
         licenceUri: 'https://example.com/license',
         notes: 'Test notes',
-        extensions: [{ type: 'custom', data: { key: 'value' } }]
+        extensions: { custom: { key: 'value' } }
       };
 
       const doc = CFDocument.create(props);
@@ -109,6 +117,8 @@ describe('CFDocument', () => {
         tenantId,
         caseVersion,
         sourcedId: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: 'Test Document',
         lastChangeDateTime: date
       };
@@ -116,11 +126,12 @@ describe('CFDocument', () => {
       const doc = CFDocument.create(props);
       const json = doc.toJSON();
 
-      expect(json.sourcedId).toBe('doc-123');
+      expect(json.identifier).toBe('doc-123');
       expect(json.title).toBe('Test Document');
       expect(json.lastChangeDateTime).toBe('2024-01-01T12:30:45.000Z');
-      expect(json.tenantId).toBe(tenantId);
-      expect(json.caseVersion).toBe(caseVersion);
+      expect(json.tenantId).toBeUndefined();
+      expect(json.caseVersion).toBeUndefined();
+      expect(json.sourcedId).toBeUndefined();
     });
 
     it('should include all optional fields in JSON', () => {
@@ -128,6 +139,8 @@ describe('CFDocument', () => {
         tenantId,
         caseVersion,
         sourcedId: 'doc-123',
+        uri: '/ims/case/v1p1/CFDocuments/doc-123',
+        creator: 'Test Creator',
         title: 'Test Document',
         description: 'Test description',
         subject: 'Mathematics',
@@ -138,7 +151,7 @@ describe('CFDocument', () => {
         adoptionStatus: 'adopted',
         licenceUri: 'https://example.com/license',
         notes: 'Test notes',
-        extensions: [{ type: 'custom', data: { key: 'value' } }]
+        extensions: { custom: { key: 'value' } }
       };
 
       const doc = CFDocument.create(props);
@@ -150,9 +163,8 @@ describe('CFDocument', () => {
       expect(json.frameworkType).toBe('Competency');
       expect(json.version).toBe('1.0');
       expect(json.adoptionStatus).toBe('adopted');
-      expect(json.licenceUri).toBe('https://example.com/license');
       expect(json.notes).toBe('Test notes');
-      expect(json.extensions).toEqual([{ type: 'custom', data: { key: 'value' } }]);
+      expect(json.extensions).toEqual({ custom: { key: 'value' } });
     });
   });
 });

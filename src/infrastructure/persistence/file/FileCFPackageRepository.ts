@@ -20,15 +20,18 @@ export class FileCFPackageRepository implements CFPackageRepository {
     if (!bundle) return null
 
     const document = CFDocument.fromRaw(tenantId, version, bundle.document)
+    const docURI = document.toJSON().uri
+    
     const items = (bundle.items ?? []).map((i: any) =>
-      CFItem.fromRaw(tenantId, version, i)
+      CFItem.fromRaw(tenantId, version, i, docId, docURI)
     )
     const associations = (bundle.associations ?? []).map((a: any) =>
       CFAssociation.fromRaw(tenantId, version, a)
     )
     const rubrics = bundle.rubrics ?? []
+    const definitions = bundle.definitions ?? null
 
-    return new CFPackage({ document, items, associations, rubrics })
+    return new CFPackage({ document, items, associations, rubrics, definitions })
   }
 
   async saveNewVersion (
@@ -37,11 +40,15 @@ export class FileCFPackageRepository implements CFPackageRepository {
     pkg: CFPackage
   ): Promise<void> {
     const docId = pkg.document.sourcedId
-    const bundle = {
+    const bundle: any = {
       document: pkg.document.toJSON(),
       items: pkg.items.map(i => i.toJSON()),
       associations: pkg.associations.map(a => a.toJSON()),
-      rubrics: pkg.rubrics
+      rubrics: pkg.rubrics ?? []
+    }
+    
+    if (pkg.definitions) {
+      bundle.definitions = pkg.definitions
     }
 
     const { relativePath } = await this.store.writeBundleFile(tenantId, version, docId, bundle)

@@ -1,15 +1,32 @@
 import { CaseVersion, SourcedId, TenantId } from '../value-objects/Identifiers';
+import { LinkData } from '../value-objects/LinkData';
 
 export interface CFItemProps {
   tenantId: TenantId;
   caseVersion: CaseVersion;
   sourcedId: SourcedId;
+  uri: string; // Required in v1p1
   fullStatement: string;
+  lastChangeDateTime: Date; // Required in v1p1
+  CFDocumentURI: LinkData; // Required in v1p1
   humanCodingScheme?: string;
   listEnumInSource?: string;
+  listEnumeration?: string;
+  alternativeLabel?: string;
+  abbreviatedStatement?: string;
+  CFItemType?: string;
+  CFItemTypeURI?: LinkData;
+  conceptKeywords?: string[];
+  conceptKeywordsURI?: LinkData;
   notes?: string;
   language?: string;
-  extensions?: Array<{ type: string; data: Record<string, unknown> }>;
+  subject?: string | string[];
+  subjectURI?: LinkData[];
+  educationLevel?: string[];
+  licenseURI?: LinkData;
+  statusStartDate?: string;
+  statusEndDate?: string;
+  extensions?: Record<string, unknown>;
 }
 
 export class CFItem {
@@ -18,27 +35,82 @@ export class CFItem {
   static create(props: CFItemProps): CFItem {
     if (!props.sourcedId) throw new Error('CFItem.sourcedId is required');
     if (!props.fullStatement) throw new Error('CFItem.fullStatement is required');
+    if (!props.uri) throw new Error('CFItem.uri is required');
+    if (!props.lastChangeDateTime) throw new Error('CFItem.lastChangeDateTime is required');
+    if (!props.CFDocumentURI) throw new Error('CFItem.CFDocumentURI is required');
     return new CFItem(props);
   }
 
-  static fromRaw(tenantId: TenantId, caseVersion: CaseVersion, raw: any): CFItem {
+  static fromRaw(tenantId: TenantId, caseVersion: CaseVersion, raw: any, docId?: string, docURI?: string): CFItem {
+    // Generate URI if not provided (required field)
+    const uri = raw.uri || this.generateURI(tenantId, caseVersion, raw.sourcedId || raw.identifier);
+    
+    // Generate CFDocumentURI if not provided (required field)
+    const CFDocumentURI = raw.CFDocumentURI || (docId && docURI ? {
+      title: 'Document',
+      identifier: docId,
+      uri: docURI
+    } : {
+      title: 'Document',
+      identifier: 'unknown',
+      uri: this.generateDocumentURI(tenantId, caseVersion, docId || 'unknown')
+    });
+    
     return CFItem.create({
       tenantId,
       caseVersion,
       sourcedId: raw.sourcedId || raw.identifier,
+      uri,
       fullStatement: raw.fullStatement,
+      lastChangeDateTime: raw.lastChangeDateTime ? new Date(raw.lastChangeDateTime) : new Date(),
+      CFDocumentURI,
       humanCodingScheme: raw.humanCodingScheme,
       listEnumInSource: raw.listEnumInSource,
+      listEnumeration: raw.listEnumeration,
+      alternativeLabel: raw.alternativeLabel,
+      abbreviatedStatement: raw.abbreviatedStatement,
+      CFItemType: raw.CFItemType,
+      CFItemTypeURI: raw.CFItemTypeURI,
+      conceptKeywords: raw.conceptKeywords,
+      conceptKeywordsURI: raw.conceptKeywordsURI,
       notes: raw.notes,
       language: raw.language,
+      subject: raw.subject,
+      subjectURI: raw.subjectURI,
+      educationLevel: raw.educationLevel,
+      licenseURI: raw.licenseURI,
+      statusStartDate: raw.statusStartDate,
+      statusEndDate: raw.statusEndDate,
       extensions: raw.extensions
     });
+  }
+
+  private static generateURI(tenantId: TenantId, caseVersion: CaseVersion, identifier: string): string {
+    const basePath = caseVersion === '1.1' ? '/ims/case/v1p1' : '/ims/case/v1p0';
+    return `${basePath}/CFItems/${identifier}`;
+  }
+
+  private static generateDocumentURI(tenantId: TenantId, caseVersion: CaseVersion, docId: string): string {
+    const basePath = caseVersion === '1.1' ? '/ims/case/v1p1' : '/ims/case/v1p0';
+    return `${basePath}/CFDocuments/${docId}`;
   }
 
   get sourcedId(): SourcedId { return this.props.sourcedId; }
 
   toJSON() {
-    return { ...this.props };
+    const { tenantId, caseVersion, sourcedId, ...rest } = this.props;
+    const result: any = {
+      identifier: sourcedId, // Map sourcedId to identifier for spec compliance
+      ...rest,
+      lastChangeDateTime: this.props.lastChangeDateTime.toISOString()
+    };
+    
+    // Remove internal fields
+    delete result.tenantId;
+    delete result.caseVersion;
+    delete result.sourcedId;
+    
+    return result;
   }
 }
 
