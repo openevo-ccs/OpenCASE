@@ -12,7 +12,8 @@ describe('FileCFPackageRepository', () => {
   beforeEach(() => {
     mockStore = {
       loadDocumentBundle: jest.fn(),
-      writeBundleFile: jest.fn()
+      writeBundleFile: jest.fn(),
+      updateIndexesForBundle: jest.fn().mockResolvedValue(undefined)
     } as any;
 
     repository = new FileCFPackageRepository(mockStore);
@@ -145,7 +146,8 @@ describe('FileCFPackageRepository', () => {
         rubrics: [{ id: 'rubric-1' }]
       });
 
-      mockStore.writeBundleFile.mockResolvedValue({ relativePath: 'frameworks/doc-123/doc-123_v0001.json' });
+      const relativePath = 'frameworks/doc-123/doc-123_v0001.json';
+      mockStore.writeBundleFile.mockResolvedValue({ relativePath });
 
       await repository.saveNewVersion(tenantId, version, pkg);
 
@@ -159,6 +161,17 @@ describe('FileCFPackageRepository', () => {
           associations: [association.toJSON()],
           rubrics: [{ id: 'rubric-1' }]
         }
+      );
+      expect(mockStore.updateIndexesForBundle).toHaveBeenCalledWith(
+        tenantId,
+        version,
+        {
+          document: document.toJSON(),
+          items: [item.toJSON()],
+          associations: [association.toJSON()],
+          rubrics: [{ id: 'rubric-1' }]
+        },
+        relativePath
       );
     });
 
@@ -178,6 +191,9 @@ describe('FileCFPackageRepository', () => {
         rubrics: []
       });
 
+      const relativePath = 'frameworks/doc-123/doc-123_v0001.json';
+      mockStore.writeBundleFile.mockResolvedValue({ relativePath });
+
       await repository.saveNewVersion(tenantId, version, pkg);
 
       expect(mockStore.writeBundleFile).toHaveBeenCalledWith(
@@ -190,6 +206,17 @@ describe('FileCFPackageRepository', () => {
           associations: [],
           rubrics: []
         }
+      );
+      expect(mockStore.updateIndexesForBundle).toHaveBeenCalledWith(
+        tenantId,
+        version,
+        {
+          document: document.toJSON(),
+          items: [],
+          associations: [],
+          rubrics: []
+        },
+        relativePath
       );
     });
 

@@ -4,6 +4,9 @@ export interface AppConfig {
   jwtPublicKey: string;
   jwtIssuer: string;
   jwtAudience: string;
+  oauthKeyDir: string;
+  oauthClientsFile: string;
+  oauthIssuer: string;
 }
 
 export function loadConfig(): AppConfig {
@@ -12,7 +15,10 @@ export function loadConfig(): AppConfig {
     caseDataDir: process.env.CASE_DATA_DIR ?? 'data',
     jwtPublicKey: process.env.JWT_PUBLIC_KEY ?? 'changeme',
     jwtIssuer: process.env.JWT_ISSUER ?? 'example-issuer',
-    jwtAudience: process.env.JWT_AUDIENCE ?? 'example-audience'
+    jwtAudience: process.env.JWT_AUDIENCE ?? 'example-audience',
+    oauthKeyDir: process.env.OAUTH_KEY_DIR ?? 'data/oauth/keys',
+    oauthClientsFile: process.env.OAUTH_CLIENTS_FILE ?? 'data/oauth/clients.json',
+    oauthIssuer: process.env.OAUTH_ISSUER ?? 'opencase-oauth'
   };
 }
 

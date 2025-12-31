@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { GetCFPackage } from '../../../../../application/case/queries/GetCFPackage';
+import { GetCFPackage } from '../../../../../application/case/endpoints/GetCFPackage';
 
 export class CFPackagesControllerV1p1 {
   constructor(private readonly getCFPackage: GetCFPackage) {}

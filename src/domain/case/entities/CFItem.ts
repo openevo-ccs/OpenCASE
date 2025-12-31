@@ -25,7 +25,7 @@ export class CFItem {
     return CFItem.create({
       tenantId,
       caseVersion,
-      sourcedId: raw.sourcedId,
+      sourcedId: raw.sourcedId || raw.identifier,
       fullStatement: raw.fullStatement,
       humanCodingScheme: raw.humanCodingScheme,
       listEnumInSource: raw.listEnumInSource,

@@ -1,21 +1,27 @@
-import { Request, Response } from 'express';
-import { FrameworksController } from '../FrameworksController';
-import { CreateFramework } from '../../../../../application/case/commands/CreateFramework';
+import { Request, Response } from 'express'
+import { FrameworksController } from '../FrameworksController'
+import { CreateFramework } from '../../../../../application/case/endpoints/CreateFramework'
+import { ImportFrameworkFromEndpoint } from '../../../../../application/case/endpoints/ImportFrameworkFromEndpoint'
 
 describe('FrameworksController', () => {
-  let controller: FrameworksController;
-  let mockCreateFramework: jest.Mocked<CreateFramework>;
-  let mockRequest: Partial<Request>;
-  let mockResponse: Partial<Response>;
-  let responseJson: jest.Mock;
-  let responseStatus: jest.Mock;
+  let controller: FrameworksController
+  let mockCreateFramework: jest.Mocked<CreateFramework>
+  let mockImportFramework: jest.Mocked<ImportFrameworkFromEndpoint>
+  let mockRequest: Partial<Request>
+  let mockResponse: Partial<Response>
+  let responseJson: jest.Mock
+  let responseStatus: jest.Mock
 
   beforeEach(() => {
     mockCreateFramework = {
       execute: jest.fn().mockResolvedValue(undefined)
-    } as any;
+    } as any
 
-    controller = new FrameworksController(mockCreateFramework);
+    mockImportFramework = {
+      execute: jest.fn().mockResolvedValue({ docId: 'doc-123', version: 1 })
+    } as any
+
+    controller = new FrameworksController(mockCreateFramework, mockImportFramework)
 
     responseJson = jest.fn();
     responseStatus = jest.fn().mockReturnValue({ json: responseJson });
@@ -30,50 +36,50 @@ describe('FrameworksController', () => {
           lastChangeDateTime: '2024-01-01T00:00:00Z'
         }
       }
-    };
+    }
 
     mockResponse = {
       status: responseStatus,
       json: responseJson
-    };
-  });
+    }
+  })
 
   describe('create', () => {
     it('should create framework successfully', async () => {
-      await controller.create(mockRequest as Request, mockResponse as Response);
+      await controller.create(mockRequest as Request, mockResponse as Response)
 
       expect(mockCreateFramework.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
         caseVersion: '1.1',
         payload: mockRequest.body
-      });
-      expect(responseStatus).toHaveBeenCalledWith(201);
-      expect(responseJson).toHaveBeenCalledWith({ status: 'created' });
-    });
+      })
+      expect(responseStatus).toHaveBeenCalledWith(201)
+      expect(responseJson).toHaveBeenCalledWith({ status: 'created' })
+    })
 
     it('should default to caseVersion 1.1 when not provided', async () => {
-      mockRequest.query = {};
+      mockRequest.query = {}
 
-      await controller.create(mockRequest as Request, mockResponse as Response);
+      await controller.create(mockRequest as Request, mockResponse as Response)
 
       expect(mockCreateFramework.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
         caseVersion: '1.1',
         payload: mockRequest.body
-      });
-    });
+      })
+    })
 
     it('should use caseVersion from query', async () => {
-      mockRequest.query = { caseVersion: '1.0' };
+      mockRequest.query = { caseVersion: '1.0' }
 
-      await controller.create(mockRequest as Request, mockResponse as Response);
+      await controller.create(mockRequest as Request, mockResponse as Response)
 
       expect(mockCreateFramework.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
         caseVersion: '1.0',
         payload: mockRequest.body
-      });
-    });
+      })
+    })
 
     it('should handle framework with items and associations', async () => {
       mockRequest.body = {
@@ -94,26 +100,26 @@ describe('FrameworksController', () => {
           }
         ],
         rubrics: [{ id: 'rubric-1' }]
-      };
+      }
 
-      await controller.create(mockRequest as Request, mockResponse as Response);
+      await controller.create(mockRequest as Request, mockResponse as Response)
 
       expect(mockCreateFramework.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
         caseVersion: '1.1',
         payload: mockRequest.body
-      });
-      expect(responseStatus).toHaveBeenCalledWith(201);
-    });
+      })
+      expect(responseStatus).toHaveBeenCalledWith(201)
+    })
 
     it('should handle errors from command', async () => {
-      const error = new Error('Validation error');
-      mockCreateFramework.execute.mockRejectedValue(error);
+      const error = new Error('Validation error')
+      mockCreateFramework.execute.mockRejectedValue(error)
 
       await expect(
         controller.create(mockRequest as Request, mockResponse as Response)
-      ).rejects.toThrow('Validation error');
-    });
-  });
-});
+      ).rejects.toThrow('Validation error')
+    })
+  })
+})
 

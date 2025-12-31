@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { CFPackagesControllerV1p1 } from '../CFPackagesController';
-import { GetCFPackage } from '../../../../../../application/case/queries/GetCFPackage';
+import { GetCFPackage } from '../../../../../../application/case/endpoints/GetCFPackage';
 
 describe('CFPackagesControllerV1p1', () => {
   let controller: CFPackagesControllerV1p1;

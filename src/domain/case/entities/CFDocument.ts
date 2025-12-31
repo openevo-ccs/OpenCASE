@@ -31,7 +31,7 @@ export class CFDocument {
     return CFDocument.create({
       tenantId,
       caseVersion,
-      sourcedId: raw.sourcedId,
+      sourcedId: raw.sourcedId || raw.identifier,
       uri: raw.uri,
       title: raw.title,
       description: raw.description,

@@ -23,7 +23,7 @@ export class CFAssociation {
     return CFAssociation.create({
       tenantId,
       caseVersion,
-      sourcedId: raw.sourcedId,
+      sourcedId: raw.sourcedId || raw.identifier,
       originNode: raw.originNode,
       destinationNode: raw.destinationNode,
       associationType: raw.associationType,

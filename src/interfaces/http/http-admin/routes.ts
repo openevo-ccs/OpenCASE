@@ -10,5 +10,10 @@ export function registerAdminRoutes(app: Express, deps: AdminDeps) {
     '/admin/tenants/:tenantId/frameworks',
     deps.frameworksController.create
   );
+
+  app.post(
+    '/admin/tenants/:tenantId/frameworks/import',
+    deps.frameworksController.importFromEndpoint
+  );
 }
 

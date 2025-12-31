@@ -1,4 +1,4 @@
-import { CFPackageRepository } from '../ports/CFPackageRepository';
+import type { CFPackageRepository } from '../ports/CFPackageRepository';
 import { CaseVersion, TenantId } from '../../../domain/case/value-objects/Identifiers';
 import { CFDocument } from '../../../domain/case/entities/CFDocument';
 import { CFItem } from '../../../domain/case/entities/CFItem';

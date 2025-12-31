@@ -2,15 +2,22 @@ import express from 'express';
 import { makeAuthMiddleware } from './middleware/auth';
 import { registerV1p1Routes } from './http-public/v1p1/routes';
 import { registerAdminRoutes } from './http-admin/routes';
+import { registerOAuthRoutes } from './http-oauth/routes';
 import { Container } from '../../wiring/container';
 
 export function createServer(container: Container) {
   const app = express();
 
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true })); // For OAuth form-encoded requests
 
+  // OAuth routes (no auth required - used to get tokens)
+  registerOAuthRoutes(app, {
+    tokenController: container.controllers.oauth.token
+  });
+
+  // Protected routes
   const authMiddleware = makeAuthMiddleware(container.jwtVerifier);
-
   app.use('/ims/case', authMiddleware);
   app.use('/admin', authMiddleware);
 
