@@ -50,8 +50,31 @@ import { JwtSignerImpl } from '../infrastructure/oauth/JwtSignerImpl'
 import { FileOAuthClientRepository } from '../infrastructure/oauth/FileOAuthClientRepository'
 import { IssueToken } from '../application/oauth/endpoints/IssueToken'
 import { TokenController } from '../interfaces/http/http-oauth/controllers/TokenController'
+import { AuthorizeController } from '../interfaces/http/http-oauth/controllers/AuthorizeController'
+import { RevokeController } from '../interfaces/http/http-oauth/controllers/RevokeController'
+import { AccountsManagementController } from '../interfaces/http/http-management/controllers/AccountsManagementController'
 import { CaseApiClient } from '../infrastructure/http/CaseApiClient'
 import { JsonSchemaValidator } from '../infrastructure/validation/JsonSchemaValidator'
+import { BcryptPasswordHasher } from '../application/user/services/PasswordHasher'
+import { FileUserAccountRepository } from '../infrastructure/user/FileUserAccountRepository'
+import { FileTenantMembershipRepository } from '../infrastructure/user/FileTenantMembershipRepository'
+import { FileAuthorizationCodeRepository } from '../infrastructure/oauth/FileAuthorizationCodeRepository'
+import { FileRefreshTokenRepository } from '../infrastructure/oauth/FileRefreshTokenRepository'
+import { CreateUserAccount } from '../application/user/endpoints/CreateUserAccount'
+import { DeleteUserAccount } from '../application/user/endpoints/DeleteUserAccount'
+import { UpdateUserAccount } from '../application/user/endpoints/UpdateUserAccount'
+import { ListTenantAccounts } from '../application/user/endpoints/ListTenantAccounts'
+import { AddTenantMembership } from '../application/user/endpoints/AddTenantMembership'
+import { RemoveTenantMembership } from '../application/user/endpoints/RemoveTenantMembership'
+import { Authorize } from '../application/oauth/endpoints/Authorize'
+import { IssueTokenFromCode } from '../application/oauth/endpoints/IssueTokenFromCode'
+import { IssueTokenFromRefresh } from '../application/oauth/endpoints/IssueTokenFromRefresh'
+import { RevokeToken } from '../application/oauth/endpoints/RevokeToken'
+import { CreateOAuthClient } from '../application/oauth/endpoints/CreateOAuthClient'
+import { DeleteOAuthClient } from '../application/oauth/endpoints/DeleteOAuthClient'
+import { ListTenantClients } from '../application/oauth/endpoints/ListTenantClients'
+import { OAuthClientsManagementController } from '../interfaces/http/http-management/controllers/OAuthClientsManagementController'
+import path from 'path'
 
 export interface Container {
   config: AppConfig
@@ -79,6 +102,8 @@ export interface Container {
     }
     oauth: {
       token: TokenController
+      authorize?: AuthorizeController
+      revoke?: RevokeController
     }
     management: {
       cfDocuments: CFDocumentsManagementController
@@ -86,6 +111,8 @@ export interface Container {
       cfAssociations: CFAssociationsManagementController
       frameworks: FrameworksManagementController
       tenants: TenantsManagementController
+      accounts?: AccountsManagementController
+      oauthClients?: OAuthClientsManagementController
     }
   }
 }
@@ -121,6 +148,46 @@ export async function buildContainer(): Promise<Container> {
 
   // Initialize OAuth command
   const issueToken = new IssueToken(oauthClientRepo, jwtSigner, config.jwtAudience)
+
+  // Initialize user account repositories
+  const userAccountRepo = new FileUserAccountRepository({
+    accountsFile: path.join(config.caseDataDir, 'users', 'accounts.json')
+  })
+  await userAccountRepo.load()
+
+  const tenantMembershipRepo = new FileTenantMembershipRepository({
+    membershipsFile: path.join(config.caseDataDir, 'users', 'tenant-memberships.json')
+  })
+  await tenantMembershipRepo.load()
+
+  // Initialize OAuth repositories
+  const authorizationCodeRepo = new FileAuthorizationCodeRepository()
+  const refreshTokenRepo = new FileRefreshTokenRepository({
+    tokensFile: path.join(config.caseDataDir, 'oauth', 'refresh-tokens.json')
+  })
+  await refreshTokenRepo.load()
+
+  // Initialize password hasher
+  const passwordHasher = new BcryptPasswordHasher()
+
+  // Initialize user account commands
+  const createUserAccount = new CreateUserAccount(userAccountRepo, tenantMembershipRepo, passwordHasher)
+  const deleteUserAccount = new DeleteUserAccount(userAccountRepo, tenantMembershipRepo)
+  const updateUserAccount = new UpdateUserAccount(userAccountRepo, passwordHasher)
+  const listTenantAccounts = new ListTenantAccounts(tenantMembershipRepo, userAccountRepo)
+  const addTenantMembership = new AddTenantMembership(userAccountRepo, tenantMembershipRepo)
+  const removeTenantMembership = new RemoveTenantMembership(tenantMembershipRepo)
+
+  // Initialize OAuth authorization code flow commands
+  const authorize = new Authorize(userAccountRepo, tenantMembershipRepo, passwordHasher, authorizationCodeRepo, oauthClientRepo)
+  const issueTokenFromCode = new IssueTokenFromCode(authorizationCodeRepo, tenantMembershipRepo, refreshTokenRepo, jwtSigner, config.jwtAudience)
+  const issueTokenFromRefresh = new IssueTokenFromRefresh(refreshTokenRepo, tenantMembershipRepo, jwtSigner, config.jwtAudience)
+  const revokeToken = new RevokeToken(refreshTokenRepo)
+
+  // Initialize OAuth client management commands
+  const createOAuthClient = new CreateOAuthClient(oauthClientRepo)
+  const deleteOAuthClient = new DeleteOAuthClient(oauthClientRepo)
+  const listTenantClients = new ListTenantClients(oauthClientRepo)
 
   // Initialize CASE services
   const store = new FileFrameworkStore({ baseDataDir: config.caseDataDir })
@@ -178,12 +245,16 @@ export async function buildContainer(): Promise<Container> {
   const cfItemTypesControllerV1p1 = new CFItemTypesControllerV1p1(getCFItemType)
   const cfLicensesControllerV1p1 = new CFLicensesControllerV1p1(getCFLicense)
   const discoveryControllerV1p1 = new DiscoveryControllerV1p1()
-  const tokenController = new TokenController(issueToken)
+  
+  // Initialize OAuth controllers
+  const tokenController = new TokenController(issueToken, issueTokenFromCode, issueTokenFromRefresh)
+  const authorizeController = new AuthorizeController(authorize)
+  const revokeController = new RevokeController(revokeToken)
 
   // Initialize management commands
   const listFrameworks = new ListFrameworks(store)
   const listTenants = new ListTenants()
-  const createTenant = new CreateTenant()
+  const createTenant = new CreateTenant(createUserAccount) // Pass createUserAccount for auto-creating admin account
 
   // Initialize management controllers
   const cfDocumentsManagementController = new CFDocumentsManagementController(
@@ -205,6 +276,23 @@ export async function buildContainer(): Promise<Container> {
     listTenants,
     createTenant,
     config.caseDataDir
+  )
+
+  // Initialize account management controller
+  const accountsManagementController = new AccountsManagementController(
+    createUserAccount,
+    deleteUserAccount,
+    updateUserAccount,
+    listTenantAccounts,
+    addTenantMembership,
+    removeTenantMembership
+  )
+
+  // Initialize OAuth client management controller
+  const oauthClientsManagementController = new OAuthClientsManagementController(
+    createOAuthClient,
+    deleteOAuthClient,
+    listTenantClients
   )
 
   return {
@@ -232,14 +320,17 @@ export async function buildContainer(): Promise<Container> {
         frameworks: frameworksController
       },
       oauth: {
-        token: tokenController
+        token: tokenController,
+        authorize: authorizeController!,
+        revoke: revokeController!
       },
       management: {
         cfDocuments: cfDocumentsManagementController,
         cfItems: cfItemsManagementController,
         cfAssociations: cfAssociationsManagementController,
         frameworks: frameworksManagementController,
-        tenants: tenantsManagementController
+        tenants: tenantsManagementController,
+        accounts: accountsManagementController!
       }
     }
   }

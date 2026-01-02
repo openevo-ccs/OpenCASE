@@ -14,7 +14,9 @@ export function createServer (container: Container): express.Express {
 
   // OAuth routes (no auth required - used to get tokens)
   registerOAuthRoutes(app, {
-    tokenController: container.controllers.oauth.token
+    tokenController: container.controllers.oauth.token,
+    authorizeController: container.controllers.oauth.authorize,
+    revokeController: container.controllers.oauth.revoke
   })
 
   // Service Discovery endpoint (no auth required - used for service discovery)
@@ -54,7 +56,9 @@ export function createServer (container: Container): express.Express {
     cfItemsController: container.controllers.management.cfItems,
     cfAssociationsController: container.controllers.management.cfAssociations,
     frameworksController: container.controllers.management.frameworks,
-    tenantsController: container.controllers.management.tenants
+    tenantsController: container.controllers.management.tenants,
+    accountsController: container.controllers.management.accounts,
+    oauthClientsController: container.controllers.management.oauthClients
   })
 
   // simple health endpoint

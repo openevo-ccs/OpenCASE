@@ -34,14 +34,15 @@ export class TenantsManagementController {
         return res.status(400).json({ error: 'tenantId must contain only alphanumeric characters, hyphens, and underscores' })
       }
 
-      await this.createTenant.execute({
+      const result = await this.createTenant.execute({
         baseDataDir: this.baseDataDir,
         tenantId
       })
 
       res.status(201).json({ 
         status: 'created',
-        tenantId 
+        tenantId: result.tenantId,
+        adminAccount: result.adminAccount
       })
     } catch (error: any) {
       if (error.message?.includes('already exists')) {

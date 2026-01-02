@@ -24,7 +24,13 @@ describe('TenantsManagementController', () => {
     } as any
 
     mockCreateTenant = {
-      execute: jest.fn().mockResolvedValue(undefined)
+      execute: jest.fn().mockResolvedValue({
+        tenantId: 'new-tenant',
+        adminAccount: {
+          email: 'admin@new-tenant.local',
+          password: 'generated-password-123'
+        }
+      })
     } as any
 
     controller = new TenantsManagementController(
@@ -77,6 +83,13 @@ describe('TenantsManagementController', () => {
   describe('create', () => {
     it('should create tenant successfully', async () => {
       mockRequest.body = { tenantId: 'new-tenant' }
+      mockCreateTenant.execute.mockResolvedValue({
+        tenantId: 'new-tenant',
+        adminAccount: {
+          email: 'admin@new-tenant.local',
+          password: 'generated-password-123'
+        }
+      })
 
       await controller.create(mockRequest as Request, mockResponse as Response)
 
@@ -87,7 +100,11 @@ describe('TenantsManagementController', () => {
       expect(responseStatus).toHaveBeenCalledWith(201)
       expect(responseJson).toHaveBeenCalledWith({
         status: 'created',
-        tenantId: 'new-tenant'
+        tenantId: 'new-tenant',
+        adminAccount: {
+          email: 'admin@new-tenant.local',
+          password: 'generated-password-123'
+        }
       })
     })
 
@@ -120,7 +137,13 @@ describe('TenantsManagementController', () => {
       
       for (const tenantId of validIds) {
         mockRequest.body = { tenantId }
-        mockCreateTenant.execute.mockClear()
+        mockCreateTenant.execute.mockResolvedValue({
+          tenantId,
+          adminAccount: {
+            email: `admin@${tenantId}.local`,
+            password: 'generated-password-123'
+          }
+        })
         responseStatus.mockClear()
         responseJson.mockClear()
 

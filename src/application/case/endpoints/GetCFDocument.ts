@@ -13,7 +13,7 @@ export class GetCFDocument {
   constructor (private readonly pkgRepo: CFPackageRepository) {}
 
   async execute (query: GetCFDocumentQuery) {
-    logger.info({ query }, 'Executing GetCFDocument')
+    //logger.info({ query }, 'Executing GetCFDocument')
     
     // Load the package containing this document
     const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, query.sourcedId)

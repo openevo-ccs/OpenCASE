@@ -16,7 +16,7 @@ export class GetCFRubric {
   ) {}
 
   async execute (query: GetCFRubricQuery) {
-    logger.info({ query }, 'Executing GetCFRubric')
+    //logger.info({ query }, 'Executing GetCFRubric')
 
     // Search through all documents to find the rubric
     const documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)

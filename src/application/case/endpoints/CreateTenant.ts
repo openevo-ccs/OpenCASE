@@ -1,14 +1,27 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { logger } from '../../../infrastructure/logging/Logger'
+import { CreateUserAccount } from '../../user/endpoints/CreateUserAccount'
 
 export interface CreateTenantCommand {
   baseDataDir: string
   tenantId: string
 }
 
+export interface CreateTenantResult {
+  tenantId: string
+  adminAccount: {
+    email: string
+    password: string
+  }
+}
+
 export class CreateTenant {
-  async execute (cmd: CreateTenantCommand): Promise<void> {
+  constructor(
+    private readonly createUserAccount?: CreateUserAccount
+  ) {}
+
+  async execute (cmd: CreateTenantCommand): Promise<CreateTenantResult> {
     logger.info({ tenantId: cmd.tenantId }, 'Executing CreateTenant')
 
     const tenantsDir = path.join(cmd.baseDataDir, 'tenants')
@@ -60,6 +73,40 @@ export class CreateTenant {
     }
 
     logger.info({ tenantId: cmd.tenantId }, 'Tenant created successfully')
+
+    // Auto-create admin account if CreateUserAccount is provided
+    let adminAccount: { email: string; password: string } | undefined
+    if (this.createUserAccount) {
+      try {
+        const adminEmail = `admin@${cmd.tenantId}.local`
+        const result = await this.createUserAccount.execute({
+          email: adminEmail,
+          tenantId: cmd.tenantId,
+          role: 'admin',
+          autoGeneratePassword: true
+        })
+
+        adminAccount = {
+          email: result.email,
+          password: result.password!
+        }
+
+        logger.info({ tenantId: cmd.tenantId, email: adminEmail }, 'Admin account created for tenant')
+      } catch (error: any) {
+        logger.error({ tenantId: cmd.tenantId, error: error.message }, 'Failed to create admin account')
+        // Don't fail tenant creation if admin account creation fails
+      }
+    }
+
+    const result: CreateTenantResult = {
+      tenantId: cmd.tenantId,
+      adminAccount: adminAccount || {
+        email: `admin@${cmd.tenantId}.local`,
+        password: '' // Empty if not created
+      }
+    }
+
+    return result
   }
 }
 

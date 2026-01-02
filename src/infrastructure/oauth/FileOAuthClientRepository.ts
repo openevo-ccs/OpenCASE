@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { OAuthClientRepository } from '../../application/oauth/ports/OAuthClientRepository';
 import { OAuthClient } from '../../domain/oauth/entities/OAuthClient';
+import { type TenantId } from '../../domain/case/value-objects/Identifiers';
 
 export interface FileOAuthClientRepositoryConfig {
   clientsFile: string;
@@ -126,6 +127,43 @@ export class FileOAuthClientRepository implements OAuthClientRepository {
 
   async findByClientId(clientId: string): Promise<OAuthClient | null> {
     return this.clients.get(clientId) ?? null;
+  }
+
+  async findByTenantId(tenantId: TenantId): Promise<OAuthClient[]> {
+    return Array.from(this.clients.values()).filter(
+      client => client.tenantId === tenantId
+    );
+  }
+
+  async save(client: OAuthClient): Promise<void> {
+    this.clients.set(client.clientId, client);
+    await this.persist();
+  }
+
+  async delete(clientId: string): Promise<void> {
+    this.clients.delete(clientId);
+    await this.persist();
+  }
+
+  private async persist(): Promise<void> {
+    const clientsData: ClientData[] = Array.from(this.clients.values()).map(client => ({
+      clientId: client.clientId,
+      clientSecret: client.clientSecret,
+      tenantId: client.tenantId,
+      grantTypes: client.grantTypes,
+      scopes: client.scopes,
+      active: client.active
+    }));
+
+    // Ensure directory exists
+    const dir = path.dirname(this.cfg.clientsFile);
+    await fs.mkdir(dir, { recursive: true });
+
+    await fs.writeFile(
+      this.cfg.clientsFile,
+      JSON.stringify(clientsData, null, 2),
+      'utf8'
+    );
   }
 }
 

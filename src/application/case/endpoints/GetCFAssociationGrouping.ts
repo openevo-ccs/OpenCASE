@@ -16,7 +16,7 @@ export class GetCFAssociationGrouping {
   ) {}
 
   async execute (query: GetCFAssociationGroupingQuery) {
-    logger.info({ query }, 'Executing GetCFAssociationGrouping')
+    //logger.info({ query }, 'Executing GetCFAssociationGrouping')
 
     const documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)
     

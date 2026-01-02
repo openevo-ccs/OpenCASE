@@ -1103,6 +1103,862 @@ export class OpenAPISpecGenerator {
             'x-1edtech-extension': true,
             security: [{ BearerAuth: ['case.admin'] }]
           }
+        },
+        '/management/tenants/{tenantId}/accounts': {
+          get: {
+            operationId: 'listTenantAccounts',
+            summary: 'List all accounts for a tenant (non-CASE-standard extension)',
+            tags: ['DefinitionsManager'],
+            description: 'This endpoint lists all user accounts for a specific tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'List of accounts retrieved successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        accounts: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              accountId: { type: 'string' },
+                              email: { type: 'string' },
+                              role: { type: 'string', enum: ['admin', 'user', 'viewer'] },
+                              status: { type: 'string', enum: ['active', 'inactive'] },
+                              createdAt: { type: 'string', format: 'date-time' }
+                            }
+                          }
+                        },
+                        total: { type: 'integer' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }]
+          },
+          post: {
+            operationId: 'createTenantAccount',
+            summary: 'Create a new account for a tenant (non-CASE-standard extension)',
+            tags: ['DefinitionsManager'],
+            description: 'This endpoint creates a new user account for a specific tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: ['email'],
+                    properties: {
+                      email: {
+                        type: 'string',
+                        format: 'email',
+                        description: 'Email address for the account (used as username)'
+                      },
+                      password: {
+                        type: 'string',
+                        description: 'Password for the account. If not provided and autoGeneratePassword is true, a secure password will be generated.'
+                      },
+                      role: {
+                        type: 'string',
+                        enum: ['admin', 'user', 'viewer'],
+                        default: 'user',
+                        description: 'Role for the account within the tenant'
+                      },
+                      autoGeneratePassword: {
+                        type: 'boolean',
+                        default: false,
+                        description: 'If true, automatically generate a secure password'
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              201: {
+                description: 'Account created successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        accountId: { type: 'string' },
+                        email: { type: 'string' },
+                        password: { type: 'string', description: 'Only included if auto-generated' },
+                        tenantId: { type: 'string' },
+                        role: { type: 'string', enum: ['admin', 'user', 'viewer'] }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              409: { description: 'Account already exists.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }]
+          }
+        },
+        '/management/tenants/{tenantId}/accounts/{accountId}': {
+          put: {
+            operationId: 'updateTenantAccount',
+            summary: 'Update an account for a tenant (non-CASE-standard extension)',
+            tags: ['DefinitionsManager'],
+            description: 'This endpoint updates an existing user account for a specific tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'accountId',
+                in: 'path',
+                required: true,
+                description: 'The account identifier.',
+                schema: { type: 'string' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      password: {
+                        type: 'string',
+                        description: 'New password for the account'
+                      },
+                      status: {
+                        type: 'string',
+                        enum: ['active', 'inactive'],
+                        description: 'Account status'
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'Account updated successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'updated' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Account not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }]
+          },
+          delete: {
+            operationId: 'deleteTenantAccount',
+            summary: 'Delete an account from a tenant (non-CASE-standard extension)',
+            tags: ['DefinitionsManager'],
+            description: 'This endpoint removes a user account from a specific tenant (removes tenant membership). This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'accountId',
+                in: 'path',
+                required: true,
+                description: 'The account identifier.',
+                schema: { type: 'string' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'Account removed from tenant successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'deleted' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Account or membership not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }]
+          }
+        },
+        '/management/tenants/{tenantId}/accounts/{accountId}/memberships': {
+          post: {
+            operationId: 'addTenantMembership',
+            summary: 'Add tenant membership to an account (non-CASE-standard extension)',
+            tags: ['DefinitionsManager'],
+            description: 'This endpoint adds a tenant membership to an existing account, allowing the account to access multiple tenants. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'accountId',
+                in: 'path',
+                required: true,
+                description: 'The account identifier.',
+                schema: { type: 'string' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: ['tenantId'],
+                    properties: {
+                      tenantId: {
+                        type: 'string',
+                        description: 'The tenant ID to add membership for'
+                      },
+                      role: {
+                        type: 'string',
+                        enum: ['admin', 'user', 'viewer'],
+                        default: 'user',
+                        description: 'Role for the account in the new tenant'
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              201: {
+                description: 'Membership added successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'membership added' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              409: { description: 'Membership already exists.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }]
+          }
+        },
+        '/management/tenants/{tenantId}/accounts/{accountId}/memberships/{targetTenantId}': {
+          delete: {
+            operationId: 'removeTenantMembership',
+            summary: 'Remove tenant membership from an account (non-CASE-standard extension)',
+            tags: ['DefinitionsManager'],
+            description: 'This endpoint removes a tenant membership from an account. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'accountId',
+                in: 'path',
+                required: true,
+                description: 'The account identifier.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'targetTenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant ID to remove membership for.',
+                schema: { type: 'string' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'Membership removed successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'membership removed' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Membership not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }]
+          }
+        },
+        '/management/tenants/{tenantId}/clients': {
+          get: {
+            operationId: 'listTenantClients',
+            summary: 'List all OAuth clients for a tenant (non-CASE-standard extension)',
+            tags: ['OAuth'],
+            description: 'This endpoint lists all OAuth clients for a specific tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner or case.admin scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'List of OAuth clients retrieved successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        clients: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              clientId: { type: 'string' },
+                              grantTypes: {
+                                type: 'array',
+                                items: { type: 'string', enum: ['client_credentials', 'authorization_code'] }
+                              },
+                              scopes: {
+                                type: 'array',
+                                items: { type: 'string' }
+                              },
+                              active: { type: 'boolean' }
+                            }
+                          }
+                        },
+                        total: { type: 'integer' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner or case.admin scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }, { BearerAuth: ['case.admin'] }]
+          },
+          post: {
+            operationId: 'createTenantClient',
+            summary: 'Create a new OAuth client for a tenant (non-CASE-standard extension)',
+            tags: ['OAuth'],
+            description: 'This endpoint creates a new OAuth client for a specific tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner or case.admin scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: ['grantTypes'],
+                    properties: {
+                      clientId: {
+                        type: 'string',
+                        description: 'Optional client ID. If not provided, a secure random ID will be generated.'
+                      },
+                      clientSecret: {
+                        type: 'string',
+                        description: 'Optional client secret. If not provided and autoGenerateSecret is true, a secure random secret will be generated.'
+                      },
+                      grantTypes: {
+                        type: 'array',
+                        items: { type: 'string', enum: ['client_credentials', 'authorization_code'] },
+                        description: 'OAuth2 grant types supported by this client'
+                      },
+                      scopes: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Scopes that this client can request'
+                      },
+                      active: {
+                        type: 'boolean',
+                        default: true,
+                        description: 'Whether the client is active'
+                      },
+                      autoGenerateSecret: {
+                        type: 'boolean',
+                        default: false,
+                        description: 'If true, automatically generate a secure client secret'
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              201: {
+                description: 'OAuth client created successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        clientId: { type: 'string' },
+                        clientSecret: { type: 'string', description: 'Only included in creation response' },
+                        tenantId: { type: 'string' },
+                        grantTypes: {
+                          type: 'array',
+                          items: { type: 'string' }
+                        },
+                        scopes: {
+                          type: 'array',
+                          items: { type: 'string' }
+                        },
+                        active: { type: 'boolean' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner or case.admin scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              409: { description: 'OAuth client already exists.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }, { BearerAuth: ['case.admin'] }]
+          }
+        },
+        '/management/tenants/{tenantId}/clients/{clientId}': {
+          delete: {
+            operationId: 'deleteTenantClient',
+            summary: 'Delete an OAuth client from a tenant (non-CASE-standard extension)',
+            tags: ['OAuth'],
+            description: 'This endpoint removes an OAuth client from a specific tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.owner or case.admin scope.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'clientId',
+                in: 'path',
+                required: true,
+                description: 'The OAuth client identifier.',
+                schema: { type: 'string' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'OAuth client deleted successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'deleted' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions - case.owner or case.admin scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'OAuth client not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.owner'] }, { BearerAuth: ['case.admin'] }]
+          }
+        },
+        '/oauth/authorize': {
+          get: {
+            operationId: 'authorize',
+            summary: 'OAuth2 Authorization Endpoint (non-CASE-standard extension)',
+            tags: ['OAuth'],
+            description: 'This endpoint initiates the OAuth2 authorization code flow with PKCE for user authentication. This is NOT part of the CASE standard specification and is provided as extended functionality for React applications. Supports authorization_code grant type with PKCE.',
+            parameters: [
+              {
+                name: 'client_id',
+                in: 'query',
+                required: true,
+                description: 'The OAuth client identifier',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'redirect_uri',
+                in: 'query',
+                required: true,
+                description: 'The redirect URI where the authorization code will be sent',
+                schema: { type: 'string', format: 'uri' }
+              },
+              {
+                name: 'response_type',
+                in: 'query',
+                required: true,
+                description: 'Must be "code" for authorization code flow',
+                schema: { type: 'string', enum: ['code'] }
+              },
+              {
+                name: 'code_challenge',
+                in: 'query',
+                required: true,
+                description: 'PKCE code challenge (base64url encoded SHA256 hash of code_verifier)',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'code_challenge_method',
+                in: 'query',
+                required: false,
+                description: 'PKCE code challenge method (S256 or plain)',
+                schema: { type: 'string', enum: ['S256', 'plain'], default: 'S256' }
+              },
+              {
+                name: 'scope',
+                in: 'query',
+                required: false,
+                description: 'Space-separated list of scopes',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'state',
+                in: 'query',
+                required: false,
+                description: 'Opaque value used to maintain state between request and callback',
+                schema: { type: 'string' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/x-www-form-urlencoded': {
+                  schema: {
+                    type: 'object',
+                    required: ['email', 'password'],
+                    properties: {
+                      email: { type: 'string', format: 'email' },
+                      password: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              302: {
+                description: 'Redirect to redirect_uri with authorization code',
+                headers: {
+                  Location: {
+                    schema: { type: 'string', format: 'uri' },
+                    description: 'Redirect URI with code and state query parameters'
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } },
+              401: { description: 'Invalid credentials.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          },
+          post: {
+            operationId: 'authorizePost',
+            summary: 'OAuth2 Authorization Endpoint (POST) (non-CASE-standard extension)',
+            tags: ['OAuth'],
+            description: 'POST version of the authorization endpoint for form submissions.',
+            parameters: [
+              {
+                name: 'client_id',
+                in: 'query',
+                required: true,
+                schema: { type: 'string' }
+              },
+              {
+                name: 'redirect_uri',
+                in: 'query',
+                required: true,
+                schema: { type: 'string', format: 'uri' }
+              },
+              {
+                name: 'response_type',
+                in: 'query',
+                required: true,
+                schema: { type: 'string', enum: ['code'] }
+              },
+              {
+                name: 'code_challenge',
+                in: 'query',
+                required: true,
+                schema: { type: 'string' }
+              },
+              {
+                name: 'code_challenge_method',
+                in: 'query',
+                required: false,
+                schema: { type: 'string', enum: ['S256', 'plain'] }
+              },
+              {
+                name: 'scope',
+                in: 'query',
+                required: false,
+                schema: { type: 'string' }
+              },
+              {
+                name: 'state',
+                in: 'query',
+                required: false,
+                schema: { type: 'string' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/x-www-form-urlencoded': {
+                  schema: {
+                    type: 'object',
+                    required: ['email', 'password'],
+                    properties: {
+                      email: { type: 'string', format: 'email' },
+                      password: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              302: {
+                description: 'Redirect to redirect_uri with authorization code',
+                headers: {
+                  Location: {
+                    schema: { type: 'string', format: 'uri' }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } },
+              401: { description: 'Invalid credentials.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          }
+        },
+        '/oauth/token': {
+          post: {
+            operationId: 'token',
+            summary: 'OAuth2 Token Endpoint',
+            tags: ['OAuth'],
+            description: 'This endpoint issues access tokens. Supports client_credentials grant for service-to-service authentication and authorization_code grant with PKCE for user authentication.',
+            requestBody: {
+              required: true,
+              content: {
+                'application/x-www-form-urlencoded': {
+                  schema: {
+                    type: 'object',
+                    required: ['grant_type', 'client_id'],
+                    properties: {
+                      grant_type: {
+                        type: 'string',
+                        enum: ['client_credentials', 'authorization_code', 'refresh_token'],
+                        description: 'OAuth2 grant type'
+                      },
+                      client_id: {
+                        type: 'string',
+                        description: 'OAuth client identifier'
+                      },
+                      client_secret: {
+                        type: 'string',
+                        description: 'OAuth client secret (required for client_credentials grant)'
+                      },
+                      code: {
+                        type: 'string',
+                        description: 'Authorization code (required for authorization_code grant)'
+                      },
+                      redirect_uri: {
+                        type: 'string',
+                        format: 'uri',
+                        description: 'Redirect URI (required for authorization_code grant)'
+                      },
+                      code_verifier: {
+                        type: 'string',
+                        description: 'PKCE code verifier (required for authorization_code grant)'
+                      },
+                      refresh_token: {
+                        type: 'string',
+                        description: 'Refresh token (required for refresh_token grant)'
+                      },
+                      scope: {
+                        type: 'string',
+                        description: 'Space-separated list of scopes'
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'Token issued successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        access_token: { type: 'string' },
+                        token_type: { type: 'string', example: 'Bearer' },
+                        expires_in: { type: 'integer' },
+                        scope: { type: 'string' },
+                        refresh_token: { type: 'string', description: 'Included for authorization_code grant' },
+                        refresh_token_expires_in: { type: 'integer', description: 'Included for authorization_code grant' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } },
+              401: { description: 'Invalid client or credentials.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted'
+          }
+        },
+        '/oauth/revoke': {
+          post: {
+            operationId: 'revokeToken',
+            summary: 'OAuth2 Token Revocation Endpoint (non-CASE-standard extension)',
+            tags: ['OAuth'],
+            description: 'This endpoint revokes refresh tokens. This is NOT part of the CASE standard specification and is provided as extended functionality for React applications.',
+            requestBody: {
+              required: true,
+              content: {
+                'application/x-www-form-urlencoded': {
+                  schema: {
+                    type: 'object',
+                    required: ['token', 'client_id'],
+                    properties: {
+                      token: {
+                        type: 'string',
+                        description: 'The refresh token to revoke'
+                      },
+                      token_type_hint: {
+                        type: 'string',
+                        enum: ['refresh_token'],
+                        description: 'Hint about the token type'
+                      },
+                      client_id: {
+                        type: 'string',
+                        description: 'OAuth client identifier'
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'Token revoked successfully (or token not found, per RFC 7009).',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        revoked: { type: 'boolean' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          }
         }
       },
       components: {
@@ -1457,14 +2313,14 @@ export class OpenAPISpecGenerator {
               }
             }
           }
-        }
-      },
-      securitySchemes: {
-        BearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          description: 'JWT token obtained from /oauth/token endpoint'
+        },
+        securitySchemes: {
+          BearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            description: 'JWT token obtained from /oauth/token endpoint'
+          }
         }
       }
     }

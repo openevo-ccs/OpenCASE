@@ -16,7 +16,7 @@ export class GetCFItemAssociations {
   ) {}
 
   async execute (query: GetCFItemAssociationsQuery) {
-    logger.info({ query }, 'Executing GetCFItemAssociations')
+    // logger.info({ query }, 'Executing GetCFItemAssociations')
 
     // Find which document contains this item
     const docId = this.store.getDocumentIdForItem(query.tenantId, query.caseVersion, query.sourcedId)

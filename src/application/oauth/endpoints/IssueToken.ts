@@ -19,8 +19,13 @@ export class IssueToken {
 
   async execute(cmd: IssueTokenCommand): Promise<AccessToken> {
     // Validate grant type
-    if (cmd.grantType !== 'client_credentials') {
+    if (cmd.grantType !== 'client_credentials' && cmd.grantType !== 'authorization_code' && cmd.grantType !== 'refresh_token') {
       throw new Error(`Unsupported grant_type: ${cmd.grantType}`);
+    }
+
+    // authorization_code and refresh_token are handled by separate endpoints
+    if (cmd.grantType === 'authorization_code' || cmd.grantType === 'refresh_token') {
+      throw new Error(`Grant type ${cmd.grantType} should use the appropriate endpoint`);
     }
 
     // Find and validate client

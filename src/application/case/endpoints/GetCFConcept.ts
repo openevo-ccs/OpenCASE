@@ -16,7 +16,7 @@ export class GetCFConcept {
   ) {}
 
   async execute (query: GetCFConceptQuery) {
-    logger.info({ query }, 'Executing GetCFConcept')
+    //logger.info({ query }, 'Executing GetCFConcept')
 
     const documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)
     

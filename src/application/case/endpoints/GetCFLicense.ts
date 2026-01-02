@@ -16,7 +16,7 @@ export class GetCFLicense {
   ) {}
 
   async execute (query: GetCFLicenseQuery) {
-    logger.info({ query }, 'Executing GetCFLicense')
+    //logger.info({ query }, 'Executing GetCFLicense')
 
     const documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)
     

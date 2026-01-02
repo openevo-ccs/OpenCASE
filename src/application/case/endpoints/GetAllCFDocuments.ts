@@ -18,7 +18,7 @@ export class GetAllCFDocuments {
   constructor (private readonly store: FileFrameworkStore) {}
 
   async execute (query: GetAllCFDocumentsQuery) {
-    logger.info({ query }, 'Executing GetAllCFDocuments')
+    //logger.info({ query }, 'Executing GetAllCFDocuments')
 
     // Get all documents
     let documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)

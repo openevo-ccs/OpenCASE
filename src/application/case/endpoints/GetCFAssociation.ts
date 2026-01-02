@@ -16,7 +16,7 @@ export class GetCFAssociation {
   ) {}
 
   async execute (query: GetCFAssociationQuery) {
-    logger.info({ query }, 'Executing GetCFAssociation')
+    //logger.info({ query }, 'Executing GetCFAssociation')
 
     // Find which document contains this association
     const docId = this.store.getDocumentIdForAssociation(query.tenantId, query.caseVersion, query.sourcedId)

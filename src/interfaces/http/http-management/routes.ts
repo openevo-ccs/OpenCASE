@@ -4,7 +4,9 @@ import { CFItemsManagementController } from './controllers/CFItemsManagementCont
 import { CFAssociationsManagementController } from './controllers/CFAssociationsManagementController'
 import { FrameworksManagementController } from './controllers/FrameworksManagementController'
 import { TenantsManagementController } from './controllers/TenantsManagementController'
-import { requireScope } from '../middleware/scope'
+import { AccountsManagementController } from './controllers/AccountsManagementController'
+import { OAuthClientsManagementController } from './controllers/OAuthClientsManagementController'
+import { requireScope, requireAnyScope } from '../middleware/scope'
 
 /**
  * Management API Routes
@@ -22,6 +24,8 @@ export interface ManagementDeps {
   cfAssociationsController: CFAssociationsManagementController
   frameworksController: FrameworksManagementController
   tenantsController: TenantsManagementController
+  accountsController?: AccountsManagementController
+  oauthClientsController?: OAuthClientsManagementController
 }
 
 export function registerManagementRoutes (app: Express, deps: ManagementDeps): void {
@@ -72,5 +76,58 @@ export function registerManagementRoutes (app: Express, deps: ManagementDeps): v
     requireScope('case.admin'),
     deps.tenantsController.create
   )
+
+  // Account management endpoints (require case.owner scope)
+  if (deps.accountsController) {
+    app.post(
+      '/management/tenants/:tenantId/accounts',
+      requireScope('case.owner'),
+      deps.accountsController.create
+    )
+    app.get(
+      '/management/tenants/:tenantId/accounts',
+      requireScope('case.owner'),
+      deps.accountsController.list
+    )
+    app.put(
+      '/management/tenants/:tenantId/accounts/:accountId',
+      requireScope('case.owner'),
+      deps.accountsController.update
+    )
+    app.delete(
+      '/management/tenants/:tenantId/accounts/:accountId',
+      requireScope('case.owner'),
+      deps.accountsController.delete
+    )
+    app.post(
+      '/management/tenants/:tenantId/accounts/:accountId/memberships',
+      requireScope('case.owner'),
+      deps.accountsController.addMembership
+    )
+    app.delete(
+      '/management/tenants/:tenantId/accounts/:accountId/memberships/:targetTenantId',
+      requireScope('case.owner'),
+      deps.accountsController.removeMembership
+    )
+  }
+
+  // OAuth client management endpoints (require case.owner or case.admin scope)
+  if (deps.oauthClientsController) {
+    app.post(
+      '/management/tenants/:tenantId/clients',
+      requireAnyScope('case.owner', 'case.admin'),
+      deps.oauthClientsController.create
+    )
+    app.get(
+      '/management/tenants/:tenantId/clients',
+      requireAnyScope('case.owner', 'case.admin'),
+      deps.oauthClientsController.list
+    )
+    app.delete(
+      '/management/tenants/:tenantId/clients/:clientId',
+      requireAnyScope('case.owner', 'case.admin'),
+      deps.oauthClientsController.delete
+    )
+  }
 }
 
