@@ -3,6 +3,7 @@ import { makeAuthMiddleware } from './middleware/auth'
 import { registerV1p1Routes } from './http-public/v1p1/routes'
 import { registerAdminRoutes } from './http-admin/routes'
 import { registerOAuthRoutes } from './http-oauth/routes'
+import { registerManagementRoutes } from './http-management/routes'
 import { type Container } from '../../wiring/container'
 
 export function createServer (container: Container): express.Express {
@@ -26,6 +27,7 @@ export function createServer (container: Container): express.Express {
   const authMiddleware = makeAuthMiddleware(container.jwtVerifier)
   app.use('/ims/case', authMiddleware)
   app.use('/admin', authMiddleware)
+  app.use('/management', authMiddleware)
 
   registerV1p1Routes(app, {
     cfPackagesController: container.controllers.v1p1.cfPackages,
@@ -44,6 +46,15 @@ export function createServer (container: Container): express.Express {
 
   registerAdminRoutes(app, {
     frameworksController: container.controllers.admin.frameworks
+  })
+
+  // Management routes (non-CASE-standard UPDATE/DELETE endpoints)
+  registerManagementRoutes(app, {
+    cfDocumentsController: container.controllers.management.cfDocuments,
+    cfItemsController: container.controllers.management.cfItems,
+    cfAssociationsController: container.controllers.management.cfAssociations,
+    frameworksController: container.controllers.management.frameworks,
+    tenantsController: container.controllers.management.tenants
   })
 
   // simple health endpoint

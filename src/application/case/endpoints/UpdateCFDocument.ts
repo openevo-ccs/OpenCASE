@@ -1,0 +1,66 @@
+import type { CFPackageRepository } from '../ports/CFPackageRepository'
+import { CaseVersion, TenantId } from '../../../domain/case/value-objects/Identifiers'
+import { CFDocument } from '../../../domain/case/entities/CFDocument'
+import { CFItem } from '../../../domain/case/entities/CFItem'
+import { CFAssociation } from '../../../domain/case/entities/CFAssociation'
+import { CFPackage } from '../../../domain/case/entities/CFPackage'
+
+export interface UpdateCFDocumentCommand {
+  tenantId: TenantId
+  caseVersion: CaseVersion
+  sourcedId: string
+  payload: any // CFDocument JSON
+}
+
+export class UpdateCFDocument {
+  constructor (private readonly pkgRepo: CFPackageRepository) {}
+
+  async execute (cmd: UpdateCFDocumentCommand): Promise<void> {
+    const { tenantId, caseVersion, sourcedId, payload } = cmd
+
+    // Load existing package
+    const existingPkg = await this.pkgRepo.load(tenantId, caseVersion, sourcedId)
+    if (!existingPkg) {
+      throw new Error(`CFDocument with sourcedId ${sourcedId} not found`)
+    }
+
+    // Create updated document from payload
+    const updatedDocument = CFDocument.fromRaw(tenantId, caseVersion, payload)
+    
+    // Ensure sourcedId matches
+    if (updatedDocument.sourcedId !== sourcedId) {
+      throw new Error('sourcedId in payload must match the URL parameter')
+    }
+
+    const docId = updatedDocument.sourcedId
+    const docJSON = updatedDocument.toJSON()
+    const docURI = docJSON.uri
+
+    // Update items with new document URI if needed
+    const items = existingPkg.items.map(i => {
+      const itemJSON = i.toJSON()
+      // Update CFDocumentURI to point to updated document
+      if (itemJSON.CFDocumentURI) {
+        itemJSON.CFDocumentURI.uri = docURI
+        itemJSON.CFDocumentURI.identifier = docId
+      }
+      return CFItem.fromRaw(tenantId, caseVersion, itemJSON, docId, docURI)
+    })
+
+    // Keep existing associations, rubrics, and definitions
+    const associations = existingPkg.associations
+    const rubrics = existingPkg.rubrics
+    const definitions = existingPkg.definitions
+
+    const updatedPkg = new CFPackage({
+      document: updatedDocument,
+      items,
+      associations,
+      rubrics,
+      definitions
+    })
+
+    await this.pkgRepo.saveNewVersion(tenantId, caseVersion, updatedPkg)
+  }
+}
+

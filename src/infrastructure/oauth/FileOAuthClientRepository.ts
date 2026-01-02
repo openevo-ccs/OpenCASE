@@ -59,7 +59,7 @@ export class FileOAuthClientRepository implements OAuthClientRepository {
         clientSecret: 'demo-secret',
         tenantId: 'demo',
         grantTypes: ['client_credentials'],
-        scopes: ['case.read', 'case.write'],
+        scopes: ['case.read', 'case.write', 'case.admin'],
         active: true
       }
     ];

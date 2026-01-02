@@ -17,6 +17,12 @@ import { GetCFConcept } from '../application/case/endpoints/GetCFConcept'
 import { GetCFAssociationGrouping } from '../application/case/endpoints/GetCFAssociationGrouping'
 import { GetCFItemType } from '../application/case/endpoints/GetCFItemType'
 import { GetCFLicense } from '../application/case/endpoints/GetCFLicense'
+import { UpdateCFDocument } from '../application/case/endpoints/UpdateCFDocument'
+import { UpdateCFItem } from '../application/case/endpoints/UpdateCFItem'
+import { UpdateCFAssociation } from '../application/case/endpoints/UpdateCFAssociation'
+import { DeleteCFDocument } from '../application/case/endpoints/DeleteCFDocument'
+import { DeleteCFItem } from '../application/case/endpoints/DeleteCFItem'
+import { DeleteCFAssociation } from '../application/case/endpoints/DeleteCFAssociation'
 import { FrameworksController } from '../interfaces/http/http-admin/controllers/FrameworksController'
 import { CFPackagesControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/CFPackagesController'
 import { CFDocumentsControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/CFDocumentsController'
@@ -31,6 +37,14 @@ import { CFAssociationGroupingsControllerV1p1 } from '../interfaces/http/http-pu
 import { CFItemTypesControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/CFItemTypesController'
 import { CFLicensesControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/CFLicensesController'
 import { DiscoveryControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/DiscoveryController'
+import { CFDocumentsManagementController } from '../interfaces/http/http-management/controllers/CFDocumentsManagementController'
+import { CFItemsManagementController } from '../interfaces/http/http-management/controllers/CFItemsManagementController'
+import { CFAssociationsManagementController } from '../interfaces/http/http-management/controllers/CFAssociationsManagementController'
+import { FrameworksManagementController } from '../interfaces/http/http-management/controllers/FrameworksManagementController'
+import { TenantsManagementController } from '../interfaces/http/http-management/controllers/TenantsManagementController'
+import { ListFrameworks } from '../application/case/endpoints/ListFrameworks'
+import { ListTenants } from '../application/case/endpoints/ListTenants'
+import { CreateTenant } from '../application/case/endpoints/CreateTenant'
 import { KeyManager } from '../infrastructure/oauth/KeyManager'
 import { JwtSignerImpl } from '../infrastructure/oauth/JwtSignerImpl'
 import { FileOAuthClientRepository } from '../infrastructure/oauth/FileOAuthClientRepository'
@@ -65,6 +79,13 @@ export interface Container {
     }
     oauth: {
       token: TokenController
+    }
+    management: {
+      cfDocuments: CFDocumentsManagementController
+      cfItems: CFItemsManagementController
+      cfAssociations: CFAssociationsManagementController
+      frameworks: FrameworksManagementController
+      tenants: TenantsManagementController
     }
   }
 }
@@ -134,6 +155,14 @@ export async function buildContainer(): Promise<Container> {
   const getCFItemType = new GetCFItemType(pkgRepo, store)
   const getCFLicense = new GetCFLicense(pkgRepo, store)
 
+  // Initialize management commands
+  const updateCFDocument = new UpdateCFDocument(pkgRepo)
+  const updateCFItem = new UpdateCFItem(pkgRepo, store)
+  const updateCFAssociation = new UpdateCFAssociation(pkgRepo, store)
+  const deleteCFDocument = new DeleteCFDocument(pkgRepo, store)
+  const deleteCFItem = new DeleteCFItem(pkgRepo, store)
+  const deleteCFAssociation = new DeleteCFAssociation(pkgRepo, store)
+
   // Initialize controllers
   const frameworksController = new FrameworksController(createFramework, importFramework)
   const cfPackagesControllerV1p1 = new CFPackagesControllerV1p1(getCFPackage)
@@ -150,6 +179,33 @@ export async function buildContainer(): Promise<Container> {
   const cfLicensesControllerV1p1 = new CFLicensesControllerV1p1(getCFLicense)
   const discoveryControllerV1p1 = new DiscoveryControllerV1p1()
   const tokenController = new TokenController(issueToken)
+
+  // Initialize management commands
+  const listFrameworks = new ListFrameworks(store)
+  const listTenants = new ListTenants()
+  const createTenant = new CreateTenant()
+
+  // Initialize management controllers
+  const cfDocumentsManagementController = new CFDocumentsManagementController(
+    updateCFDocument,
+    deleteCFDocument
+  )
+  const cfItemsManagementController = new CFItemsManagementController(
+    updateCFItem,
+    deleteCFItem
+  )
+  const cfAssociationsManagementController = new CFAssociationsManagementController(
+    updateCFAssociation,
+    deleteCFAssociation
+  )
+  const frameworksManagementController = new FrameworksManagementController(
+    listFrameworks
+  )
+  const tenantsManagementController = new TenantsManagementController(
+    listTenants,
+    createTenant,
+    config.caseDataDir
+  )
 
   return {
     config,
@@ -177,6 +233,13 @@ export async function buildContainer(): Promise<Container> {
       },
       oauth: {
         token: tokenController
+      },
+      management: {
+        cfDocuments: cfDocumentsManagementController,
+        cfItems: cfItemsManagementController,
+        cfAssociations: cfAssociationsManagementController,
+        frameworks: frameworksManagementController,
+        tenants: tenantsManagementController
       }
     }
   }

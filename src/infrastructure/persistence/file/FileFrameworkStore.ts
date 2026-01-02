@@ -462,4 +462,44 @@ export class FileFrameworkStore {
     if (!versionMap) return []
     return Array.from(versionMap.values())
   }
+
+  // Public methods for index management (used by management endpoints)
+  removeDocumentFromIndex (tenantId: TenantId, version: CaseVersion, docId: string): void {
+    const tenantMap = this.documents.get(tenantId)
+    const versionMap = tenantMap?.get(version)
+    if (versionMap) {
+      versionMap.delete(docId)
+    }
+
+    const versionsMap = this.documentVersions.get(tenantId)?.get(version)
+    if (versionsMap) {
+      versionsMap.delete(docId)
+    }
+  }
+
+  removeItemFromIndex (tenantId: TenantId, version: CaseVersion, itemId: string): void {
+    const tenantMap = this.itemsIndex.get(tenantId)
+    const versionMap = tenantMap?.get(version)
+    if (versionMap) {
+      versionMap.delete(itemId)
+    }
+  }
+
+  removeAssociationFromIndex (tenantId: TenantId, version: CaseVersion, assocId: string): void {
+    const tenantMap = this.assocIndex.get(tenantId)
+    const versionMap = tenantMap?.get(version)
+    if (versionMap) {
+      versionMap.delete(assocId)
+    }
+  }
+
+  async writeIndexesToDisk (tenantId: TenantId, version: CaseVersion): Promise<void> {
+    const rootDir = this.getTenantVersionRootDir(tenantId, version)
+    const idxDir = path.join(rootDir, 'indexes')
+    await fs.mkdir(idxDir, { recursive: true })
+    await this.writeDocumentsIndex(idxDir, tenantId, version)
+    await this.writeDocumentVersionsIndex(idxDir, tenantId, version)
+    await this.writeItemsIndex(idxDir, tenantId, version)
+    await this.writeAssociationsIndex(idxDir, tenantId, version)
+  }
 }

@@ -616,6 +616,493 @@ export class OpenAPISpecGenerator {
             },
             'x-1edtech-confidentiality': 'unrestricted'
           }
+        },
+        // Management API endpoints (non-CASE-standard extensions)
+        '/management/tenants/{tenantId}/CFDocuments/{id}': {
+          put: {
+            operationId: 'updateCFDocument',
+            summary: 'Update a Competency Framework Document (non-CASE-standard extension)',
+            tags: ['DocumentsManager'],
+            description: 'This endpoint allows updating an existing CFDocument. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Document to update.',
+                schema: { type: 'string', format: 'uuid' }
+              },
+              {
+                name: 'caseVersion',
+                in: 'query',
+                required: false,
+                description: 'The CASE version (1.0 or 1.1). Defaults to 1.1.',
+                schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/CFDocumentDType' }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'Document updated successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'updated' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Document not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          },
+          delete: {
+            operationId: 'deleteCFDocument',
+            summary: 'Delete a Competency Framework Document (non-CASE-standard extension)',
+            tags: ['DocumentsManager'],
+            description: 'This endpoint allows deleting a CFDocument and all its related data. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Document to delete.',
+                schema: { type: 'string', format: 'uuid' }
+              },
+              {
+                name: 'caseVersion',
+                in: 'query',
+                required: false,
+                description: 'The CASE version (1.0 or 1.1). Defaults to 1.1.',
+                schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'Document deleted successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'deleted' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Document not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          }
+        },
+        '/management/tenants/{tenantId}/CFItems/{id}': {
+          put: {
+            operationId: 'updateCFItem',
+            summary: 'Update a Competency Framework Item (non-CASE-standard extension)',
+            tags: ['ItemsManager'],
+            description: 'This endpoint allows updating an existing CFItem. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Item to update.',
+                schema: { type: 'string', format: 'uuid' }
+              },
+              {
+                name: 'caseVersion',
+                in: 'query',
+                required: false,
+                description: 'The CASE version (1.0 or 1.1). Defaults to 1.1.',
+                schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/CFItemDType' }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'Item updated successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'updated' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Item not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          },
+          delete: {
+            operationId: 'deleteCFItem',
+            summary: 'Delete a Competency Framework Item (non-CASE-standard extension)',
+            tags: ['ItemsManager'],
+            description: 'This endpoint allows deleting a CFItem and its related associations. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Item to delete.',
+                schema: { type: 'string', format: 'uuid' }
+              },
+              {
+                name: 'caseVersion',
+                in: 'query',
+                required: false,
+                description: 'The CASE version (1.0 or 1.1). Defaults to 1.1.',
+                schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'Item deleted successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'deleted' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Item not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          }
+        },
+        '/management/tenants/{tenantId}/CFAssociations/{id}': {
+          put: {
+            operationId: 'updateCFAssociation',
+            summary: 'Update a Competency Framework Association (non-CASE-standard extension)',
+            tags: ['AssociationsManager'],
+            description: 'This endpoint allows updating an existing CFAssociation. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Association to update.',
+                schema: { type: 'string', format: 'uuid' }
+              },
+              {
+                name: 'caseVersion',
+                in: 'query',
+                required: false,
+                description: 'The CASE version (1.0 or 1.1). Defaults to 1.1.',
+                schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' }
+              }
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/CFAssociationDType' }
+                }
+              }
+            },
+            responses: {
+              200: {
+                description: 'Association updated successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'updated' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Association not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          },
+          delete: {
+            operationId: 'deleteCFAssociation',
+            summary: 'Delete a Competency Framework Association (non-CASE-standard extension)',
+            tags: ['AssociationsManager'],
+            description: 'This endpoint allows deleting a CFAssociation. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'The UUID that identifies the Competency Framework Association to delete.',
+                schema: { type: 'string', format: 'uuid' }
+              },
+              {
+                name: 'caseVersion',
+                in: 'query',
+                required: false,
+                description: 'The CASE version (1.0 or 1.1). Defaults to 1.1.',
+                schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'Association deleted successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'deleted' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              404: { description: 'Association not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          }
+        },
+        '/management/tenants/{tenantId}/frameworks': {
+          get: {
+            operationId: 'listFrameworks',
+            summary: 'List all frameworks (packages) for a tenant (non-CASE-standard extension)',
+            tags: ['PackagesManager'],
+            description: 'This endpoint lists all Competency Framework Packages (frameworks) for a specific tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
+            parameters: [
+              {
+                name: 'tenantId',
+                in: 'path',
+                required: true,
+                description: 'The tenant identifier. Must match the authenticated tenant.',
+                schema: { type: 'string' }
+              },
+              {
+                name: 'caseVersion',
+                in: 'query',
+                required: false,
+                description: 'Optional filter by CASE version (1.0 or 1.1). If not provided, returns frameworks from all versions.',
+                schema: { type: 'string', enum: ['1.0', '1.1'] }
+              }
+            ],
+            responses: {
+              200: {
+                description: 'List of frameworks retrieved successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        frameworks: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              sourcedId: { type: 'string' },
+                              title: { type: 'string' },
+                              caseVersion: { type: 'string', enum: ['1.0', '1.1'] },
+                              language: { type: 'string' },
+                              frameworkType: { type: 'string' },
+                              subject: { type: 'string' },
+                              version: { type: 'string' },
+                              lastChangeDateTime: { type: 'string', format: 'date-time' }
+                            }
+                          }
+                        },
+                        total: { type: 'integer' },
+                        tenantId: { type: 'string' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Tenant mismatch or insufficient permissions.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true
+          }
+        },
+        '/management/tenants': {
+          get: {
+            operationId: 'listTenants',
+            summary: 'List all tenants (non-CASE-standard extension)',
+            tags: ['DefinitionsManager'],
+            description: 'This endpoint lists all tenants in the system. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.admin scope.',
+            parameters: [],
+            responses: {
+              200: {
+                description: 'List of tenants retrieved successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        tenants: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              tenantId: { type: 'string' },
+                              hasFrameworks: { type: 'boolean' }
+                            }
+                          }
+                        },
+                        total: { type: 'integer' }
+                      }
+                    }
+                  }
+                }
+              },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Insufficient permissions - case.admin scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.admin'] }]
+          },
+          post: {
+            operationId: 'createTenant',
+            summary: 'Create a new tenant (non-CASE-standard extension)',
+            tags: ['DefinitionsManager'],
+            description: 'This endpoint creates a new tenant in the system. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and the case.admin scope.',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: ['tenantId'],
+                    properties: {
+                      tenantId: {
+                        type: 'string',
+                        description: 'The identifier for the new tenant. Must contain only alphanumeric characters, hyphens, and underscores.',
+                        pattern: '^[a-zA-Z0-9_-]+$'
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              201: {
+                description: 'Tenant created successfully.',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        status: { type: 'string', example: 'created' },
+                        tenantId: { type: 'string' }
+                      }
+                    }
+                  }
+                }
+              },
+              400: { description: 'Invalid request or validation error.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
+              403: { description: 'Insufficient permissions - case.admin scope required.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } },
+              409: { description: 'Tenant already exists.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
+              500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
+            },
+            'x-1edtech-confidentiality': 'restricted',
+            'x-1edtech-extension': true,
+            security: [{ BearerAuth: ['case.admin'] }]
+          }
         }
       },
       components: {
@@ -970,6 +1457,14 @@ export class OpenAPISpecGenerator {
               }
             }
           }
+        }
+      },
+      securitySchemes: {
+        BearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'JWT token obtained from /oauth/token endpoint'
         }
       }
     }
