@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, BackgroundVariant, Background, MiniMap, Controls } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import TextUpdaterNode from './TextUpdaterNode';
@@ -21,6 +21,59 @@ export default function App() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
  
+  const addChildTextUpdaterNode = useCallback((parentId) => {
+    const uuid = crypto.randomUUID?.();
+    const fallbackId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const childId = `tu_${uuid ?? fallbackId}`;
+
+    setNodes((nodesSnapshot) => {
+      const parent = nodesSnapshot.find((n) => n.id === parentId);
+      if (!parent) return nodesSnapshot;
+
+      const children = nodesSnapshot.filter((n) => n.data?.parentId === parentId);
+
+      const childRowY = parent.position.y + 120;
+      const childGapX = 280;
+
+      const rightMostChildX = children.length
+        ? Math.max(...children.map((c) => c.position.x))
+        : parent.position.x - childGapX;
+
+      const nextPosition = {
+        x: rightMostChildX + childGapX,
+        y: childRowY,
+      };
+
+      const childNode = {
+        id: childId,
+        type: 'textUpdater',
+        position: nextPosition,
+        data: { label: 'Text Node', parentId },
+      };
+
+      return [...nodesSnapshot, childNode];
+    });
+
+    setEdges((edgesSnapshot) => [
+      ...edgesSnapshot,
+      {
+        id: `e_${parentId}_${childId}`,
+        source: parentId,
+        target: childId,
+      },
+    ]);
+  }, []);
+
+  const nodesWithCallbacks = useMemo(
+    () =>
+      nodes.map((n) =>
+        n.type === 'textUpdater'
+          ? { ...n, data: { ...n.data, onAddChild: addChildTextUpdaterNode } }
+          : n,
+      ),
+    [nodes, addChildTextUpdaterNode],
+  );
+
   const onNodesChange = useCallback(
     (changes) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
     [],
@@ -37,7 +90,7 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
       <ReactFlow
-        nodes={nodes}
+        nodes={nodesWithCallbacks}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}

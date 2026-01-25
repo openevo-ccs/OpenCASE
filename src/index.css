@@ -63,6 +63,44 @@ body {
   box-sizing: border-box;
 }
 
+.react-flow__node-textUpdater .text-updater-node {
+  position: relative;
+}
+
+.react-flow__node-textUpdater .text-updater-inline-toolbar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+}
+
+.react-flow__node-textUpdater .text-updater-inline-toolbar__btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 1px solid #6d28d9; /* plum (higher contrast) */
+  background: rgba(255, 255, 255, 0.9);
+  color: #6d28d9; /* plum (higher contrast) */
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.react-flow__node-textUpdater .text-updater-inline-toolbar__btn:hover {
+  background: rgba(109, 40, 217, 0.12);
+}
+
+.react-flow__node-textUpdater .text-updater-inline-toolbar__btn:focus-visible {
+  outline: 2px solid rgba(109, 40, 217, 0.6);
+  outline-offset: 2px;
+}
+
+.react-flow__node-textUpdater .text-updater-inline-toolbar__icon {
+  width: 14px;
+  height: 14px;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;

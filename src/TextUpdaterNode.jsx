@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from '@heroicons/react/24/solid';
+import { ArrowLeftCircleIcon, ArrowRightCircleIcon, PlusIcon } from '@heroicons/react/24/solid';
  
-function TextUpdaterNode() {
+function TextUpdaterNode({ id, data }) {
   const onChange = useCallback((evt) => {
     const nextValue = evt.target.value;
     console.log(nextValue);
@@ -10,6 +10,20 @@ function TextUpdaterNode() {
  
   return (
     <div className="text-updater-node">
+      <div className="text-updater-inline-toolbar nodrag nopan" role="toolbar" aria-label="Node actions">
+        <button
+          type="button"
+          className="text-updater-inline-toolbar__btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            data?.onAddChild?.(id);
+          }}
+          aria-label="Add child node"
+          title="Add child node"
+        >
+          <PlusIcon className="text-updater-inline-toolbar__icon" aria-hidden="true" />
+        </button>
+      </div>
       <div>
         <label htmlFor="text">Text:</label>
         <input id="text" name="text" onChange={onChange} className="nodrag" />
