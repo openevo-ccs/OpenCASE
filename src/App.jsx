@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, BackgroundVariant, Background, MiniMap, Controls } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import TextUpdaterNode from './TextUpdaterNode';
+import NodePropertiesPanel from './NodePropertiesPanel';
 
 const nodeTypes = {
   textUpdater: TextUpdaterNode,
@@ -20,6 +21,7 @@ const initialEdges = [
 export default function App() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
  
   const addChildTextUpdaterNode = useCallback((parentId) => {
     const uuid = crypto.randomUUID?.();
@@ -74,6 +76,29 @@ export default function App() {
     [nodes, addChildTextUpdaterNode],
   );
 
+  const selectedNode = useMemo(
+    () => (selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) ?? null : null),
+    [nodes, selectedNodeId],
+  );
+
+  const onSelectionChange = useCallback(({ nodes: selectedNodes }) => {
+    setSelectedNodeId(selectedNodes?.[0]?.id ?? null);
+  }, []);
+
+  const onChangeSelectedNode = useCallback((nodeId, patch) => {
+    setNodes((nodesSnapshot) =>
+      nodesSnapshot.map((n) =>
+        n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n,
+      ),
+    );
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedNodeId(null);
+    setNodes((nodesSnapshot) => nodesSnapshot.map((n) => ({ ...n, selected: false })));
+    setEdges((edgesSnapshot) => edgesSnapshot.map((e) => ({ ...e, selected: false })));
+  }, []);
+
   const onNodesChange = useCallback(
     (changes) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
     [],
@@ -95,6 +120,7 @@ export default function App() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onSelectionChange={onSelectionChange}
         nodeTypes={nodeTypes}
         fitView
       >
@@ -102,6 +128,12 @@ export default function App() {
           <Controls />
           <MiniMap nodeStrokeWidth={3} />
       </ReactFlow>
+
+      <NodePropertiesPanel
+        node={selectedNode}
+        onClose={clearSelection}
+        onChangeNode={onChangeSelectedNode}
+      />
     </div>
   );
 }
