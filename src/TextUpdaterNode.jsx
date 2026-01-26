@@ -9,11 +9,11 @@ function TextUpdaterNode({ id, data }) {
   }, []);
  
   return (
-    <div className="text-updater-node">
-      <div className="text-updater-inline-toolbar nodrag nopan" role="toolbar" aria-label="Node actions">
+    <div className="group relative">
+      <div className="nodrag nopan absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         <button
           type="button"
-          className="text-updater-inline-toolbar__btn"
+          className="grid h-[22px] w-[22px] place-items-center rounded-full border border-violet-700/90 bg-white/90 text-violet-700 shadow-sm hover:bg-violet-700/10 focus-visible:outline-2 focus-visible:outline-violet-700/50 focus-visible:outline-offset-2"
           onClick={(e) => {
             e.stopPropagation();
             data?.onAddChild?.(id);
@@ -21,12 +21,19 @@ function TextUpdaterNode({ id, data }) {
           aria-label="Add child node"
           title="Add child node"
         >
-          <PlusIcon className="text-updater-inline-toolbar__icon" aria-hidden="true" />
+          <PlusIcon className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
-      <div>
-        <label htmlFor="text">Text:</label>
-        <input id="text" name="text" onChange={onChange} className="nodrag" />
+      <div className="space-y-1">
+        <label htmlFor="text" className="block text-[11px] font-semibold text-slate-700">
+          Text
+        </label>
+        <input
+          id="text"
+          name="text"
+          onChange={onChange}
+          className="nodrag w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+        />
       </div>
       <Handle
         position={Position.Left}

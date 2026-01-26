@@ -1,6 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
 import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, BackgroundVariant, Background, MiniMap, Controls } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import TextUpdaterNode from './TextUpdaterNode';
 import NodePropertiesPanel from './NodePropertiesPanel';
 
@@ -8,10 +7,13 @@ const nodeTypes = {
   textUpdater: TextUpdaterNode,
 };
 
+const textUpdaterNodeClassName =
+  'w-[240px] rounded-[var(--xy-node-border-radius,var(--xy-node-border-radius-default))] border-[var(--xy-node-border,var(--xy-node-border-default))] bg-[var(--xy-node-background-color,var(--xy-node-background-color-default))] p-2 text-left text-xs text-[var(--xy-node-color,var(--xy-node-color-default))] hover:shadow-[var(--xy-node-boxshadow-hover,var(--xy-node-boxshadow-hover-default))] [&.selected]:shadow-[var(--xy-node-boxshadow-selected,var(--xy-node-boxshadow-selected-default))]';
+
 const initialNodes = [
   { id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Node 1' } },
   { id: 'n2', position: { x: 0, y: 100 }, data: { label: 'Node 2' } },
-  { id: 'n3', type: 'textUpdater', position: { x: 0, y: 200 }, data: { label: 'Node 3' } },
+  { id: 'n3', type: 'textUpdater', position: { x: 0, y: 200 }, data: { label: 'Node 3' }, className: textUpdaterNodeClassName },
 ];
 const initialEdges = [
   { id: 'n1-n2', source: 'n1', target: 'n2' }, 
@@ -51,6 +53,7 @@ export default function App() {
         type: 'textUpdater',
         position: nextPosition,
         data: { label: 'Text Node', parentId },
+        className: textUpdaterNodeClassName,
       };
 
       return [...nodesSnapshot, childNode];
@@ -70,7 +73,7 @@ export default function App() {
     () =>
       nodes.map((n) =>
         n.type === 'textUpdater'
-          ? { ...n, data: { ...n.data, onAddChild: addChildTextUpdaterNode } }
+          ? { ...n, className: textUpdaterNodeClassName, data: { ...n.data, onAddChild: addChildTextUpdaterNode } }
           : n,
       ),
     [nodes, addChildTextUpdaterNode],
@@ -113,7 +116,7 @@ export default function App() {
   );
  
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div className="h-screen w-screen">
       <ReactFlow
         nodes={nodesWithCallbacks}
         edges={edges}
