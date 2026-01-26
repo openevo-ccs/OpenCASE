@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import type { ChangeEvent } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { ArrowLeftCircleIcon, ArrowRightCircleIcon, PlusIcon } from '@heroicons/react/24/solid'
+import { ArrowUpCircleIcon, ArrowDownCircleIcon, PlusIcon } from '@heroicons/react/24/solid'
 import type { CaseItemNodeType } from '../types'
 
 export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) {
@@ -11,8 +11,8 @@ export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) 
   }, [])
 
   return (
-    <div className="group relative">
-      <div className="nodrag nopan absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+    <div className="group relative border border-gray-600 rounded p-2">
+      <div className=" nodrag nopan absolute right-[-25px] top-2 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         <button
           type="button"
           className="grid h-[22px] w-[22px] place-items-center rounded-full border border-violet-700/90 bg-white/90 text-violet-700 shadow-sm hover:bg-violet-700/10 focus-visible:outline-2 focus-visible:outline-violet-700/50 focus-visible:outline-offset-2"
@@ -40,7 +40,7 @@ export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) 
       </div>
 
       <Handle
-        position={Position.Left}
+        position={Position.Top}
         type="target"
         style={{
           background: 'none',
@@ -49,7 +49,7 @@ export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) 
           height: '0.9em',
         }}
       >
-        <ArrowLeftCircleIcon
+        <ArrowUpCircleIcon
           style={{
             pointerEvents: 'none',
             fontSize: '1em',
@@ -60,7 +60,7 @@ export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) 
       </Handle>
 
       <Handle
-        position={Position.Right}
+        position={Position.Bottom}
         type="source"
         style={{
           background: 'none',
@@ -69,7 +69,7 @@ export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) 
           height: '1em',
         }}
       >
-        <ArrowRightCircleIcon
+        <ArrowDownCircleIcon
           style={{
             pointerEvents: 'none',
             fontSize: '1em',
