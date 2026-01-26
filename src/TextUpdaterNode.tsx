@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Node, NodeProps } from '@xyflow/react'
 import { Handle, Position } from '@xyflow/react'
-import { ArrowLeftCircleIcon, ArrowRightCircleIcon, PlusIcon } from '@heroicons/react/24/solid'
+import { ArrowUpCircleIcon, ArrowDownCircleIcon, PlusIcon } from '@heroicons/react/24/solid'
 
 type NodeData = {
   label?: string
@@ -19,7 +19,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
   }, [])
 
   return (
-    <div className="group relative">
+    <div className="group relative border border-gray-600 rounded p-2">
       <div className="nodrag nopan absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         <button
           type="button"
@@ -48,7 +48,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
       </div>
 
       <Handle
-        position={Position.Left}
+        position={Position.Top}
         type="target"
         style={{
           background: 'none',
@@ -57,7 +57,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
           height: '0.9em',
         }}
       >
-        <ArrowLeftCircleIcon
+        <ArrowUpCircleIcon
           style={{
             pointerEvents: 'none',
             fontSize: '1em',
@@ -68,7 +68,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
       </Handle>
 
       <Handle
-        position={Position.Right}
+        position={Position.Bottom}
         type="source"
         style={{
           background: 'none',
@@ -77,7 +77,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
           height: '1em',
         }}
       >
-        <ArrowRightCircleIcon
+        <ArrowDownCircleIcon
           style={{
             pointerEvents: 'none',
             fontSize: '1em',
