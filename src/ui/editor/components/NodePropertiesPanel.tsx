@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
-import type { CaseEditorNodeDataPatch, CaseEditorNodeType } from '../reactflow/types'
+import type {
+  CaseEditorNodeDataPatch,
+  CaseEditorNodeType,
+  CaseFrameworkNodeType,
+  CaseItemNodeType,
+} from '../reactflow/types'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 
 type Props = {
@@ -22,10 +27,12 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
     return () => globalThis.removeEventListener('keydown', onKeyDown)
   }, [node, onClose])
 
-  const nodeType = node?.type
-  const cfItem = (node?.data as any)?.cfItem as CFItem | undefined
-  const cfDocument = (node?.data as any)?.cfDocument as CFDocument | undefined
-  const isFramework = nodeType === 'caseFrameworkNode'
+  const isItemNode = (n: CaseEditorNodeType): n is CaseItemNodeType => n.type === 'caseItemNode'
+  const isFrameworkNode = (n: CaseEditorNodeType): n is CaseFrameworkNodeType => n.type === 'caseFrameworkNode'
+  const isFramework = Boolean(node && isFrameworkNode(node))
+
+  const cfItem: CFItem | undefined = node && isItemNode(node) ? node.data.cfItem : undefined
+  const cfDocument: CFDocument | undefined = node && isFrameworkNode(node) ? node.data.cfDocument : undefined
 
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—'
@@ -43,7 +50,7 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
   const metaRows = useMemo(() => {
     if (!node) return []
     return [
-      ['Parent item', node.data?.parentId ?? '—'],
+      ['Parent item', isItemNode(node) ? node.data.parentId ?? '—' : '—'],
       ['Last updated', formatDateTime(cfItem?.lastChangeDateTime)],
     ] as const
   }, [node, cfItem?.lastChangeDateTime])
@@ -314,10 +321,9 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
                 <div className="text-xs text-slate-500">Custom fields</div>
               </div>
 
-              {((isFramework ? cfDocument?.extensions : cfItem?.extensions) &&
-                Object.keys((isFramework ? cfDocument!.extensions! : cfItem!.extensions!) as any).length) ? (
+              {Object.entries(isFramework ? cfDocument?.extensions ?? {} : cfItem?.extensions ?? {}).length ? (
                 <div className="space-y-2">
-                  {Object.entries((isFramework ? cfDocument!.extensions! : cfItem!.extensions!) as any).map(([k, v]) => (
+                  {Object.entries(isFramework ? cfDocument?.extensions ?? {} : cfItem?.extensions ?? {}).map(([k, v]) => (
                     <div key={k} className="rounded-lg border border-black/10 bg-slate-900/2 p-2">
                       <div className="text-xs font-semibold text-slate-700">{k}</div>
                       <div className="mt-1 text-xs text-slate-900">

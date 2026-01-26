@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ComponentType } from 'react'
 import { Cog6ToothIcon, QuestionMarkCircleIcon, ArrowRightOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/solid'
 import { Button } from '@/ui/shared/components/ui/button'
 
 type MenuItem = {
   label: string
-  icon?: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+  icon?: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
   onClick?: () => void
   disabled?: boolean
 }
@@ -14,12 +15,12 @@ function PopoverMenu({
   icon: Icon,
   items,
   align = 'right',
-}: {
+}: Readonly<{
   label: string
-  icon?: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+  icon?: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
   items: (MenuItem | 'divider')[]
   align?: 'left' | 'right'
-}) {
+}>) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
 
@@ -43,7 +44,7 @@ function PopoverMenu({
         aria-expanded={open}
         title={label}
       >
-        {Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : null}
+        {Icon ? <Icon className="h-4 w-4" aria-hidden={true} /> : null}
         <span className="sr-only">{label}</span>
       </Button>
 
@@ -75,7 +76,7 @@ function PopoverMenu({
                     setOpen(false)
                   }}
                 >
-                  {ItemIcon ? <ItemIcon className="h-4 w-4 text-slate-600" aria-hidden="true" /> : null}
+                  {ItemIcon ? <ItemIcon className="h-4 w-4 text-slate-600" aria-hidden /> : null}
                   <span className="truncate">{it.label}</span>
                 </button>
               )
