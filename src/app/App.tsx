@@ -5,7 +5,6 @@ import type {
   EdgeChange,
   Node,
   NodeChange,
-  NodeTypes,
   OnSelectionChangeFunc,
 } from '@xyflow/react'
 import {
@@ -19,31 +18,22 @@ import {
   Controls,
 } from '@xyflow/react'
 
-import TextUpdaterNode from './TextUpdaterNode'
-import NodePropertiesPanel from './NodePropertiesPanel'
+import { nodeTypes } from '@/ui/editor/reactflow/nodeTypes'
+import type { CaseItemNodeData } from '@/ui/editor/reactflow/types'
+import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
 
-type NodeData = {
-  label?: string
-  parentId?: string
-  onAddChild?: (_parentId: string) => void
-}
-
-const nodeTypes: NodeTypes = {
-  textUpdater: TextUpdaterNode,
-}
-
-const textUpdaterNodeClassName =
+const caseItemNodeClassName =
   'w-[240px] rounded-[var(--xy-node-border-radius,var(--xy-node-border-radius-default))] border-[var(--xy-node-border,var(--xy-node-border-default))] bg-[var(--xy-node-background-color,var(--xy-node-background-color-default))] p-2 text-left text-xs text-[var(--xy-node-color,var(--xy-node-color-default))] hover:shadow-[var(--xy-node-boxshadow-hover,var(--xy-node-boxshadow-hover-default))] [&.selected]:shadow-[var(--xy-node-boxshadow-selected,var(--xy-node-boxshadow-selected-default))]'
 
-const initialNodes: Node<NodeData>[] = [
+const initialNodes: Node<CaseItemNodeData>[] = [
   { id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Node 1' } },
   { id: 'n2', position: { x: 0, y: 100 }, data: { label: 'Node 2' } },
   {
     id: 'n3',
-    type: 'textUpdater',
+    type: 'caseItemNode',
     position: { x: 0, y: 200 },
     data: { label: 'Node 3' },
-    className: textUpdaterNodeClassName,
+    className: caseItemNodeClassName,
   },
 ]
 
@@ -53,11 +43,11 @@ const initialEdges: Edge[] = [
 ]
 
 export default function App() {
-  const [nodes, setNodes] = useState<Node<NodeData>[]>(initialNodes)
+  const [nodes, setNodes] = useState<Node<CaseItemNodeData>[]>(initialNodes)
   const [edges, setEdges] = useState<Edge[]>(initialEdges)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
 
-  const addChildTextUpdaterNode = useCallback((parentId: string) => {
+  const addChildCaseItemNode = useCallback((parentId: string) => {
     const uuid = globalThis.crypto?.randomUUID?.()
     const fallbackId = `${Date.now()}_${Math.random().toString(16).slice(2)}`
     const childId = `tu_${uuid ?? fallbackId}`
@@ -80,12 +70,12 @@ export default function App() {
         y: childRowY,
       }
 
-      const childNode: Node<NodeData> = {
+      const childNode: Node<CaseItemNodeData> = {
         id: childId,
-        type: 'textUpdater',
+        type: 'caseItemNode',
         position: nextPosition,
         data: { label: 'Text Node', parentId },
-        className: textUpdaterNodeClassName,
+        className: caseItemNodeClassName,
       }
 
       return [...nodesSnapshot, childNode]
@@ -104,15 +94,15 @@ export default function App() {
   const nodesWithCallbacks = useMemo(
     () =>
       nodes.map((n) =>
-        n.type === 'textUpdater'
+        n.type === 'caseItemNode'
           ? {
               ...n,
-              className: textUpdaterNodeClassName,
-              data: { ...n.data, onAddChild: addChildTextUpdaterNode },
+              className: caseItemNodeClassName,
+              data: { ...n.data, onAddChild: addChildCaseItemNode },
             }
           : n,
       ),
-    [nodes, addChildTextUpdaterNode],
+    [nodes, addChildCaseItemNode],
   )
 
   const selectedNode = useMemo(
@@ -124,7 +114,7 @@ export default function App() {
     setSelectedNodeId(selectedNodes?.[0]?.id ?? null)
   }, [])
 
-  const onChangeSelectedNode = useCallback((nodeId: string, patch: Partial<NodeData>) => {
+  const onChangeSelectedNode = useCallback((nodeId: string, patch: Partial<CaseItemNodeData>) => {
     setNodes((nodesSnapshot) =>
       nodesSnapshot.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n)),
     )
@@ -136,7 +126,7 @@ export default function App() {
     setEdges((edgesSnapshot) => edgesSnapshot.map((e) => ({ ...e, selected: false })))
   }, [])
 
-  const onNodesChange = useCallback((changes: NodeChange<Node<NodeData>>[]) => {
+  const onNodesChange = useCallback((changes: NodeChange<Node<CaseItemNodeData>>[]) => {
     setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot))
   }, [])
 

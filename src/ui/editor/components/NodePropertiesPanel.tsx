@@ -1,20 +1,15 @@
 import { useEffect, useMemo } from 'react'
 import type { Node } from '@xyflow/react'
-import { Button } from '@/components/ui/button'
-
-type NodeData = {
-  label?: string
-  parentId?: string
-  onAddChild?: (_parentId: string) => void
-}
+import { Button } from '@/ui/shared/components/ui/button'
+import type { CaseItemNodeData } from '../reactflow/types'
 
 type Props = {
-  node: Node<NodeData> | null
+  node: Node<CaseItemNodeData> | null
   onClose?: () => void
-  onChangeNode?: (_nodeId: string, _patch: Partial<NodeData>) => void
+  onChangeNode?: (_nodeId: string, _patch: Partial<CaseItemNodeData>) => void
 }
 
-export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Props) {
+export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Readonly<Props>) {
   useEffect(() => {
     if (!node) return
 

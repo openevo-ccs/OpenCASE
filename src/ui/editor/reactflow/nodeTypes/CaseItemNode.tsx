@@ -1,25 +1,17 @@
 import { useCallback } from 'react'
 import type { ChangeEvent } from 'react'
-import type { Node, NodeProps } from '@xyflow/react'
-import { Handle, Position } from '@xyflow/react'
-import { ArrowUpCircleIcon, ArrowDownCircleIcon, PlusIcon } from '@heroicons/react/24/solid'
+import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { ArrowLeftCircleIcon, ArrowRightCircleIcon, PlusIcon } from '@heroicons/react/24/solid'
+import type { CaseItemNodeType } from '../types'
 
-type NodeData = {
-  label?: string
-  parentId?: string
-  onAddChild?: (_parentId: string) => void
-}
-
-type TextUpdaterNodeType = Node<NodeData, 'textUpdater'>
-
-export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeType>) {
+export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) {
   const onChange = useCallback((evt: ChangeEvent<HTMLInputElement>) => {
     const nextValue = evt.target.value
     console.log(nextValue)
   }, [])
 
   return (
-    <div className="group relative border border-gray-600 rounded p-2">
+    <div className="group relative">
       <div className="nodrag nopan absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         <button
           type="button"
@@ -48,7 +40,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
       </div>
 
       <Handle
-        position={Position.Top}
+        position={Position.Left}
         type="target"
         style={{
           background: 'none',
@@ -57,7 +49,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
           height: '0.9em',
         }}
       >
-        <ArrowUpCircleIcon
+        <ArrowLeftCircleIcon
           style={{
             pointerEvents: 'none',
             fontSize: '1em',
@@ -68,7 +60,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
       </Handle>
 
       <Handle
-        position={Position.Bottom}
+        position={Position.Right}
         type="source"
         style={{
           background: 'none',
@@ -77,7 +69,7 @@ export default function TextUpdaterNode({ id, data }: NodeProps<TextUpdaterNodeT
           height: '1em',
         }}
       >
-        <ArrowDownCircleIcon
+        <ArrowRightCircleIcon
           style={{
             pointerEvents: 'none',
             fontSize: '1em',
