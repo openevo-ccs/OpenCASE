@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type {
   Connection,
   Edge,
@@ -6,6 +6,7 @@ import type {
   Node,
   NodeChange,
   OnSelectionChangeFunc,
+  ReactFlowInstance,
 } from '@xyflow/react'
 import {
   ReactFlow,
@@ -20,11 +21,11 @@ import {
 
 import { nodeTypes } from '@/ui/editor/reactflow/nodeTypes'
 import type {
-  CaseEditorNodeData,
   CaseEditorNodeDataPatch,
-  CaseEditorNodeType,
   CaseItemNodeData,
-  CaseItemNodeDataPatch,
+  CaseFrameworkNodeType,
+  CaseEditorNodeType,
+  CaseItemNodeType,
 } from '@/ui/editor/reactflow/types'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
@@ -40,7 +41,10 @@ const DEFAULT_NODE_HEIGHT = 220
 const NODE_GAP_X = 36
 const NODE_GAP_Y = 28
 
-const getNodeSize = (n: Node<CaseEditorNodeData>) => {
+const isFrameworkNode = (n: CaseEditorNodeType): n is CaseFrameworkNodeType => n.type === 'caseFrameworkNode'
+const isItemNode = (n: CaseEditorNodeType): n is Node<CaseItemNodeData, 'caseItemNode'> => n.type === 'caseItemNode'
+
+const getNodeSize = (n: CaseEditorNodeType) => {
   const anyNode = n as unknown as {
     measured?: { width?: number; height?: number }
     width?: number
@@ -54,18 +58,9 @@ const getNodeSize = (n: Node<CaseEditorNodeData>) => {
 
   const styleW = anyNode.style?.width
   const styleH = anyNode.style?.height
-  const w =
-    typeof anyNode.width === 'number'
-      ? anyNode.width
-      : typeof styleW === 'number'
-        ? styleW
-        : DEFAULT_NODE_WIDTH
+  const w = (typeof anyNode.width === 'number' ? anyNode.width : undefined) ?? (typeof styleW === 'number' ? styleW : undefined) ?? DEFAULT_NODE_WIDTH
   const h =
-    typeof anyNode.height === 'number'
-      ? anyNode.height
-      : typeof styleH === 'number'
-        ? styleH
-        : DEFAULT_NODE_HEIGHT
+    (typeof anyNode.height === 'number' ? anyNode.height : undefined) ?? (typeof styleH === 'number' ? styleH : undefined) ?? DEFAULT_NODE_HEIGHT
 
   return { w, h }
 }
@@ -78,7 +73,7 @@ const rectsOverlap = (
 const findNonOverlappingPosition = (
   desired: { x: number; y: number },
   size: { w: number; h: number },
-  nodes: Node<CaseEditorNodeData>[],
+  nodes: CaseEditorNodeType[],
 ) => {
   const occupied = nodes.map((n) => {
     const s = getNodeSize(n)
@@ -123,7 +118,7 @@ const makeCfDocument = (id: string, title: string, extras?: Partial<CFDocument>)
   ...extras,
 })
 
-const initialNodes: Node<CaseEditorNodeData>[] = [
+const initialNodes: CaseEditorNodeType[] = [
   {
     id: 'fw1',
     type: 'caseFrameworkNode',
@@ -196,13 +191,15 @@ const initialEdges: Edge[] = [
 ]
 
 export default function App() {
-  const [nodes, setNodes] = useState<Node<CaseEditorNodeData>[]>(initialNodes)
+  const [nodes, setNodes] = useState<CaseEditorNodeType[]>(initialNodes)
   const [edges, setEdges] = useState<Edge[]>(initialEdges)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const reactFlowWrapRef = useRef<HTMLDivElement | null>(null)
+  const reactFlowRef = useRef<ReactFlowInstance<CaseEditorNodeType> | null>(null)
 
   const frameworkInfo = useMemo(() => {
-    const fw = nodes.find((n) => n.type === 'caseFrameworkNode') as any
-    const doc = fw?.data?.cfDocument as CFDocument | undefined
+    const fw = nodes.find(isFrameworkNode)
+    const doc = fw?.data.cfDocument
     return {
       title: doc?.title ?? 'Framework',
       subtitle: [doc?.adoptionStatus, doc?.frameworkType].filter(Boolean).join(' • ') || undefined,
@@ -210,23 +207,63 @@ export default function App() {
     }
   }, [nodes])
 
+  // Make the initial viewport leave room for the floating header so the top-most node isn't hidden behind it.
+  useEffect(() => {
+    const instance = reactFlowRef.current
+    const wrap = reactFlowWrapRef.current
+    if (!instance || !wrap) return
+
+    const HEADER_OVERLAY_PX = 72 // header height + breathing room
+
+    const fit = () => {
+      const h = wrap.getBoundingClientRect().height || 800
+      const padding = Math.max(0.12, (HEADER_OVERLAY_PX + 12) / h)
+      instance.fitView({ padding, duration: 200 })
+    }
+
+    // Defer a tick so layout is settled.
+    const id = globalThis.requestAnimationFrame(() => fit())
+    const id2 = globalThis.requestAnimationFrame(() => fit())
+    globalThis.addEventListener('resize', fit)
+    return () => {
+      globalThis.cancelAnimationFrame(id)
+      globalThis.cancelAnimationFrame(id2)
+      globalThis.removeEventListener('resize', fit)
+    }
+  }, [nodes.length])
+
   const updateNodeData = useCallback((nodeId: string, patch: CaseEditorNodeDataPatch) => {
     setNodes((nodesSnapshot) =>
       nodesSnapshot.map((n) => {
         if (n.id !== nodeId) return n
 
-        const anyData = n.data as any
-        const anyPatch = patch as any
+        // Item update
+        if (isItemNode(n) && 'cfItem' in patch && patch.cfItem) {
+          const p = patch
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              ...p,
+              cfItem: { ...n.data.cfItem, ...p.cfItem },
+            },
+          }
+        }
 
-        const nextData: CaseEditorNodeData = {
-          ...anyData,
-          ...anyPatch,
-          cfItem: anyPatch.cfItem && anyData.cfItem ? { ...anyData.cfItem, ...anyPatch.cfItem } : anyData.cfItem,
-          cfDocument:
-            anyPatch.cfDocument && anyData.cfDocument ? { ...anyData.cfDocument, ...anyPatch.cfDocument } : anyData.cfDocument,
-        } as CaseEditorNodeData
+        // Framework update
+        if (isFrameworkNode(n) && 'cfDocument' in patch && patch.cfDocument) {
+          const p = patch
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              ...p,
+              cfDocument: { ...n.data.cfDocument, ...p.cfDocument },
+            },
+          }
+        }
 
-        return { ...n, data: nextData }
+        return n
       }),
     )
   }, [])
@@ -240,7 +277,7 @@ export default function App() {
       const parent = nodesSnapshot.find((n) => n.id === parentId)
       if (!parent) return nodesSnapshot
 
-      const children = nodesSnapshot.filter((n) => (n.data as any)?.parentId === parentId)
+      const children = nodesSnapshot.filter((n) => isItemNode(n) && n.data.parentId === parentId)
 
       const parentSize = getNodeSize(parent)
       const childRowY = parent.position.y + parentSize.h + 40
@@ -258,7 +295,7 @@ export default function App() {
       const childSize = { w: DEFAULT_NODE_WIDTH, h: DEFAULT_NODE_HEIGHT }
       const nextPosition = findNonOverlappingPosition(desiredPosition, childSize, nodesSnapshot)
 
-      const childNode: Node<CaseItemNodeData> = {
+      const childNode: CaseItemNodeType = {
         id: childId,
         type: 'caseItemNode',
         position: nextPosition,
@@ -282,24 +319,24 @@ export default function App() {
 
   const nodesWithCallbacks = useMemo(() => {
     return nodes.map((n) => {
-      if (n.type === 'caseItemNode') {
+      if (isItemNode(n)) {
         return {
           ...n,
           className: caseItemNodeClassName,
           data: {
-            ...(n.data as any),
+            ...n.data,
             onAddChild: addChildCaseItemNode,
-            onUpdateItem: (id: string, patch: Partial<CFItem>) => updateNodeData(id, { cfItem: patch } as CaseItemNodeDataPatch),
+            onUpdateItem: (id: string, patch: Partial<CFItem>) => updateNodeData(id, { cfItem: patch }),
           },
         }
       }
 
-      if (n.type === 'caseFrameworkNode') {
+      if (isFrameworkNode(n)) {
         return {
           ...n,
           className: caseItemNodeClassName,
           data: {
-            ...(n.data as any),
+            ...n.data,
             onAddChild: addChildCaseItemNode,
             onUpdateDocument: (id: string, patch: Partial<CFDocument>) => updateNodeData(id, { cfDocument: patch }),
           },
@@ -329,8 +366,8 @@ export default function App() {
     setEdges((edgesSnapshot) => edgesSnapshot.map((e) => ({ ...e, selected: false })))
   }, [])
 
-  const onNodesChange = useCallback((changes: NodeChange<Node<CaseEditorNodeData>>[]) => {
-    setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot))
+  const onNodesChange = useCallback((changes: NodeChange<CaseEditorNodeType>[]) => {
+    setNodes((nodesSnapshot) => applyNodeChanges<CaseEditorNodeType>(changes, nodesSnapshot))
   }, [])
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
@@ -349,20 +386,25 @@ export default function App() {
         userName="Taylor Couper"
         reserveRightForPanel={Boolean(selectedNode)}
       />
-      <ReactFlow
-        nodes={nodesWithCallbacks}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onSelectionChange={onSelectionChange}
-        nodeTypes={nodeTypes}
-        fitView
-      >
-        <Background color="#ccc" variant={BackgroundVariant.Dots} />
-        <Controls />
-        <MiniMap nodeStrokeWidth={3} />
-      </ReactFlow>
+      <div ref={reactFlowWrapRef} className="h-full w-full">
+        <ReactFlow
+          nodes={nodesWithCallbacks}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onSelectionChange={onSelectionChange}
+          nodeTypes={nodeTypes}
+          proOptions={{ hideAttribution: true }}
+          onInit={(instance) => {
+            reactFlowRef.current = instance as ReactFlowInstance<CaseEditorNodeType>
+          }}
+        >
+          <Background color="#ccc" variant={BackgroundVariant.Dots} />
+          <Controls />
+          <MiniMap nodeStrokeWidth={3} />
+        </ReactFlow>
+      </div>
 
       <NodePropertiesPanel node={selectedNode} onClose={clearSelection} onChangeNode={onChangeSelectedNode} />
     </div>
