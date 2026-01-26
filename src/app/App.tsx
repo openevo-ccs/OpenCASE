@@ -24,25 +24,135 @@ import type { CFItem } from '@/domain/case/types'
 import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
 
 const caseItemNodeClassName =
-  'w-[240px] rounded-[var(--xy-node-border-radius,var(--xy-node-border-radius-default))] border-[var(--xy-node-border,var(--xy-node-border-default))] bg-[var(--xy-node-background-color,var(--xy-node-background-color-default))] p-2 text-left text-xs text-[var(--xy-node-color,var(--xy-node-color-default))] hover:shadow-[var(--xy-node-boxshadow-hover,var(--xy-node-boxshadow-hover-default))] [&.selected]:shadow-[var(--xy-node-boxshadow-selected,var(--xy-node-boxshadow-selected-default))]'
+  // React Flow wraps nodeTypes in its own container; keep that container visually neutral
+  // so the CASE item "card" renders as the single surface.
+  'bg-transparent border-0 p-0 shadow-none'
+
+const DEFAULT_NODE_WIDTH = 360
+const DEFAULT_NODE_HEIGHT = 220
+const NODE_GAP_X = 36
+const NODE_GAP_Y = 28
+
+const getNodeSize = (n: Node<CaseItemNodeData>) => {
+  const anyNode = n as unknown as {
+    measured?: { width?: number; height?: number }
+    width?: number
+    height?: number
+    style?: { width?: number | string; height?: number | string }
+  }
+
+  const measuredW = anyNode.measured?.width
+  const measuredH = anyNode.measured?.height
+  if (typeof measuredW === 'number' && typeof measuredH === 'number') return { w: measuredW, h: measuredH }
+
+  const styleW = anyNode.style?.width
+  const styleH = anyNode.style?.height
+  const w =
+    typeof anyNode.width === 'number'
+      ? anyNode.width
+      : typeof styleW === 'number'
+        ? styleW
+        : DEFAULT_NODE_WIDTH
+  const h =
+    typeof anyNode.height === 'number'
+      ? anyNode.height
+      : typeof styleH === 'number'
+        ? styleH
+        : DEFAULT_NODE_HEIGHT
+
+  return { w, h }
+}
+
+const rectsOverlap = (
+  a: { x: number; y: number; w: number; h: number },
+  b: { x: number; y: number; w: number; h: number },
+) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+
+const findNonOverlappingPosition = (
+  desired: { x: number; y: number },
+  size: { w: number; h: number },
+  nodes: Node<CaseItemNodeData>[],
+) => {
+  const occupied = nodes.map((n) => {
+    const s = getNodeSize(n)
+    return { x: n.position.x, y: n.position.y, w: s.w, h: s.h }
+  })
+
+  const maxCols = 6
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const col = attempt % maxCols
+    const row = Math.floor(attempt / maxCols)
+    const candidate = {
+      x: desired.x + col * (size.w + NODE_GAP_X),
+      y: desired.y + row * (size.h + NODE_GAP_Y),
+    }
+
+    const candRect = { x: candidate.x, y: candidate.y, w: size.w, h: size.h }
+    const collides = occupied.some((r) => rectsOverlap(candRect, r))
+    if (!collides) return candidate
+  }
+
+  return desired
+}
 
 const nowIso = () => new Date().toISOString()
 
-const makeCfItem = (id: string, fullStatement: string): CFItem => ({
+const makeCfItem = (id: string, fullStatement: string, extras?: Partial<CFItem>): CFItem => ({
   identifier: id,
   uri: `urn:case:item:${id}`,
   fullStatement,
   lastChangeDateTime: nowIso(),
+  ...extras,
 })
 
 const initialNodes: Node<CaseItemNodeData>[] = [
-  { id: 'n1', position: { x: 0, y: 0 }, data: { cfItem: makeCfItem('n1', 'Node 1') } },
-  { id: 'n2', position: { x: 0, y: 100 }, data: { cfItem: makeCfItem('n2', 'Node 2') } },
+  {
+    id: 'n1',
+    type: 'caseItemNode',
+    position: { x: 0, y: 0 },
+    style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
+    data: {
+      cfItem: makeCfItem('n1', 'Understand and use place value to round whole numbers to any place.', {
+        humanCodingScheme: '3.NBT.A.1',
+        CFItemType: 'Standard',
+        subject: ['Mathematics'],
+        educationLevel: ['Grade 3'],
+        conceptKeywords: ['place value', 'rounding'],
+        alternativeLabel: 'Rounding whole numbers (place value)',
+      }),
+    },
+    className: caseItemNodeClassName,
+  },
+  {
+    id: 'n2',
+    type: 'caseItemNode',
+    position: { x: 0, y: 140 },
+    style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
+    data: {
+      cfItem: makeCfItem('n2', 'Explain patterns in the number of zeros of the product when multiplying by powers of 10.', {
+        humanCodingScheme: '3.NBT.A.2',
+        CFItemType: 'Standard',
+        subject: ['Mathematics'],
+        educationLevel: ['Grade 3'],
+        conceptKeywords: ['powers of ten', 'patterns', 'multiplication'],
+      }),
+    },
+    className: caseItemNodeClassName,
+  },
   {
     id: 'n3',
     type: 'caseItemNode',
-    position: { x: 0, y: 200 },
-    data: { cfItem: makeCfItem('n3', 'Node 3') },
+    position: { x: 0, y: 280 },
+    style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
+    data: {
+      cfItem: makeCfItem('n3', 'Use place value understanding to round decimals to a specified place.', {
+        humanCodingScheme: '5.NBT.A.4',
+        CFItemType: 'Standard',
+        subject: ['Mathematics'],
+        educationLevel: ['Grade 5'],
+        conceptKeywords: ['decimals', 'rounding', 'place value'],
+      }),
+    },
     className: caseItemNodeClassName,
   },
 ]
@@ -84,22 +194,27 @@ export default function App() {
 
       const children = nodesSnapshot.filter((n) => n.data?.parentId === parentId)
 
-      const childRowY = parent.position.y + 120
-      const childGapX = 280
+      const parentSize = getNodeSize(parent)
+      const childRowY = parent.position.y + parentSize.h + 40
+      const childGapX = DEFAULT_NODE_WIDTH + 60
 
       const rightMostChildX = children.length
         ? Math.max(...children.map((c) => c.position.x))
         : parent.position.x - childGapX
 
-      const nextPosition = {
+      const desiredPosition = {
         x: rightMostChildX + childGapX,
         y: childRowY,
       }
+
+      const childSize = { w: DEFAULT_NODE_WIDTH, h: DEFAULT_NODE_HEIGHT }
+      const nextPosition = findNonOverlappingPosition(desiredPosition, childSize, nodesSnapshot)
 
       const childNode: Node<CaseItemNodeData> = {
         id: childId,
         type: 'caseItemNode',
         position: nextPosition,
+        style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
         data: { cfItem: makeCfItem(childId, 'Text Node'), parentId },
         className: caseItemNodeClassName,
       }
