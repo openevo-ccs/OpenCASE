@@ -19,20 +19,30 @@ import {
 } from '@xyflow/react'
 
 import { nodeTypes } from '@/ui/editor/reactflow/nodeTypes'
-import type { CaseItemNodeData } from '@/ui/editor/reactflow/types'
+import type { CaseItemNodeData, CaseItemNodeDataPatch } from '@/ui/editor/reactflow/types'
+import type { CFItem } from '@/domain/case/types'
 import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
 
 const caseItemNodeClassName =
   'w-[240px] rounded-[var(--xy-node-border-radius,var(--xy-node-border-radius-default))] border-[var(--xy-node-border,var(--xy-node-border-default))] bg-[var(--xy-node-background-color,var(--xy-node-background-color-default))] p-2 text-left text-xs text-[var(--xy-node-color,var(--xy-node-color-default))] hover:shadow-[var(--xy-node-boxshadow-hover,var(--xy-node-boxshadow-hover-default))] [&.selected]:shadow-[var(--xy-node-boxshadow-selected,var(--xy-node-boxshadow-selected-default))]'
 
+const nowIso = () => new Date().toISOString()
+
+const makeCfItem = (id: string, fullStatement: string): CFItem => ({
+  identifier: id,
+  uri: `urn:case:item:${id}`,
+  fullStatement,
+  lastChangeDateTime: nowIso(),
+})
+
 const initialNodes: Node<CaseItemNodeData>[] = [
-  { id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Node 1' } },
-  { id: 'n2', position: { x: 0, y: 100 }, data: { label: 'Node 2' } },
+  { id: 'n1', position: { x: 0, y: 0 }, data: { cfItem: makeCfItem('n1', 'Node 1') } },
+  { id: 'n2', position: { x: 0, y: 100 }, data: { cfItem: makeCfItem('n2', 'Node 2') } },
   {
     id: 'n3',
     type: 'caseItemNode',
     position: { x: 0, y: 200 },
-    data: { label: 'Node 3' },
+    data: { cfItem: makeCfItem('n3', 'Node 3') },
     className: caseItemNodeClassName,
   },
 ]
@@ -46,6 +56,22 @@ export default function App() {
   const [nodes, setNodes] = useState<Node<CaseItemNodeData>[]>(initialNodes)
   const [edges, setEdges] = useState<Edge[]>(initialEdges)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+
+  const updateNodeData = useCallback((nodeId: string, patch: CaseItemNodeDataPatch) => {
+    setNodes((nodesSnapshot) =>
+      nodesSnapshot.map((n) => {
+        if (n.id !== nodeId) return n
+
+        const nextData: CaseItemNodeData = {
+          ...n.data,
+          ...patch,
+          cfItem: patch.cfItem ? { ...n.data.cfItem, ...patch.cfItem } : n.data.cfItem,
+        }
+
+        return { ...n, data: nextData }
+      }),
+    )
+  }, [])
 
   const addChildCaseItemNode = useCallback((parentId: string) => {
     const uuid = globalThis.crypto?.randomUUID?.()
@@ -74,7 +100,7 @@ export default function App() {
         id: childId,
         type: 'caseItemNode',
         position: nextPosition,
-        data: { label: 'Text Node', parentId },
+        data: { cfItem: makeCfItem(childId, 'Text Node'), parentId },
         className: caseItemNodeClassName,
       }
 
@@ -98,11 +124,11 @@ export default function App() {
           ? {
               ...n,
               className: caseItemNodeClassName,
-              data: { ...n.data, onAddChild: addChildCaseItemNode },
+              data: { ...n.data, onAddChild: addChildCaseItemNode, onUpdateItem: (id, patch) => updateNodeData(id, { cfItem: patch }) },
             }
           : n,
       ),
-    [nodes, addChildCaseItemNode],
+    [nodes, addChildCaseItemNode, updateNodeData],
   )
 
   const selectedNode = useMemo(
@@ -114,11 +140,12 @@ export default function App() {
     setSelectedNodeId(selectedNodes?.[0]?.id ?? null)
   }, [])
 
-  const onChangeSelectedNode = useCallback((nodeId: string, patch: Partial<CaseItemNodeData>) => {
-    setNodes((nodesSnapshot) =>
-      nodesSnapshot.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n)),
-    )
-  }, [])
+  const onChangeSelectedNode = useCallback(
+    (nodeId: string, patch: CaseItemNodeDataPatch) => {
+      updateNodeData(nodeId, patch)
+    },
+    [updateNodeData],
+  )
 
   const clearSelection = useCallback(() => {
     setSelectedNodeId(null)

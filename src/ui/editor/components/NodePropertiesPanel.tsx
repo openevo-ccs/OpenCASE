@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import type { Node } from '@xyflow/react'
 import { Button } from '@/ui/shared/components/ui/button'
-import type { CaseItemNodeData } from '../reactflow/types'
+import type { CaseItemNodeData, CaseItemNodeDataPatch } from '../reactflow/types'
 
 type Props = {
   node: Node<CaseItemNodeData> | null
   onClose?: () => void
-  onChangeNode?: (_nodeId: string, _patch: Partial<CaseItemNodeData>) => void
+  onChangeNode?: (_nodeId: string, _patch: CaseItemNodeDataPatch) => void
 }
 
 export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Readonly<Props>) {
@@ -27,6 +27,8 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
       ['id', node.id],
       ['type', node.type ?? 'default'],
       ['parentId', node.data?.parentId ?? '—'],
+      ['cfItem.identifier', node.data?.cfItem?.identifier ?? '—'],
+      ['cfItem.uri', node.data?.cfItem?.uri ?? '—'],
     ] as const
   }, [node])
 
@@ -62,16 +64,17 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
           </div>
 
           <div className="rounded-xl border border-black/10 bg-slate-900/2 p-3">
-            <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-label">
-              Label
+            <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fullStatement">
+              Full statement
             </label>
-            <input
-              id="node-label"
-              className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
-              value={node.data?.label ?? ''}
+            <textarea
+              id="node-fullStatement"
+              rows={6}
+              className="w-full resize-y rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+              value={node.data?.cfItem?.fullStatement ?? ''}
               onChange={(e) => {
                 const next = e.target.value
-                onChangeNode?.(node.id, { label: next })
+                onChangeNode?.(node.id, { cfItem: { fullStatement: next, lastChangeDateTime: new Date().toISOString() } })
               }}
             />
           </div>

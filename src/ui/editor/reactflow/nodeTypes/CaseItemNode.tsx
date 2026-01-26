@@ -5,10 +5,18 @@ import { ArrowUpCircleIcon, ArrowDownCircleIcon, PlusIcon } from '@heroicons/rea
 import type { CaseItemNodeType } from '../types'
 
 export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) {
+  // Defensive typing: React Flow's NodeProps typing can lag behind our node-data evolution.
+  // Runtime `data` is shaped by `App.tsx` and always includes `cfItem` for CASE item nodes.
+  const typedData = data as unknown as {
+    cfItem?: { fullStatement?: string }
+    onAddChild?: (_parentId: string) => void
+    onUpdateItem?: (_nodeId: string, _patch: { fullStatement?: string; lastChangeDateTime?: string }) => void
+  }
+
   const onChange = useCallback((evt: ChangeEvent<HTMLInputElement>) => {
     const nextValue = evt.target.value
-    console.log(nextValue)
-  }, [])
+    typedData?.onUpdateItem?.(id, { fullStatement: nextValue, lastChangeDateTime: new Date().toISOString() })
+  }, [typedData, id])
 
   return (
     <div className="group relative border border-gray-600 rounded p-2">
@@ -18,7 +26,7 @@ export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) 
           className="grid h-[22px] w-[22px] place-items-center rounded-full border border-violet-700/90 bg-white/90 text-violet-700 shadow-sm hover:bg-violet-700/10 focus-visible:outline-2 focus-visible:outline-violet-700/50 focus-visible:outline-offset-2"
           onClick={(e) => {
             e.stopPropagation()
-            data?.onAddChild?.(id)
+            typedData?.onAddChild?.(id)
           }}
           aria-label="Add child node"
           title="Add child node"
@@ -35,6 +43,7 @@ export default function CaseItemNode({ id, data }: NodeProps<CaseItemNodeType>) 
           id="text"
           name="text"
           onChange={onChange}
+          value={typedData?.cfItem?.fullStatement ?? ''}
           className="nodrag w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
         />
       </div>
