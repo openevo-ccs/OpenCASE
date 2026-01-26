@@ -64,4 +64,11 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // Editor state uses context + hooks and intentionally exports non-component helpers.
+    files: ['src/ui/editor/state/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

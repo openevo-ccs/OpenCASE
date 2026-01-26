@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Node } from '@xyflow/react'
 import { Button } from '@/ui/shared/components/ui/button'
-import type { CaseEditorNodeData, CaseEditorNodeDataPatch } from '../reactflow/types'
+import type { CaseEditorNodeDataPatch, CaseEditorNodeType } from '../reactflow/types'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 
 type Props = {
-  node: Node<CaseEditorNodeData> | null
+  node: CaseEditorNodeType | null
   onClose?: () => void
   onChangeNode?: (_nodeId: string, _patch: CaseEditorNodeDataPatch) => void
 }
