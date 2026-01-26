@@ -28,6 +28,7 @@ import type {
 } from '@/ui/editor/reactflow/types'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
+import CanvasHeader from '@/ui/editor/components/CanvasHeader'
 
 const caseItemNodeClassName =
   // React Flow wraps nodeTypes in its own container; keep that container visually neutral
@@ -199,6 +200,16 @@ export default function App() {
   const [edges, setEdges] = useState<Edge[]>(initialEdges)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
 
+  const frameworkInfo = useMemo(() => {
+    const fw = nodes.find((n) => n.type === 'caseFrameworkNode') as any
+    const doc = fw?.data?.cfDocument as CFDocument | undefined
+    return {
+      title: doc?.title ?? 'Framework',
+      subtitle: [doc?.adoptionStatus, doc?.frameworkType].filter(Boolean).join(' • ') || undefined,
+      creator: doc?.creator,
+    }
+  }, [nodes])
+
   const updateNodeData = useCallback((nodeId: string, patch: CaseEditorNodeDataPatch) => {
     setNodes((nodesSnapshot) =>
       nodesSnapshot.map((n) => {
@@ -331,7 +342,13 @@ export default function App() {
   }, [])
 
   return (
-    <div className="h-screen w-screen">
+    <div className="relative h-screen w-screen">
+      <CanvasHeader
+        frameworkTitle={frameworkInfo.title}
+        frameworkSubtitle={frameworkInfo.subtitle}
+        userName="Taylor Couper"
+        reserveRightForPanel={Boolean(selectedNode)}
+      />
       <ReactFlow
         nodes={nodesWithCallbacks}
         edges={edges}
