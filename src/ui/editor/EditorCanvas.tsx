@@ -16,7 +16,7 @@ import type { CFDocument, CFItem } from '@/domain/case/types'
 export default function EditorCanvas({ onBack }: { onBack?: () => void }) {
   const {
     nodesWithCallbacks,
-    edges,
+    edges: editorEdges,
     onNodesChange,
     onEdgesChange,
     onConnect,
@@ -47,16 +47,21 @@ export default function EditorCanvas({ onBack }: { onBack?: () => void }) {
     itemCount: number
     childItemCount: number
     reattachChildren: boolean
+    isFrameworkDelete: boolean
     resolve: (allowDelete: boolean) => void
   }>(null)
 
   const onBeforeDelete: OnBeforeDelete<CaseEditorNodeType> = useCallback(
-    async ({ nodes, edges }) => {
-      const nodeIds = nodes.map((n) => n.id)
-      const edgeIds = edges.map((e) => e.id)
+    async ({ nodes, edges: deletedEdges }) => {
+      const includesFramework = nodes.some((n) => n.type === 'caseFrameworkNode')
+
+      const nodeIds = includesFramework ? nodesWithCallbacks.map((n) => n.id) : nodes.map((n) => n.id)
+      const edgeIds = includesFramework ? editorEdges.map((e) => e.id) : deletedEdges.map((e) => e.id)
 
       const nodeIdSet = new Set(nodeIds)
-      const deletedItemIdSet = new Set(nodes.filter((n) => n.type === 'caseItemNode').map((n) => n.id))
+      const deletedItemIdSet = new Set(
+        (includesFramework ? nodesWithCallbacks : nodes).filter((n) => n.type === 'caseItemNode').map((n) => n.id),
+      )
 
       const childItemCount = nodesWithCallbacks.filter(
         (n) =>
@@ -76,12 +81,13 @@ export default function EditorCanvas({ onBack }: { onBack?: () => void }) {
           nodeCount,
           itemCount,
           childItemCount,
-          reattachChildren: true,
+          reattachChildren: includesFramework ? false : true,
+          isFrameworkDelete: includesFramework,
           resolve,
         })
       })
     },
-    [nodesWithCallbacks],
+    [nodesWithCallbacks, editorEdges],
   )
 
   const closeDeleteDialog = useCallback(() => {
@@ -94,15 +100,17 @@ export default function EditorCanvas({ onBack }: { onBack?: () => void }) {
   const confirmDelete = useCallback(
     (options: { reattachChildren: boolean }) => {
       if (!pendingDelete) return
+      const isFrameworkDelete = pendingDelete.isFrameworkDelete
       deleteElements({
         nodeIds: pendingDelete.nodeIds,
         edgeIds: pendingDelete.edgeIds,
-        reattachChildren: options.reattachChildren,
+        reattachChildren: isFrameworkDelete ? false : options.reattachChildren,
       })
       pendingDelete.resolve(false) // we perform the deletion ourselves
       setPendingDelete(null)
+      if (isFrameworkDelete) onBack?.()
     },
-    [pendingDelete, deleteElements],
+    [pendingDelete, deleteElements, onBack],
   )
 
   const ensureNodeVisible = useCallback(
@@ -310,7 +318,7 @@ export default function EditorCanvas({ onBack }: { onBack?: () => void }) {
       <div ref={reactFlowWrapRef} className="h-full w-full">
         <ReactFlow<CaseEditorNodeType>
           nodes={nodesWithCallbacks}
-          edges={edges}
+          edges={editorEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -356,6 +364,7 @@ export default function EditorCanvas({ onBack }: { onBack?: () => void }) {
         itemCount={pendingDelete?.itemCount ?? 0}
         childItemCount={pendingDelete?.childItemCount ?? 0}
         reattachChildren={pendingDelete?.reattachChildren ?? true}
+        isFrameworkDelete={pendingDelete?.isFrameworkDelete ?? false}
         onReattachChildrenChange={(value) =>
           setPendingDelete((pd) => (pd ? { ...pd, reattachChildren: value } : pd))
         }

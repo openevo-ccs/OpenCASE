@@ -13,6 +13,7 @@ type Props = {
   onReattachChildrenChange: (value: boolean) => void
   onCancel: () => void
   onConfirm: (options: { reattachChildren: boolean }) => void
+  isFrameworkDelete?: boolean
 }
 
 export default function ConfirmDeleteDialog({
@@ -24,14 +25,16 @@ export default function ConfirmDeleteDialog({
   onReattachChildrenChange,
   onCancel,
   onConfirm,
+  isFrameworkDelete,
 }: Readonly<Props>) {
-  const title = nodeCount === 1 ? 'Delete this item?' : `Delete ${nodeCount} items?`
-  const description =
-    nodeCount === 1
+  const title = isFrameworkDelete ? 'Delete this framework?' : nodeCount === 1 ? 'Delete this item?' : `Delete ${nodeCount} items?`
+  const description = isFrameworkDelete
+    ? 'This will delete the framework and all of its items. This action cannot be undone.'
+    : nodeCount === 1
       ? 'This will remove it from the framework.'
       : 'This will remove the selected items from the framework.'
 
-  const showReattach = itemCount > 0
+  const showReattach = !isFrameworkDelete && itemCount > 0
   let reattachLabel = 'Keep the framework connected by attaching child items to the deleted item’s parent'
   if (childItemCount > 0) {
     reattachLabel = `Keep the framework connected by attaching ${childItemCount} child item${childItemCount === 1 ? '' : 's'} to the deleted item’s parent`
@@ -80,7 +83,7 @@ export default function ConfirmDeleteDialog({
               onConfirm({ reattachChildren })
             }}
           >
-            Delete
+            {isFrameworkDelete ? 'Delete framework' : 'Delete'}
           </Button>
         </DialogFooter>
       </DialogContent>
