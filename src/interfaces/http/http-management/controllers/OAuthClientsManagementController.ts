@@ -1,10 +1,11 @@
-import { Request, Response } from 'express'
-import { CreateOAuthClient } from '../../../../application/oauth/endpoints/CreateOAuthClient'
-import { DeleteOAuthClient } from '../../../../application/oauth/endpoints/DeleteOAuthClient'
-import { ListTenantClients } from '../../../../application/oauth/endpoints/ListTenantClients'
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { type Request, type Response } from 'express'
+import { type CreateOAuthClient } from '../../../../application/oauth/endpoints/CreateOAuthClient'
+import { type DeleteOAuthClient } from '../../../../application/oauth/endpoints/DeleteOAuthClient'
+import { type ListTenantClients } from '../../../../application/oauth/endpoints/ListTenantClients'
 
 export class OAuthClientsManagementController {
-  constructor(
+  constructor (
     private readonly createOAuthClient: CreateOAuthClient,
     private readonly deleteOAuthClient: DeleteOAuthClient,
     private readonly listTenantClients: ListTenantClients
@@ -108,4 +109,3 @@ export class OAuthClientsManagementController {
     }
   }
 }
-

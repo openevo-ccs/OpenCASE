@@ -156,18 +156,72 @@ Each framework file (doc-123_v0002.json) contains:
 ```
 
 
-Authentication
+## Authentication & Authorization
 
-Both public and admin APIs require a valid JWT with:
-	•	iss = configured issuer
-	•	aud = configured audience
-	•	Recommended claim: tenantId
+### OAuth2 Authentication
 
-Env variables:
+OpenCASE supports OAuth2 authentication with multiple grant types:
 
-- JWT_PUBLIC_KEY=
-- JWT_ISSUER=
-- JWT_AUDIENCE=
+- **Client Credentials** (`client_credentials`): For server-to-server authentication
+- **Authorization Code with PKCE** (`authorization_code`): For user-facing applications (e.g., React apps)
+- **Refresh Token** (`refresh_token`): For obtaining new access tokens
+
+#### OAuth2 Endpoints
+
+- `GET /oauth/authorize` - Authorization endpoint (for authorization_code flow)
+- `POST /oauth/token` - Token endpoint (supports all grant types)
+- `POST /oauth/revoke` - Token revocation endpoint
+- `GET /.well-known/oauth-authorization-server` - OAuth2 discovery endpoint
+
+#### Obtaining an Access Token
+
+**Client Credentials Flow:**
+```bash
+curl -X POST http://localhost:8080/oauth/token \
+  -d "grant_type=client_credentials" \
+  -d "client_id=your-client-id" \
+  -d "client_secret=your-client-secret" \
+  -d "scope=case.read case.write"
+```
+
+**Authorization Code Flow (with PKCE):**
+1. Generate code verifier and challenge
+2. Redirect user to `/oauth/authorize?response_type=code&client_id=...&code_challenge=...&code_challenge_method=S256`
+3. User authenticates and authorizes
+4. Exchange authorization code for tokens at `/oauth/token`
+
+### Scopes
+
+OpenCASE uses OAuth2 scopes to control access to different operations:
+
+| Scope | Description | Use Cases |
+|-------|-------------|-----------|
+| `case.read` | Read-only access to CASE entities | Public API access, viewing frameworks |
+| `case.write` | Read and write access to CASE entities | Creating/updating frameworks, items, associations |
+| `case.owner` | Per-tenant administrator | Manage accounts, OAuth clients, and tenant data within a specific tenant |
+| `case.admin` | System-wide administrator | Create tenants, manage OAuth clients across all tenants |
+
+**Scope Hierarchy:**
+- `case.admin` - Highest privilege (system-wide)
+- `case.owner` - Tenant-specific administration
+- `case.write` - Includes `case.read` permissions
+- `case.read` - Basic read access
+
+### JWT Token Claims
+
+Access tokens are JWTs containing:
+
+- `iss` - Issuer (must match configured `JWT_ISSUER`)
+- `aud` - Audience (must match configured `JWT_AUDIENCE`)
+- `tenantId` - Tenant identifier (required for tenant-scoped operations)
+- `scope` - Space-separated list of granted scopes
+- `sub` - Subject (user ID for authorization_code flow, client ID for client_credentials)
+
+### Environment Variables
+
+- `JWT_PUBLIC_KEY` - RSA public key for JWT validation (PEM format)
+- `JWT_ISSUER` - Expected JWT issuer (default: `example-issuer`)
+- `JWT_AUDIENCE` - Expected JWT audience (default: `example-audience`)
 
 
 ## Configuration
@@ -214,6 +268,223 @@ Used to create/update frameworks.
 }
 ```
 Creates a new versioned bundle on disk.
+
+### Management API (/management/...)
+
+The Management API provides extended functionality beyond the CASE standard specification. These endpoints allow you to:
+
+- **Update and Delete** CASE entities (CFDocuments, CFItems, CFAssociations)
+- **Manage Tenants** (create, list)
+- **Manage User Accounts** (create, update, delete, list, manage memberships)
+- **Manage OAuth Clients** (create, delete, list)
+- **List Frameworks** for a tenant
+
+All management endpoints require authentication and are scoped to the authenticated tenant. Different endpoints require different scopes as detailed below.
+
+#### CASE Entity Management
+
+These endpoints allow updating and deleting CASE entities. They require authentication and are scoped to the authenticated tenant.
+
+**Update CFDocument:**
+```bash
+PUT /management/tenants/{tenantId}/CFDocuments/{id}
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "CFDocument": { /* Updated CFDocument */ }
+}
+```
+
+**Delete CFDocument:**
+```bash
+DELETE /management/tenants/{tenantId}/CFDocuments/{id}
+Authorization: Bearer {access_token}
+```
+
+Similar endpoints exist for:
+- `PUT /management/tenants/{tenantId}/CFItems/{id}`
+- `DELETE /management/tenants/{tenantId}/CFItems/{id}`
+- `PUT /management/tenants/{tenantId}/CFAssociations/{id}`
+- `DELETE /management/tenants/{tenantId}/CFAssociations/{id}`
+
+**List Frameworks:**
+```bash
+GET /management/tenants/{tenantId}/frameworks?caseVersion=1.1
+Authorization: Bearer {access_token}
+```
+
+#### Tenant Management
+
+**Required Scope:** `case.admin`
+
+These endpoints allow system administrators to create and list tenants.
+
+**List All Tenants:**
+```bash
+GET /management/tenants
+Authorization: Bearer {access_token}
+```
+
+**Create a New Tenant:**
+```bash
+POST /management/tenants
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "tenantId": "new-tenant-id"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "created",
+  "tenantId": "new-tenant-id",
+  "adminAccount": {
+    "email": "admin@new-tenant-id.local",
+    "password": "auto-generated-password"
+  }
+}
+```
+
+When a tenant is created, an admin account is automatically created with:
+- Email: `admin@{tenantId}.local`
+- Auto-generated password (returned in response)
+- Role: `admin`
+- Scopes: `case.read`, `case.write`, `case.owner`
+
+#### Account Management
+
+**Required Scope:** `case.owner`
+
+These endpoints allow tenant administrators to manage user accounts within their tenant.
+
+**Create Account:**
+```bash
+POST /management/tenants/{tenantId}/accounts
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "secure-password",  // Optional if autoGeneratePassword is true
+  "role": "user",                 // "admin", "user", or "viewer"
+  "autoGeneratePassword": false
+}
+```
+
+**Roles and Default Scopes:**
+- `admin` → `case.read`, `case.write`, `case.owner`
+- `user` → `case.read`, `case.write`
+- `viewer` → `case.read`
+
+**List Accounts:**
+```bash
+GET /management/tenants/{tenantId}/accounts
+Authorization: Bearer {access_token}
+```
+
+**Update Account:**
+```bash
+PUT /management/tenants/{tenantId}/accounts/{accountId}
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "email": "newemail@example.com",  // Optional
+  "password": "new-password"        // Optional
+}
+```
+
+**Delete Account:**
+```bash
+DELETE /management/tenants/{tenantId}/accounts/{accountId}
+Authorization: Bearer {access_token}
+```
+
+**Add Tenant Membership** (allow account to access multiple tenants):
+```bash
+POST /management/tenants/{tenantId}/accounts/{accountId}/memberships
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "tenantId": "other-tenant-id",
+  "role": "user"
+}
+```
+
+**Remove Tenant Membership:**
+```bash
+DELETE /management/tenants/{tenantId}/accounts/{accountId}/memberships/{targetTenantId}
+Authorization: Bearer {access_token}
+```
+
+#### OAuth Client Management
+
+**Required Scope:** `case.owner` or `case.admin`
+
+These endpoints allow administrators to manage OAuth clients for a tenant.
+
+**Create OAuth Client:**
+```bash
+POST /management/tenants/{tenantId}/clients
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "clientId": "optional-client-id",      // Optional, auto-generated if not provided
+  "clientSecret": "optional-secret",     // Optional if autoGenerateSecret is true
+  "grantTypes": ["client_credentials", "authorization_code"],
+  "scopes": ["case.read", "case.write"], // Optional
+  "active": true,                         // Optional, defaults to true
+  "autoGenerateSecret": false            // Optional, defaults to false
+}
+```
+
+**Response:**
+```json
+{
+  "status": "created",
+  "client": {
+    "clientId": "generated-client-id",
+    "clientSecret": "generated-secret",  // Only shown on creation
+    "tenantId": "tenant-id",
+    "grantTypes": ["client_credentials"],
+    "scopes": ["case.read", "case.write"],
+    "active": true
+  }
+}
+```
+
+**List OAuth Clients:**
+```bash
+GET /management/tenants/{tenantId}/clients
+Authorization: Bearer {access_token}
+```
+
+**Response:**
+```json
+{
+  "clients": [
+    {
+      "clientId": "client-1",
+      "grantTypes": ["client_credentials"],
+      "scopes": ["case.read"],
+      "active": true
+    }
+  ],
+  "total": 1
+}
+```
+
+**Delete OAuth Client:**
+```bash
+DELETE /management/tenants/{tenantId}/clients/{clientId}
+Authorization: Bearer {access_token}
+```
 
 
 

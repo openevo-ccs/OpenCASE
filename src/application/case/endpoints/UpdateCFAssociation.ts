@@ -3,6 +3,7 @@ import { CaseVersion, TenantId } from '../../../domain/case/value-objects/Identi
 import { CFPackage } from '../../../domain/case/entities/CFPackage'
 import { CFAssociation } from '../../../domain/case/entities/CFAssociation'
 import type { FileFrameworkStore } from '../../../infrastructure/persistence/file/FileFrameworkStore'
+import { JsonSchemaValidator } from '../../../infrastructure/validation/JsonSchemaValidator'
 
 export interface UpdateCFAssociationCommand {
   tenantId: TenantId
@@ -14,11 +15,22 @@ export interface UpdateCFAssociationCommand {
 export class UpdateCFAssociation {
   constructor (
     private readonly pkgRepo: CFPackageRepository,
-    private readonly store: FileFrameworkStore
+    private readonly store: FileFrameworkStore,
+    private readonly validator?: JsonSchemaValidator
   ) {}
 
   async execute (cmd: UpdateCFAssociationCommand): Promise<void> {
     const { tenantId, caseVersion, sourcedId, payload } = cmd
+
+    // Validate against JSON schema if validator is available
+    if (this.validator) {
+      try {
+        const schemaName = caseVersion === '1.1' ? 'case-v1p1-cfassociation' : 'case-v1p1-cfassociation'
+        this.validator.validate(schemaName, payload)
+      } catch (error: any) {
+        throw new Error(`Schema validation failed: ${error.message}`)
+      }
+    }
 
     // Find which document this association belongs to
     const docId = this.store.getDocumentIdForAssociation(tenantId, caseVersion, sourcedId)

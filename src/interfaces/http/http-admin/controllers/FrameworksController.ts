@@ -12,15 +12,26 @@ export class FrameworksController {
     const tenantId = req.params.tenantId
     const caseVersion = (req.query.caseVersion as '1.0' | '1.1') ?? '1.1'
 
-    // TODO: validate req.body against CASE JSON Schema via JsonSchemaValidator
+    try {
+      await this.createFramework.execute({
+        tenantId,
+        caseVersion,
+        payload: req.body
+      })
 
-    await this.createFramework.execute({
-      tenantId,
-      caseVersion,
-      payload: req.body
-    })
-
-    res.status(201).json({ status: 'created' })
+      res.status(201).json({ status: 'created' })
+    } catch (error: any) {
+      if (error.message?.includes('Schema validation failed')) {
+        return res.status(400).json({
+          error: 'validation_failed',
+          message: error.message
+        })
+      }
+      return res.status(400).json({
+        error: 'creation_failed',
+        message: error.message || 'Failed to create framework'
+      })
+    }
   }
 
   importFromEndpoint = async (req: Request, res: Response) => {

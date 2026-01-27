@@ -1,0 +1,94 @@
+/* Brand Colors */
+:root {
+  --color-sky: #55B1E8;
+  --color-blue: #0000FF;
+  --color-navy: #000072;
+  --color-gold: #FFBF00;
+  --color-amber: #FF941F;
+  --color-violet: #6129FF;
+  --color-plum: #662F90;
+  --color-charcoal: #2E2F2F;
+  --color-gray: #919496;
+  --color-silver: #EBEBEB;
+}
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&family=Barlow:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: 'Nunito', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.font-header {
+  font-family: 'Barlow', sans-serif;
+}
+
+/* Brand color utilities */
+.bg-sky { background-color: var(--color-sky); }
+.bg-blue { background-color: var(--color-blue); }
+.bg-navy { background-color: var(--color-navy); }
+.bg-gold { background-color: var(--color-gold); }
+.bg-amber { background-color: var(--color-amber); }
+.bg-violet { background-color: var(--color-violet); }
+.bg-plum { background-color: var(--color-plum); }
+.bg-charcoal { background-color: var(--color-charcoal); }
+.bg-gray { background-color: var(--color-gray); }
+.bg-silver { background-color: var(--color-silver); }
+
+.text-sky { color: var(--color-sky); }
+.text-blue { color: var(--color-blue); }
+.text-navy { color: var(--color-navy); }
+.text-gold { color: var(--color-gold); }
+.text-amber { color: var(--color-amber); }
+.text-violet { color: var(--color-violet); }
+.text-plum { color: var(--color-plum); }
+.text-charcoal { color: var(--color-charcoal); }
+.text-gray { color: var(--color-gray); }
+.text-silver { color: var(--color-silver); }
+
+.border-sky { border-color: var(--color-sky); }
+.border-blue { border-color: var(--color-blue); }
+.border-navy { border-color: var(--color-navy); }
+.border-gold { border-color: var(--color-gold); }
+.border-amber { border-color: var(--color-amber); }
+.border-violet { border-color: var(--color-violet); }
+.border-plum { border-color: var(--color-plum); }
+.border-charcoal { border-color: var(--color-charcoal); }
+.border-gray { border-color: var(--color-gray); }
+.border-silver { border-color: var(--color-silver); }
+
+.hover\:bg-sky:hover { background-color: var(--color-sky); }
+.hover\:bg-blue:hover { background-color: var(--color-blue); }
+.hover\:bg-navy:hover { background-color: var(--color-navy); }
+.hover\:bg-gold:hover { background-color: var(--color-gold); }
+.hover\:bg-amber:hover { background-color: var(--color-amber); }
+.hover\:bg-violet:hover { background-color: var(--color-violet); }
+.hover\:bg-plum:hover { background-color: var(--color-plum); }
+.hover\:bg-charcoal:hover { background-color: var(--color-charcoal); }
+.hover\:bg-gray:hover { background-color: var(--color-gray); }
+.hover\:bg-silver:hover { background-color: var(--color-silver); }
+
+.hover\:text-sky:hover { color: var(--color-sky); }
+.hover\:text-blue:hover { color: var(--color-blue); }
+.hover\:text-navy:hover { color: var(--color-navy); }
+.hover\:text-gold:hover { color: var(--color-gold); }
+.hover\:text-amber:hover { color: var(--color-amber); }
+.hover\:text-violet:hover { color: var(--color-violet); }
+.hover\:text-plum:hover { color: var(--color-plum); }
+.hover\:text-charcoal:hover { color: var(--color-charcoal); }
+.hover\:text-gray:hover { color: var(--color-gray); }
+.hover\:text-silver:hover { color: var(--color-silver); }
+
+
+
+
+
+
+
+
+
+
+
+
+

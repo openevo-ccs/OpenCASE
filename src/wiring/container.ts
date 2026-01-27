@@ -1,6 +1,8 @@
 import { loadConfig, type AppConfig } from '../infrastructure/config/Config'
 import { logger } from '../infrastructure/logging/Logger'
 import { JwtVerifier } from '../infrastructure/auth/JwtVerifier'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { FileFrameworkStore } from '../infrastructure/persistence/file/FileFrameworkStore'
 import { FileCFPackageRepository } from '../infrastructure/persistence/file/FileCFPackageRepository'
 import { CreateFramework } from '../application/case/endpoints/CreateFramework'
@@ -200,12 +202,48 @@ export async function buildContainer(): Promise<Container> {
     timeout: 30000 // 30 second timeout
   })
 
-  // Initialize JSON schema validator (optional - can be configured with schemas later)
+  // Initialize JSON schema validator and load CASE schemas
   const jsonSchemaValidator = new JsonSchemaValidator()
-  // TODO: Load CASE JSON schemas if available
-  // Example: jsonSchemaValidator.addSchema('case-v1p1', caseV1p1Schema)
+  try {
+    // Try multiple paths to support both development and production builds
+    const possiblePaths = [
+      join(__dirname, '../../schemas'), // Development: src/wiring -> schemas
+      join(__dirname, '../../../schemas'), // Production: dist/wiring -> schemas
+      join(process.cwd(), 'schemas') // Fallback: project root
+    ]
+    
+    let schemasDir: string | null = null
+    for (const path of possiblePaths) {
+      try {
+        const testFile = join(path, 'case-v1p1-cfpackage.json')
+        readFileSync(testFile, 'utf-8')
+        schemasDir = path
+        break
+      } catch {
+        // Try next path
+      }
+    }
+    
+    if (!schemasDir) {
+      throw new Error('Could not find schemas directory')
+    }
+    
+    const cfPackageSchema = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfpackage.json'), 'utf-8'))
+    const cfDocumentSchema = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfdocument.json'), 'utf-8'))
+    const cfItemSchema = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfitem.json'), 'utf-8'))
+    const cfAssociationSchema = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfassociation.json'), 'utf-8'))
+    
+    jsonSchemaValidator.addSchema('case-v1p1-cfpackage', cfPackageSchema)
+    jsonSchemaValidator.addSchema('case-v1p1-cfdocument', cfDocumentSchema)
+    jsonSchemaValidator.addSchema('case-v1p1-cfitem', cfItemSchema)
+    jsonSchemaValidator.addSchema('case-v1p1-cfassociation', cfAssociationSchema)
+    
+    logger.info('Loaded CASE JSON schemas for validation')
+  } catch (error: any) {
+    logger.warn({ error: error.message }, 'Failed to load JSON schemas - validation will be skipped')
+  }
 
-  const createFramework = new CreateFramework(pkgRepo)
+  const createFramework = new CreateFramework(pkgRepo, jsonSchemaValidator)
   const importFramework = new ImportFrameworkFromEndpoint(pkgRepo, caseApiClient, jsonSchemaValidator)
   
   // Initialize CASE endpoints
@@ -223,9 +261,9 @@ export async function buildContainer(): Promise<Container> {
   const getCFLicense = new GetCFLicense(pkgRepo, store)
 
   // Initialize management commands
-  const updateCFDocument = new UpdateCFDocument(pkgRepo)
-  const updateCFItem = new UpdateCFItem(pkgRepo, store)
-  const updateCFAssociation = new UpdateCFAssociation(pkgRepo, store)
+  const updateCFDocument = new UpdateCFDocument(pkgRepo, jsonSchemaValidator)
+  const updateCFItem = new UpdateCFItem(pkgRepo, store, jsonSchemaValidator)
+  const updateCFAssociation = new UpdateCFAssociation(pkgRepo, store, jsonSchemaValidator)
   const deleteCFDocument = new DeleteCFDocument(pkgRepo, store)
   const deleteCFItem = new DeleteCFItem(pkgRepo, store)
   const deleteCFAssociation = new DeleteCFAssociation(pkgRepo, store)

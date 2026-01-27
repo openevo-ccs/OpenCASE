@@ -1,4 +1,5 @@
 import express, { type RequestHandler } from 'express'
+import cors from 'cors'
 import { makeAuthMiddleware } from './middleware/auth'
 import { registerV1p1Routes } from './http-public/v1p1/routes'
 import { registerAdminRoutes } from './http-admin/routes'
@@ -8,6 +9,14 @@ import { type Container } from '../../wiring/container'
 
 export function createServer (container: Container): express.Express {
   const app = express()
+
+  // CORS middleware - allow all origins for development (restrict in production)
+  app.use(cors({
+    origin: true, // Allow all origins (for development) - restrict in production
+    credentials: true, // Allow credentials (cookies, authorization headers)
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  }))
 
   app.use(express.json())
   app.use(express.urlencoded({ extended: true })) // For OAuth form-encoded requests

@@ -1,6 +1,7 @@
-import { Request, Response } from 'express'
-import { UpdateCFDocument } from '../../../../application/case/endpoints/UpdateCFDocument'
-import { DeleteCFDocument } from '../../../../application/case/endpoints/DeleteCFDocument'
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { type Request, type Response } from 'express'
+import { type UpdateCFDocument } from '../../../../application/case/endpoints/UpdateCFDocument'
+import { type DeleteCFDocument } from '../../../../application/case/endpoints/DeleteCFDocument'
 
 export class CFDocumentsManagementController {
   constructor (
@@ -31,6 +32,12 @@ export class CFDocumentsManagementController {
     } catch (error: any) {
       if (error.message?.includes('not found')) {
         return res.status(404).json({ error: error.message })
+      }
+      if (error.message?.includes('Schema validation failed')) {
+        return res.status(400).json({
+          error: 'validation_failed',
+          message: error.message
+        })
       }
       return res.status(400).json({ error: error.message || 'Update failed' })
     }
@@ -63,4 +70,3 @@ export class CFDocumentsManagementController {
     }
   }
 }
-

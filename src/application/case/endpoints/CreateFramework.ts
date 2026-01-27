@@ -4,6 +4,7 @@ import { CFDocument } from '../../../domain/case/entities/CFDocument';
 import { CFItem } from '../../../domain/case/entities/CFItem';
 import { CFAssociation } from '../../../domain/case/entities/CFAssociation';
 import { CFPackage } from '../../../domain/case/entities/CFPackage';
+import { JsonSchemaValidator } from '../../../infrastructure/validation/JsonSchemaValidator';
 
 export interface CreateFrameworkCommand {
   tenantId: TenantId;
@@ -18,10 +19,23 @@ export interface CreateFrameworkCommand {
 }
 
 export class CreateFramework {
-  constructor(private readonly pkgRepo: CFPackageRepository) {}
+  constructor(
+    private readonly pkgRepo: CFPackageRepository,
+    private readonly validator?: JsonSchemaValidator
+  ) {}
 
   async execute(cmd: CreateFrameworkCommand): Promise<void> {
     const { tenantId, caseVersion, payload } = cmd;
+
+    // Validate against JSON schema if validator is available
+    if (this.validator) {
+      try {
+        const schemaName = caseVersion === '1.1' ? 'case-v1p1-cfpackage' : 'case-v1p1-cfpackage'
+        this.validator.validate(schemaName, payload)
+      } catch (error: any) {
+        throw new Error(`Schema validation failed: ${error.message}`)
+      }
+    }
 
     const document = CFDocument.fromRaw(tenantId, caseVersion, payload.document);
     const docId = document.sourcedId;

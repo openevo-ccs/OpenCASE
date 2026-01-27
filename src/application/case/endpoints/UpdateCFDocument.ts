@@ -4,6 +4,7 @@ import { CFDocument } from '../../../domain/case/entities/CFDocument'
 import { CFItem } from '../../../domain/case/entities/CFItem'
 import { CFAssociation } from '../../../domain/case/entities/CFAssociation'
 import { CFPackage } from '../../../domain/case/entities/CFPackage'
+import { JsonSchemaValidator } from '../../../infrastructure/validation/JsonSchemaValidator'
 
 export interface UpdateCFDocumentCommand {
   tenantId: TenantId
@@ -13,10 +14,23 @@ export interface UpdateCFDocumentCommand {
 }
 
 export class UpdateCFDocument {
-  constructor (private readonly pkgRepo: CFPackageRepository) {}
+  constructor (
+    private readonly pkgRepo: CFPackageRepository,
+    private readonly validator?: JsonSchemaValidator
+  ) {}
 
   async execute (cmd: UpdateCFDocumentCommand): Promise<void> {
     const { tenantId, caseVersion, sourcedId, payload } = cmd
+
+    // Validate against JSON schema if validator is available
+    if (this.validator) {
+      try {
+        const schemaName = caseVersion === '1.1' ? 'case-v1p1-cfdocument' : 'case-v1p1-cfdocument'
+        this.validator.validate(schemaName, payload)
+      } catch (error: any) {
+        throw new Error(`Schema validation failed: ${error.message}`)
+      }
+    }
 
     // Load existing package
     const existingPkg = await this.pkgRepo.load(tenantId, caseVersion, sourcedId)

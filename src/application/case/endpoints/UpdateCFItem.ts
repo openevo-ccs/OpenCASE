@@ -5,6 +5,7 @@ import { CFItem } from '../../../domain/case/entities/CFItem'
 import { CFAssociation } from '../../../domain/case/entities/CFAssociation'
 import { CFPackage } from '../../../domain/case/entities/CFPackage'
 import type { FileFrameworkStore } from '../../../infrastructure/persistence/file/FileFrameworkStore'
+import { JsonSchemaValidator } from '../../../infrastructure/validation/JsonSchemaValidator'
 
 export interface UpdateCFItemCommand {
   tenantId: TenantId
@@ -16,11 +17,22 @@ export interface UpdateCFItemCommand {
 export class UpdateCFItem {
   constructor (
     private readonly pkgRepo: CFPackageRepository,
-    private readonly store: FileFrameworkStore
+    private readonly store: FileFrameworkStore,
+    private readonly validator?: JsonSchemaValidator
   ) {}
 
   async execute (cmd: UpdateCFItemCommand): Promise<void> {
     const { tenantId, caseVersion, sourcedId, payload } = cmd
+
+    // Validate against JSON schema if validator is available
+    if (this.validator) {
+      try {
+        const schemaName = caseVersion === '1.1' ? 'case-v1p1-cfitem' : 'case-v1p1-cfitem'
+        this.validator.validate(schemaName, payload)
+      } catch (error: any) {
+        throw new Error(`Schema validation failed: ${error.message}`)
+      }
+    }
 
     // Find which document this item belongs to
     const docId = this.store.getDocumentIdForItem(tenantId, caseVersion, sourcedId)
