@@ -10,6 +10,8 @@ import type {
 } from '@/ui/editor/reactflow/types'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
+import type { EditorGraph } from '@/ui/editor/state/editorFactories'
+import { createSampleGraph, makeCfItem } from '@/ui/editor/state/editorFactories'
 
 const DEFAULT_NODE_WIDTH = 360
 const DEFAULT_NODE_HEIGHT = 220
@@ -20,29 +22,8 @@ const TREE_GAP_X = 40
 const TREE_GAP_Y = 28
 const HEADER_SAFE_Y = 96
 
-const nowIso = () => new Date().toISOString()
-
 const isFrameworkNode = (n: CaseEditorNodeType): n is CaseFrameworkNodeType => n.type === 'caseFrameworkNode'
 const isItemNode = (n: CaseEditorNodeType): n is CaseItemNodeType => n.type === 'caseItemNode'
-
-const makeCfItem = (id: string, fullStatement: string, extras?: Partial<CFItem>): CFItem => ({
-  identifier: id,
-  uri: `urn:case:item:${id}`,
-  fullStatement,
-  lastChangeDateTime: nowIso(),
-  ...extras,
-})
-
-const makeCfDocument = (id: string, title: string, extras?: Partial<CFDocument>): CFDocument => ({
-  identifier: id,
-  uri: `urn:case:document:${id}`,
-  creator: 'District Curriculum Team',
-  title,
-  lastChangeDateTime: nowIso(),
-  CFPackageURI: { uri: `urn:case:package:${id}` },
-  caseVersion: '1.1',
-  ...extras,
-})
 
 const getNodeSize = (n: CaseEditorNodeType) => {
   const anyNode = n as unknown as {
@@ -98,89 +79,14 @@ const findNonOverlappingPosition = (
 }
 
 const wrapperNodeClassName = 'bg-transparent border-0 p-0 shadow-none'
-
-const initialNodes: CaseEditorNodeType[] = [
-  {
-    id: 'fw1',
-    type: 'caseFrameworkNode',
-    // Start below the floating header so it is visible on first load.
-    position: { x: 0, y: HEADER_SAFE_Y },
-    style: { width: 520, height: 210 },
-    data: {
-      cfDocument: makeCfDocument('fw1', 'Grade 3–5 Mathematics (Draft)', {
-        frameworkType: 'K-12',
-        adoptionStatus: 'Draft',
-        description: 'A draft set of math expectations focused on number and operations (grades 3–5).',
-      }),
-    },
-    className: wrapperNodeClassName,
-  },
-  {
-    id: 'n1',
-    type: 'caseItemNode',
-    // Leave enough room between nodes so edges are visible (node height ~220).
-    position: { x: 0, y: HEADER_SAFE_Y + 210 + 140 },
-    style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
-    data: {
-      cfItem: makeCfItem('n1', 'Understand and use place value to round whole numbers to any place.', {
-        humanCodingScheme: '3.NBT.A.1',
-        CFItemType: 'Standard',
-        subject: ['Mathematics'],
-        educationLevel: ['Grade 3'],
-        conceptKeywords: ['place value', 'rounding'],
-        alternativeLabel: 'Rounding whole numbers (place value)',
-      }),
-      parentId: 'fw1',
-    },
-    className: wrapperNodeClassName,
-  },
-  {
-    id: 'n2',
-    type: 'caseItemNode',
-    position: { x: 0, y: HEADER_SAFE_Y + 210 + 140 + 320 },
-    style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
-    data: {
-      cfItem: makeCfItem('n2', 'Explain patterns in the number of zeros of the product when multiplying by powers of 10.', {
-        humanCodingScheme: '3.NBT.A.2',
-        CFItemType: 'Standard',
-        subject: ['Mathematics'],
-        educationLevel: ['Grade 3'],
-        conceptKeywords: ['powers of ten', 'patterns', 'multiplication'],
-      }),
-      parentId: 'n1',
-    },
-    className: wrapperNodeClassName,
-  },
-  {
-    id: 'n3',
-    type: 'caseItemNode',
-    position: { x: 0, y: HEADER_SAFE_Y + 210 + 140 + 320 + 320 },
-    style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
-    data: {
-      cfItem: makeCfItem('n3', 'Use place value understanding to round decimals to a specified place.', {
-        humanCodingScheme: '5.NBT.A.4',
-        CFItemType: 'Standard',
-        subject: ['Mathematics'],
-        educationLevel: ['Grade 5'],
-        conceptKeywords: ['decimals', 'rounding', 'place value'],
-      }),
-      parentId: 'n2',
-    },
-    className: wrapperNodeClassName,
-  },
-]
-
-const initialEdges: Edge[] = [
-  { id: 'fw1-n1', source: 'fw1', target: 'n1' },
-  { id: 'n1-n2', source: 'n1', target: 'n2' },
-  { id: 'n2-n3', source: 'n2', target: 'n3' },
-]
+const DEFAULT_GRAPH = createSampleGraph()
 
 type EditorState = {
   nodes: CaseEditorNodeType[]
   edges: Edge[]
   selectedNodeId: string | null
   layoutVersion: number
+  dirty: boolean
 }
 
 type Action =
@@ -193,6 +99,7 @@ type Action =
   | { type: 'node/addChild'; parentId: string; childId: string; cfItem: CFItem }
   | { type: 'graph/delete'; nodeIds: string[]; edgeIds: string[]; reattachChildren: boolean }
   | { type: 'layout/apply'; positions: Record<string, { x: number; y: number }> }
+  | { type: 'graph/load'; graph: EditorGraph }
 
 function reducer(state: EditorState, action: Action): EditorState {
   switch (action.type) {
@@ -206,11 +113,11 @@ function reducer(state: EditorState, action: Action): EditorState {
         edges: state.edges.map((e) => ({ ...e, selected: false })),
       }
     case 'nodes/applyChanges':
-      return { ...state, nodes: applyNodeChanges<CaseEditorNodeType>(action.changes, state.nodes) }
+      return { ...state, nodes: applyNodeChanges<CaseEditorNodeType>(action.changes, state.nodes), dirty: true }
     case 'edges/applyChanges':
-      return { ...state, edges: applyEdgeChanges(action.changes, state.edges) }
+      return { ...state, edges: applyEdgeChanges(action.changes, state.edges), dirty: true }
     case 'edges/connect':
-      return { ...state, edges: addEdge(action.connection, state.edges) }
+      return { ...state, edges: addEdge(action.connection, state.edges), dirty: true }
     case 'node/updateData': {
       const { nodeId, patch } = action
       const nodes = state.nodes.map((n) => {
@@ -223,7 +130,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         }
         return n
       })
-      return { ...state, nodes }
+      return { ...state, nodes, dirty: true }
     }
     case 'node/addChild': {
       const parent = state.nodes.find((n) => n.id === action.parentId)
@@ -257,7 +164,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         { id: `e_${action.parentId}_${childId}`, source: action.parentId, target: childId },
       ]
 
-      return { ...state, nodes: nextNodes, edges: nextEdges, selectedNodeId: childId }
+      return { ...state, nodes: nextNodes, edges: nextEdges, selectedNodeId: childId, dirty: true }
     }
     case 'graph/delete': {
       const deleteNodeIds = new Set(action.nodeIds)
@@ -314,6 +221,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         selectedNodeId,
         nodes: remainingNodes.map((n) => ({ ...n, selected: selectedNodeId ? n.id === selectedNodeId : false })),
         edges: remainingEdges.map((e) => ({ ...e, selected: false })),
+        dirty: true,
       }
     }
     case 'layout/apply': {
@@ -322,6 +230,15 @@ function reducer(state: EditorState, action: Action): EditorState {
         return p ? { ...n, position: { x: p.x, y: p.y } } : n
       })
       return { ...state, nodes: nextNodes, layoutVersion: state.layoutVersion + 1 }
+    }
+    case 'graph/load': {
+      return {
+        nodes: action.graph.nodes,
+        edges: action.graph.edges,
+        selectedNodeId: null,
+        layoutVersion: 0,
+        dirty: false,
+      }
     }
     default:
       return state
@@ -336,6 +253,7 @@ type EditorContextValue = {
   nodesWithCallbacks: CaseEditorNodeType[]
   frameworkInfo: { title: string; subtitle?: string; creator?: string }
   layoutVersion: number
+  isDirty: boolean
   onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType>
   onNodesChange: (_changes: NodeChange<CaseEditorNodeType>[]) => void
   onEdgesChange: (_changes: EdgeChange[]) => void
@@ -356,14 +274,25 @@ type EditorContextValue = {
 
 const EditorContext = createContext<EditorContextValue | null>(null)
 
-export function EditorProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [state, dispatch] = useReducer(reducer, { nodes: initialNodes, edges: initialEdges, selectedNodeId: null, layoutVersion: 0 })
+export function EditorProvider({
+  children,
+  initialGraph,
+  graphKey,
+}: Readonly<{ children: ReactNode; initialGraph?: EditorGraph; graphKey?: string }>) {
+  const seed = useMemo(() => initialGraph ?? DEFAULT_GRAPH, [initialGraph])
+  const [state, dispatch] = useReducer(reducer, { nodes: seed.nodes, edges: seed.edges, selectedNodeId: null, layoutVersion: 0, dirty: false })
   const didInitialLayout = useRef(false)
   const [addItemDialog, setAddItemDialog] = useState<{ open: boolean; parentId: string | null; draft: AddItemDraft }>({
     open: false,
     parentId: null,
     draft: { fullStatement: '' },
   })
+
+  useEffect(() => {
+    if (!graphKey) return
+    dispatch({ type: 'graph/load', graph: seed })
+    didInitialLayout.current = false
+  }, [graphKey, seed])
 
   const selectedNode = useMemo(
     () => (state.selectedNodeId ? state.nodes.find((n) => n.id === state.selectedNodeId) ?? null : null),
@@ -562,6 +491,7 @@ export function EditorProvider({ children }: Readonly<{ children: ReactNode }>) 
       nodesWithCallbacks,
       frameworkInfo,
       layoutVersion: state.layoutVersion,
+      isDirty: state.dirty,
       onSelectionChange,
       onNodesChange,
       onEdgesChange,
@@ -583,6 +513,7 @@ export function EditorProvider({ children }: Readonly<{ children: ReactNode }>) 
       nodesWithCallbacks,
       frameworkInfo,
       state.layoutVersion,
+      state.dirty,
       onSelectionChange,
       onNodesChange,
       onEdgesChange,

@@ -8,11 +8,12 @@ import CanvasHeader from '@/ui/editor/components/CanvasHeader'
 import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
 import AddItemDialog from '@/ui/editor/components/AddItemDialog'
 import ConfirmDeleteDialog from '@/ui/editor/components/ConfirmDeleteDialog'
+import ConfirmLeaveDialog from '@/ui/editor/components/ConfirmLeaveDialog'
 import { useEditor } from '@/ui/editor/state/EditorContext'
 import type { CaseEditorNodeType } from '@/ui/editor/reactflow/types'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 
-export default function EditorCanvas() {
+export default function EditorCanvas({ onBack }: { onBack?: () => void }) {
   const {
     nodesWithCallbacks,
     edges,
@@ -30,11 +31,13 @@ export default function EditorCanvas() {
     cancelAddItem,
     confirmAddItem,
     deleteElements,
+    isDirty,
   } = useEditor()
 
   const reactFlowWrapRef = useRef<HTMLDivElement | null>(null)
   const reactFlowRef = useRef<ReactFlowInstance<CaseEditorNodeType> | null>(null)
   const [rfReady, setRfReady] = useState(false)
+  const [leaveOpen, setLeaveOpen] = useState(false)
 
   const [pendingDelete, setPendingDelete] = useState<null | {
     nodeIds: string[]
@@ -227,6 +230,14 @@ export default function EditorCanvas() {
         frameworkSubtitle={frameworkInfo.subtitle}
         userName="Taylor Couper"
         reserveRightForPanel={Boolean(selectedNode)}
+        onBack={
+          onBack
+            ? () => {
+                if (isDirty) setLeaveOpen(true)
+                else onBack()
+              }
+            : undefined
+        }
       />
 
       <div ref={reactFlowWrapRef} className="h-full w-full">
@@ -285,6 +296,15 @@ export default function EditorCanvas() {
         }
         onCancel={closeDeleteDialog}
         onConfirm={(options) => confirmDelete({ reattachChildren: options.reattachChildren })}
+      />
+
+      <ConfirmLeaveDialog
+        open={leaveOpen}
+        onCancel={() => setLeaveOpen(false)}
+        onLeave={() => {
+          setLeaveOpen(false)
+          onBack?.()
+        }}
       />
     </div>
   )

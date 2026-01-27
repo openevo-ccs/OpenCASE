@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
-import { Cog6ToothIcon, QuestionMarkCircleIcon, ArrowRightOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/solid'
+import { Cog6ToothIcon, QuestionMarkCircleIcon, ArrowRightOnRectangleIcon, UserCircleIcon, ChevronLeftIcon } from '@heroicons/react/24/solid'
 import { Button } from '@/ui/shared/components/ui/button'
 
 type MenuItem = {
@@ -100,11 +100,13 @@ export default function CanvasHeader({
   frameworkSubtitle,
   userName,
   reserveRightForPanel,
+  onBack,
 }: {
   frameworkTitle: string
   frameworkSubtitle?: string
   userName?: string
   reserveRightForPanel?: boolean
+  onBack?: () => void
 }) {
   const avatarText = useMemo(() => initials(userName), [userName])
 
@@ -118,6 +120,13 @@ export default function CanvasHeader({
     >
       <div className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/70 px-3 py-2 shadow-sm backdrop-blur">
         <div className="flex min-w-0 items-center gap-3">
+          {onBack ? (
+            <Button variant="ghost" size="sm" onClick={onBack} title="Back to Home">
+              <ChevronLeftIcon className="h-4 w-4" aria-hidden />
+              Home
+            </Button>
+          ) : null}
+
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-sm font-extrabold tracking-tight text-white">
             CASE
           </div>
