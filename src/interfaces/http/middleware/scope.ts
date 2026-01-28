@@ -10,7 +10,7 @@ export function requireScope(requiredScope: string) {
       return res.status(401).json({ error: 'Unauthorized - no user information' })
     }
 
-    const scopes = (user.scope as string | undefined)?.split(' ') ?? []
+    const scopes = normalizeScopes(user)
     
     if (!scopes.includes(requiredScope)) {
       return res.status(403).json({ 
@@ -33,7 +33,7 @@ export function requireAnyScope(...requiredScopes: string[]) {
       return res.status(401).json({ error: 'Unauthorized - no user information' })
     }
 
-    const scopes = (user.scope as string | undefined)?.split(' ') ?? []
+    const scopes = normalizeScopes(user)
     
     const hasRequiredScope = requiredScopes.some(scope => scopes.includes(scope))
     
@@ -46,5 +46,30 @@ export function requireAnyScope(...requiredScopes: string[]) {
 
     return next()
   }
+}
+
+function normalizeScopes (user: any): string[] {
+  const raw = user?.scope
+  if (typeof raw === 'string') {
+    return raw.split(' ').filter(Boolean)
+  }
+  if (Array.isArray(raw)) {
+    return raw.map(String).filter(Boolean)
+  }
+
+  // Keycloak fallback: accept client/realm roles as scopes
+  const scopes: string[] = []
+  const realmRoles = user?.realm_access?.roles
+  if (Array.isArray(realmRoles)) scopes.push(...realmRoles.map(String))
+
+  const resourceAccess = user?.resource_access
+  if (resourceAccess && typeof resourceAccess === 'object') {
+    for (const client of Object.values(resourceAccess as Record<string, any>)) {
+      const roles = client?.roles
+      if (Array.isArray(roles)) scopes.push(...roles.map(String))
+    }
+  }
+
+  return scopes.filter(Boolean)
 }
 

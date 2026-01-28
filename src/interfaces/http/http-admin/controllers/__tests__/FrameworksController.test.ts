@@ -116,9 +116,13 @@ describe('FrameworksController', () => {
       const error = new Error('Validation error')
       mockCreateFramework.execute.mockRejectedValue(error)
 
-      await expect(
-        controller.create(mockRequest as Request, mockResponse as Response)
-      ).rejects.toThrow('Validation error')
+      await controller.create(mockRequest as Request, mockResponse as Response)
+
+      expect(responseStatus).toHaveBeenCalledWith(400)
+      expect(responseJson).toHaveBeenCalledWith({
+        error: 'creation_failed',
+        message: 'Validation error'
+      })
     })
   })
 })

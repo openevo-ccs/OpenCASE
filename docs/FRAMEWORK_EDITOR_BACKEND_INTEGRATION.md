@@ -12,7 +12,7 @@ This document is intended as **integration context** for a separate “framework
 
 OpenCASE exposes three relevant HTTP surfaces:
 
-- **OAuth service** (get JWT access tokens): `/oauth/*` and `/.well-known/oauth-authorization-server`
+- **External OIDC provider (Keycloak)** for login + tokens (OpenCASE no longer issues tokens)
 - **CASE Provider API (read-only, spec-aligned)**: `/ims/case/v1p1/*` (and v1p0 in the project, but v1p1 is the primary path in `src/interfaces/http/server.ts`)
 - **Non-standard Management API (write operations)**: `/management/*` (update/delete + tenant/account/client management)
 - **Admin “authoring” endpoints**: `/admin/*` (not the HTML admin UI; these are JSON endpoints for creating/importing framework bundles)
@@ -26,8 +26,8 @@ All framework data is persisted **to disk** under `data/tenants/<tenantId>/v1p1/
 - **Default server base URL**: `http://localhost:8080`
 - **OpenAPI discovery (no auth)**:
   - `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`
-- **OAuth discovery (no auth)**:
-  - `GET /.well-known/oauth-authorization-server`
+- **OIDC discovery (Keycloak)**:
+  - `GET http://localhost:8081/realms/opencase/.well-known/openid-configuration`
 
 ---
 
@@ -40,35 +40,43 @@ All framework data is persisted **to disk** under `data/tenants/<tenantId>/v1p1/
   - `/admin/*`
   - `/management/*`
   require an `Authorization: Bearer <JWT>` header.
-- The OAuth routes (`/oauth/*` and `/.well-known/*`) and the OpenAPI discovery JSON are **not authenticated**.
+- OpenCASE does **not** provide `/oauth/*` token issuance in this deployment; tokens come from **Keycloak**.
 
-### Browser SPA recommendation: OAuth2 Authorization Code + PKCE
+### Browser SPA recommendation: Keycloak OIDC (Authorization Code + PKCE)
 
 Because your editor runs **in the browser** (React + react-flow), you should **not** embed a `client_secret` in the frontend. Use `authorization_code` with **PKCE** so the SPA can obtain a JWT access token without a secret.
 
-OpenCASE supports:
+OpenCASE expects a **Keycloak-issued** access token. Your SPA should use Keycloak’s OIDC endpoints:
 
-- `GET|POST /oauth/authorize` with PKCE (`code_challenge`, `code_challenge_method`)
-- `POST /oauth/token` exchange with PKCE (`code_verifier`)
+- `GET {issuer}/protocol/openid-connect/auth` (authorization)
+- `POST {issuer}/protocol/openid-connect/token` (token exchange)
 
-**Important (current behavior):** `/oauth/authorize` does **not** render a login UI. It expects `email` + `password` in the **POST body**, then issues a **302 redirect** to your `redirect_uri` with `?code=...` (and `&state=...` if provided).
+Where `{issuer}` is typically: `http://localhost:8081/realms/opencase`.
 
-#### Step 0: Create a SPA OAuth client (grant type)
+#### Client-per-tenant model (how tenant switching works)
 
-Your OAuth client must include `authorization_code` in its `grantTypes`. In this repo, clients live in `data/oauth/clients.json` (see also `OAUTH_USAGE.md`).
+This deployment uses **client-per-tenant** in Keycloak:
 
-For a SPA, you can set a placeholder secret (it won’t be used for the auth-code exchange in this implementation), e.g.:
+- Tenant client id is: `tenant-<tenantId>` (prefix configurable by `OIDC_CLIENT_ID_PREFIX`)
+- When the user switches tenants, the SPA should **re-auth / refresh** using the **other tenant client_id**, so roles can vary per tenant.
 
-```json
-{
-  "clientId": "my-spa",
-  "clientSecret": "unused",
-  "tenantId": "demo",
-  "grantTypes": ["authorization_code"],
-  "scopes": ["case.read", "case.write"],
-  "active": true
-}
-```
+#### Token contract (claims OpenCASE requires)
+
+OpenCASE validates:
+
+- **issuer**: must match `OIDC_ISSUER_URL`
+- **signature**: via Keycloak JWKS (`kid` rotation supported)
+- **tenantId**: must exist as a claim (Keycloak mapper injects it per tenant client)
+- **aud/azp**: must match the expected client id (`tenant-<tenantId>`)
+
+OpenCASE uses `scope` for authorization checks on some management routes. The provisioner configures Keycloak to emit `scope` from client roles.
+
+#### Important: OIDC `scope=` parameter vs `case.*` roles
+
+In Keycloak/OIDC, the authorization request `scope` parameter is for **OIDC client scopes** (typically `openid profile email offline_access`), not your application’s authorization roles.
+
+- Do **not** request `scope=case.admin` (or `case.read`, `case.write`, etc.) in the PKCE/OIDC request — Keycloak will return `invalid_scope` unless you created a Keycloak client-scope with that name.
+- Instead, ensure the user has the **client role** `case.admin` on the tenant client (e.g. `tenant-system`), which will appear in the token under `resource_access[clientId].roles` and/or in the token’s `scope` claim (depending on your mappers).
 
 #### Step 1: Generate PKCE values in the browser
 
@@ -77,18 +85,16 @@ For a SPA, you can set a placeholder secret (it won’t be used for the auth-cod
 
 Store the `code_verifier` (and `state`) in session storage until callback.
 
-#### Step 2: Start authorization (login) via **form POST**
+#### Step 2: Start authorization (Keycloak)
 
-Because the authorize endpoint needs email/password in the body and then redirects, the most reliable SPA approach is to submit a form (not `fetch`) so the browser follows the redirect naturally.
+Redirect the browser to Keycloak’s authorization endpoint with:
 
-POST to:
-
-- `/oauth/authorize?response_type=code&client_id=...&redirect_uri=...&scope=...&state=...&code_challenge=...&code_challenge_method=S256`
-
-Body fields:
-
-- `email`
-- `password`
+- `client_id=tenant-<tenantId>`
+- `response_type=code`
+- `redirect_uri=<your app callback>`
+- `code_challenge=<pkce challenge>`
+- `code_challenge_method=S256`
+ - optional `scope=openid profile email` (recommended); omit any `case.*` values here
 
 #### Step 3: Handle the redirect on your SPA callback route
 
@@ -97,12 +103,12 @@ Your `redirect_uri` receives:
 - `?code=...`
 - `&state=...` (if supplied)
 
-#### Step 4: Exchange code for token
+#### Step 4: Exchange code for token (Keycloak)
 
-`POST /oauth/token` with:
+`POST {issuer}/protocol/openid-connect/token` with:
 
 - `grant_type=authorization_code`
-- `client_id=...`
+- `client_id=tenant-<tenantId>`
 - `code=...`
 - `redirect_uri=...`
 - `code_verifier=...`
@@ -132,40 +138,9 @@ If you don’t want your SPA to ever handle OpenCASE tokens (or you want to avoi
 
 This also gives you a single place to enforce editor-specific authorization rules.
 
-### Dev/Postman shortcut: OAuth2 Client Credentials
+### Dev/Postman note (Keycloak)
 
-Your editor (or your editor’s companion backend) should request tokens using `client_credentials`.
-
-**Token endpoint**
-
-- `POST /oauth/token`
-- Content-Type: `application/x-www-form-urlencoded`
-
-**Example (curl)**
-
-```bash
-curl -X POST http://localhost:8080/oauth/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials" \
-  -d "client_id=demo-client" \
-  -d "client_secret=demo-secret" \
-  -d "scope=case.read case.write"
-```
-
-**Use the token**
-
-```bash
-curl -H "Authorization: Bearer <ACCESS_TOKEN>" \
-  http://localhost:8080/ims/case/v1p1/CFDocuments
-```
-
-### Default OAuth client (dev/test)
-
-On first run, OpenCASE initializes OAuth storage under `data/oauth/` and provides a default client (see `OAUTH_USAGE.md`):
-
-- **client_id**: `demo-client`
-- **client_secret**: `demo-secret`
-- **tenantId claim**: `demo`
+For Postman, obtain a Keycloak token for the tenant client (e.g. `tenant-demo`) using the standard OIDC endpoints. See `POSTMAN_TESTING_GUIDE.md` for a concrete request template.
 
 ### JWT requirements (what must be in the token)
 

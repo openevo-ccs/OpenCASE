@@ -1,7 +1,8 @@
+import addFormats from 'ajv-formats'
 import Ajv, { ValidateFunction } from 'ajv';
 
 export class JsonSchemaValidator {
-  private readonly ajv = new Ajv({ allErrors: true, strict: false });
+  private readonly ajv = addFormats(new Ajv({ allErrors: true, strict: false }));
   private readonly validators = new Map<string, ValidateFunction>();
 
   addSchema(name: string, schema: object) {

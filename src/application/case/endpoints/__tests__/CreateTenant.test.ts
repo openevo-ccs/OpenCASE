@@ -6,9 +6,15 @@ jest.mock('node:fs/promises')
 
 describe('CreateTenant', () => {
   let createTenant: CreateTenant
+  const mockProvisioner = {
+    provisionTenant: jest.fn().mockResolvedValue({
+      adminEmail: 'admin@new-tenant.local',
+      adminPassword: 'temp-password'
+    })
+  }
 
   beforeEach(() => {
-    createTenant = new CreateTenant()
+    createTenant = new CreateTenant(mockProvisioner as any)
     jest.clearAllMocks()
   })
 
@@ -33,6 +39,7 @@ describe('CreateTenant', () => {
       expect(fs.mkdir).toHaveBeenCalledWith(path.join(tenantPath, 'v1p0', 'indexes'), { recursive: true })
       expect(fs.mkdir).toHaveBeenCalledWith(path.join(tenantPath, 'v1p1', 'frameworks'), { recursive: true })
       expect(fs.mkdir).toHaveBeenCalledWith(path.join(tenantPath, 'v1p0', 'frameworks'), { recursive: true })
+      expect(mockProvisioner.provisionTenant).toHaveBeenCalledWith(tenantId)
     })
 
     it('should create empty index files', async () => {
@@ -70,6 +77,7 @@ describe('CreateTenant', () => {
       await expect(
         createTenant.execute({ baseDataDir, tenantId })
       ).rejects.toThrow(`Tenant '${tenantId}' already exists`)
+      expect(mockProvisioner.provisionTenant).not.toHaveBeenCalled()
     })
 
     it('should handle non-ENOENT errors from stat', async () => {
@@ -79,6 +87,7 @@ describe('CreateTenant', () => {
       await expect(
         createTenant.execute({ baseDataDir, tenantId })
       ).rejects.toThrow('Permission denied')
+      expect(mockProvisioner.provisionTenant).not.toHaveBeenCalled()
     })
 
     it('should handle file creation errors', async () => {
@@ -91,6 +100,7 @@ describe('CreateTenant', () => {
       await expect(
         createTenant.execute({ baseDataDir, tenantId })
       ).rejects.toThrow('Disk full')
+      expect(mockProvisioner.provisionTenant).not.toHaveBeenCalled()
     })
   })
 })

@@ -3,7 +3,6 @@ import cors from 'cors'
 import { makeAuthMiddleware } from './middleware/auth'
 import { registerV1p1Routes } from './http-public/v1p1/routes'
 import { registerAdminRoutes } from './http-admin/routes'
-import { registerOAuthRoutes } from './http-oauth/routes'
 import { registerManagementRoutes } from './http-management/routes'
 import { type Container } from '../../wiring/container'
 
@@ -19,14 +18,7 @@ export function createServer (container: Container): express.Express {
   }))
 
   app.use(express.json())
-  app.use(express.urlencoded({ extended: true })) // For OAuth form-encoded requests
-
-  // OAuth routes (no auth required - used to get tokens)
-  registerOAuthRoutes(app, {
-    tokenController: container.controllers.oauth.token,
-    authorizeController: container.controllers.oauth.authorize,
-    revokeController: container.controllers.oauth.revoke
-  })
+  app.use(express.urlencoded({ extended: true }))
 
   // Service Discovery endpoint (no auth required - used for service discovery)
   app.get(
@@ -66,8 +58,9 @@ export function createServer (container: Container): express.Express {
     cfAssociationsController: container.controllers.management.cfAssociations,
     frameworksController: container.controllers.management.frameworks,
     tenantsController: container.controllers.management.tenants,
-    accountsController: container.controllers.management.accounts,
-    oauthClientsController: container.controllers.management.oauthClients
+    // Keycloak is the source of truth for accounts/clients in this deployment
+    accountsController: undefined,
+    oauthClientsController: undefined
   })
 
   // simple health endpoint

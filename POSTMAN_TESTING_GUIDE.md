@@ -3,29 +3,33 @@
 ## Base Configuration
 
 - **Base URL:** `http://localhost:8080` (default port, configurable via `PORT` env var)
-- **Default Tenant:** `demo`
+- **Keycloak URL:** `http://localhost:8081`
+- **Keycloak Realm:** `opencase`
+- **Tenant client id convention:** `tenant-<tenantId>` (default prefix: `tenant-`)
+- **Example Tenant:** `demo`
 - **Demo Document ID:** `c739fefe-4f94-4a75-9203-e8621a7c2a1a`
 - **Demo Item ID:** `demo-item-1`
 - **Demo Association ID:** `demo-assoc-1`
 
 ---
 
-## 1. OAuth Token Endpoint (Get Access Token)
+## 1. Keycloak Token Endpoint (Get Access Token)
 
 **Request:**
 - **Method:** `POST`
-- **URL:** `http://localhost:8080/oauth/token`
+- **URL:** `http://localhost:8081/realms/opencase/protocol/openid-connect/token`
 - **Headers:**
-  - `Content-Type: application/json`
-- **Body (JSON):**
-```json
-{
-  "grant_type": "client_credentials",
-  "client_id": "demo-client",
-  "client_secret": "demo-secret",
-  "scope": "case.read case.write"
-}
-```
+  - `Content-Type: application/x-www-form-urlencoded`
+- **Body (x-www-form-urlencoded)**:
+  - `grant_type=password` (dev convenience)
+  - `client_id=tenant-demo`
+  - `username=admin@demo.local`
+  - `password=<temporary password returned by POST /management/tenants>`
+
+**Note on scopes vs roles:**
+
+- In Keycloak, the request parameter `scope` is for OIDC scopes like `openid`/`profile`/`email`.
+- Authorization in OpenCASE (e.g. `case.admin`) is granted via **Keycloak client roles** (e.g. `resource_access["tenant-system"].roles` contains `case.admin`), not by requesting `scope=case.admin`.
 
 **Expected Response:**
 - **Status:** `200 OK`
@@ -34,8 +38,7 @@
 {
   "access_token": "eyJhbGc...",
   "token_type": "Bearer",
-  "expires_in": 3600,
-  "scope": "case.read case.write"
+  "expires_in": 3600
 }
 ```
 
@@ -601,19 +604,19 @@ Create a Postman environment with:
 // Auto-fetch token if not set or expired
 if (!pm.environment.get("access_token")) {
     pm.sendRequest({
-        url: pm.environment.get("base_url") + "/oauth/token",
-        method: 'POST',
+        url: "http://localhost:8081/realms/opencase/protocol/openid-connect/token",
+        method: "POST",
         header: {
-            'Content-Type': 'application/json'
+            "Content-Type": "application/x-www-form-urlencoded"
         },
         body: {
-            mode: 'raw',
-            raw: JSON.stringify({
-                grant_type: "client_credentials",
-                client_id: "demo-client",
-                client_secret: "demo-secret",
-                scope: "case.read case.write"
-            })
+            mode: "urlencoded",
+            urlencoded: [
+                { key: "grant_type", value: "password" },
+                { key: "client_id", value: "tenant-demo" },
+                { key: "username", value: "admin@demo.local" },
+                { key: "password", value: "<temporary password>" }
+            ]
         }
     }, function (err, res) {
         if (res.json().access_token) {
@@ -636,7 +639,7 @@ Authorization: Bearer {{access_token}}
 
 ## Quick Test Sequence
 
-1. **Get Token:** `POST /oauth/token` with demo credentials
+1. **Get Token:** `POST Keycloak /protocol/openid-connect/token` for your tenant client (e.g. `tenant-demo`)
 2. **Discovery:** `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` (no auth)
 3. **Get All Documents:** `GET /ims/case/v1p1/CFDocuments` (with auth)
 4. **Get Document:** `GET /ims/case/v1p1/CFDocuments/c739fefe-4f94-4a75-9203-e8621a7c2a1a`
@@ -652,7 +655,7 @@ Authorization: Bearer {{access_token}}
 - **UUID Validation:** All endpoints validate UUID format. Non-UUID identifiers will return 404.
 - **Demo Data:** The demo data uses non-UUID identifiers for items (`demo-item-1`) and associations (`demo-assoc-1`). These will return 404 unless you update them to UUID format or modify the validation.
 - **Definitions:** CFSubjects, CFConcepts, CFLicenses, CFItemTypes, and CFAssociationGroupings are stored in `CFDefinitions` within packages. You may need to check the CFPackage response first to get their UUIDs.
-- **Authentication:** All endpoints except Discovery and OAuth require Bearer token authentication.
+- **Authentication:** All endpoints except Discovery require Bearer token authentication (tokens are issued by Keycloak in this deployment).
 
 
 

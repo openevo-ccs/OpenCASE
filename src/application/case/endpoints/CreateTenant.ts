@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { logger } from '../../../infrastructure/logging/Logger'
-import { CreateUserAccount } from '../../user/endpoints/CreateUserAccount'
 
 export interface CreateTenantCommand {
   baseDataDir: string
@@ -16,9 +15,13 @@ export interface CreateTenantResult {
   }
 }
 
+export interface TenantProvisioner {
+  provisionTenant: (tenantId: string) => Promise<{ adminEmail: string, adminPassword: string }>
+}
+
 export class CreateTenant {
   constructor(
-    private readonly createUserAccount?: CreateUserAccount
+    private readonly provisioner?: TenantProvisioner
   ) {}
 
   async execute (cmd: CreateTenantCommand): Promise<CreateTenantResult> {
@@ -74,35 +77,27 @@ export class CreateTenant {
 
     logger.info({ tenantId: cmd.tenantId }, 'Tenant created successfully')
 
-    // Auto-create admin account if CreateUserAccount is provided
+    // Provision tenant auth + tenant-admin account (Keycloak)
     let adminAccount: { email: string; password: string } | undefined
-    if (this.createUserAccount) {
+    if (this.provisioner) {
       try {
-        const adminEmail = `admin@${cmd.tenantId}.local`
-        const result = await this.createUserAccount.execute({
-          email: adminEmail,
-          tenantId: cmd.tenantId,
-          role: 'admin',
-          autoGeneratePassword: true
-        })
-
-        adminAccount = {
-          email: result.email,
-          password: result.password!
-        }
-
-        logger.info({ tenantId: cmd.tenantId, email: adminEmail }, 'Admin account created for tenant')
+        const provisioned = await this.provisioner.provisionTenant(cmd.tenantId)
+        adminAccount = { email: provisioned.adminEmail, password: provisioned.adminPassword }
+        logger.info({ tenantId: cmd.tenantId, email: adminAccount.email }, 'Tenant auth provisioned and admin account created')
       } catch (error: any) {
-        logger.error({ tenantId: cmd.tenantId, error: error.message }, 'Failed to create admin account')
-        // Don't fail tenant creation if admin account creation fails
+        logger.error({ tenantId: cmd.tenantId, error: error.message }, 'Failed to provision tenant auth; rolling back tenant directory')
+        await fs.rm(tenantPath, { recursive: true, force: true }).catch(() => undefined)
+        throw error
       }
+    } else {
+      throw new Error('Tenant provisioning is not configured')
     }
 
     const result: CreateTenantResult = {
       tenantId: cmd.tenantId,
       adminAccount: adminAccount || {
         email: `admin@${cmd.tenantId}.local`,
-        password: '' // Empty if not created
+        password: '' // should not happen when provisioner is configured
       }
     }
 
