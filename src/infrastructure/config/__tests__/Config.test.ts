@@ -14,6 +14,9 @@ describe('Config', () => {
 
   describe('loadConfig', () => {
     it('should load default values when env vars are not set', () => {
+      // By default, NODE_ENV is treated as non-production in this project.
+      // In non-production, Keycloak system-admin bootstrap defaults to true.
+      delete process.env.NODE_ENV;
       delete process.env.PORT;
       delete process.env.CASE_DATA_DIR;
       delete process.env.OIDC_ISSUER_URL;
@@ -43,9 +46,18 @@ describe('Config', () => {
       expect(config.keycloakAdminClientId).toBe('admin-cli');
       expect(config.keycloakSpaRedirectUris).toEqual(['http://localhost:3000/*']);
       expect(config.keycloakSpaWebOrigins).toEqual(['http://localhost:3000']);
-      expect(config.keycloakBootstrapSystemAdmin).toBe(false);
+      expect(config.keycloakBootstrapSystemAdmin).toBe(true);
       expect(config.keycloakSystemAdminEmail).toBe('system-admin@local');
       expect(config.keycloakSystemAdminPassword).toBe('admin');
+    });
+
+    it('should default KEYCLOAK_BOOTSTRAP_SYSTEM_ADMIN to false in production when not set', () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.KEYCLOAK_BOOTSTRAP_SYSTEM_ADMIN;
+
+      const config = loadConfig();
+
+      expect(config.keycloakBootstrapSystemAdmin).toBe(false);
     });
 
     it('should load values from environment variables', () => {
