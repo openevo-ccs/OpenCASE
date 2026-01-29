@@ -25,7 +25,7 @@ export class UpdateCFAssociation {
     // Validate against JSON schema if validator is available
     if (this.validator) {
       try {
-        const schemaName = caseVersion === '1.1' ? 'case-v1p1-cfassociation' : 'case-v1p1-cfassociation'
+        const schemaName = caseVersion === '1.1' ? 'case-v1p1-cfassociation' : 'case-v1p0-cfassociation'
         this.validator.validate(schemaName, payload)
       } catch (error: any) {
         throw new Error(`Schema validation failed: ${error.message}`)

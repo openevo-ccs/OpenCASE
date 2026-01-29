@@ -16,28 +16,9 @@ export class GetCFSubject {
   ) {}
 
   async execute (query: GetCFSubjectQuery) {
-    logger.info({ query }, 'Executing GetCFSubject')
-
-    // Search through all documents to find the subject in definitions
-    const documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)
-    
-    for (const docMeta of documents) {
-      const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, docMeta.sourcedId)
-      if (!pkg || !pkg.definitions) continue
-
-      const subject = pkg.definitions.CFSubjects?.find((s: any) => {
-        const subjectId = s.identifier ?? s.sourcedId
-        return subjectId === query.sourcedId
-      })
-
-      if (subject) {
-        return {
-          CFSubject: subject
-        }
-      }
-    }
-
-    return null
+    const entry = this.store.getDefinitionById(query.tenantId, query.caseVersion, 'CFSubjects', query.sourcedId)
+    if (!entry) return null
+    return { CFSubject: entry.value }
   }
 }
 

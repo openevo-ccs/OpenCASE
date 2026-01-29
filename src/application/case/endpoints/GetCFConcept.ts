@@ -16,27 +16,9 @@ export class GetCFConcept {
   ) {}
 
   async execute (query: GetCFConceptQuery) {
-    //logger.info({ query }, 'Executing GetCFConcept')
-
-    const documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)
-    
-    for (const docMeta of documents) {
-      const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, docMeta.sourcedId)
-      if (!pkg || !pkg.definitions) continue
-
-      const concept = pkg.definitions.CFConcepts?.find((c: any) => {
-        const conceptId = c.identifier ?? c.sourcedId
-        return conceptId === query.sourcedId
-      })
-
-      if (concept) {
-        return {
-          CFConcept: concept
-        }
-      }
-    }
-
-    return null
+    const entry = this.store.getDefinitionById(query.tenantId, query.caseVersion, 'CFConcepts', query.sourcedId)
+    if (!entry) return null
+    return { CFConcept: entry.value }
   }
 }
 

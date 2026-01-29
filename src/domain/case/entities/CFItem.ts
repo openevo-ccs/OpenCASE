@@ -109,6 +109,28 @@ export class CFItem {
     delete result.tenantId;
     delete result.caseVersion;
     delete result.sourcedId;
+
+    // CASE 1.0 strictness: do not emit CASE 1.1-only fields
+    if (caseVersion === '1.0') {
+      delete result.subject
+      delete result.subjectURI
+      delete result.extensions
+      // LinkGenURI.targetType is a CASE 1.1 addition; if present in LinkData, remove it.
+      if (result.CFDocumentURI && typeof result.CFDocumentURI === 'object') {
+        delete result.CFDocumentURI.targetType
+      }
+      if (result.CFItemTypeURI && typeof result.CFItemTypeURI === 'object') {
+        delete result.CFItemTypeURI.targetType
+      }
+      if (result.conceptKeywordsURI && typeof result.conceptKeywordsURI === 'object') {
+        delete result.conceptKeywordsURI.targetType
+      }
+      if (Array.isArray(result.subjectURI)) {
+        for (const s of result.subjectURI) {
+          if (s && typeof s === 'object') delete s.targetType
+        }
+      }
+    }
     
     return result;
   }

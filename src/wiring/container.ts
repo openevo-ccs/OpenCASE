@@ -26,6 +26,19 @@ import { DeleteCFDocument } from '../application/case/endpoints/DeleteCFDocument
 import { DeleteCFItem } from '../application/case/endpoints/DeleteCFItem'
 import { DeleteCFAssociation } from '../application/case/endpoints/DeleteCFAssociation'
 import { FrameworksController } from '../interfaces/http/http-admin/controllers/FrameworksController'
+import { CFPackagesControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFPackagesController'
+import { CFDocumentsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFDocumentsController'
+import { GetAllCFDocumentsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/GetAllCFDocumentsController'
+import { CFItemsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFItemsController'
+import { CFAssociationsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFAssociationsController'
+import { CFItemAssociationsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFItemAssociationsController'
+import { CFRubricsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFRubricsController'
+import { CFSubjectsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFSubjectsController'
+import { CFConceptsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFConceptsController'
+import { CFAssociationGroupingsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFAssociationGroupingsController'
+import { CFItemTypesControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFItemTypesController'
+import { CFLicensesControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFLicensesController'
+import { DiscoveryControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/DiscoveryController'
 import { CFPackagesControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/CFPackagesController'
 import { CFDocumentsControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/CFDocumentsController'
 import { GetAllCFDocumentsControllerV1p1 } from '../interfaces/http/http-public/v1p1/controllers/GetAllCFDocumentsController'
@@ -58,6 +71,21 @@ export interface Container {
   jwtVerifier: OidcJwtVerifier
   store: FileFrameworkStore
   controllers: {
+    v1p0: {
+      cfPackages: CFPackagesControllerV1p0
+      cfDocuments: CFDocumentsControllerV1p0
+      getAllCFDocuments: GetAllCFDocumentsControllerV1p0
+      cfItems: CFItemsControllerV1p0
+      cfAssociations: CFAssociationsControllerV1p0
+      cfItemAssociations: CFItemAssociationsControllerV1p0
+      cfRubrics: CFRubricsControllerV1p0
+      cfSubjects: CFSubjectsControllerV1p0
+      cfConcepts: CFConceptsControllerV1p0
+      cfAssociationGroupings: CFAssociationGroupingsControllerV1p0
+      cfItemTypes: CFItemTypesControllerV1p0
+      cfLicenses: CFLicensesControllerV1p0
+      discovery: DiscoveryControllerV1p0
+    }
     v1p1: {
       cfPackages: CFPackagesControllerV1p1
       cfDocuments: CFDocumentsControllerV1p1
@@ -131,15 +159,25 @@ export async function buildContainer(): Promise<Container> {
       throw new Error('Could not find schemas directory')
     }
     
-    const cfPackageSchema = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfpackage.json'), 'utf-8'))
-    const cfDocumentSchema = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfdocument.json'), 'utf-8'))
-    const cfItemSchema = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfitem.json'), 'utf-8'))
-    const cfAssociationSchema = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfassociation.json'), 'utf-8'))
+    const cfPackageSchemaV1p1 = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfpackage.json'), 'utf-8'))
+    const cfDocumentSchemaV1p1 = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfdocument.json'), 'utf-8'))
+    const cfItemSchemaV1p1 = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfitem.json'), 'utf-8'))
+    const cfAssociationSchemaV1p1 = JSON.parse(readFileSync(join(schemasDir, 'case-v1p1-cfassociation.json'), 'utf-8'))
+
+    const cfPackageSchemaV1p0 = JSON.parse(readFileSync(join(schemasDir, 'case-v1p0-cfpackage.json'), 'utf-8'))
+    const cfDocumentSchemaV1p0 = JSON.parse(readFileSync(join(schemasDir, 'case-v1p0-cfdocument.json'), 'utf-8'))
+    const cfItemSchemaV1p0 = JSON.parse(readFileSync(join(schemasDir, 'case-v1p0-cfitem.json'), 'utf-8'))
+    const cfAssociationSchemaV1p0 = JSON.parse(readFileSync(join(schemasDir, 'case-v1p0-cfassociation.json'), 'utf-8'))
     
-    jsonSchemaValidator.addSchema('case-v1p1-cfpackage', cfPackageSchema)
-    jsonSchemaValidator.addSchema('case-v1p1-cfdocument', cfDocumentSchema)
-    jsonSchemaValidator.addSchema('case-v1p1-cfitem', cfItemSchema)
-    jsonSchemaValidator.addSchema('case-v1p1-cfassociation', cfAssociationSchema)
+    jsonSchemaValidator.addSchema('case-v1p1-cfpackage', cfPackageSchemaV1p1)
+    jsonSchemaValidator.addSchema('case-v1p1-cfdocument', cfDocumentSchemaV1p1)
+    jsonSchemaValidator.addSchema('case-v1p1-cfitem', cfItemSchemaV1p1)
+    jsonSchemaValidator.addSchema('case-v1p1-cfassociation', cfAssociationSchemaV1p1)
+
+    jsonSchemaValidator.addSchema('case-v1p0-cfpackage', cfPackageSchemaV1p0)
+    jsonSchemaValidator.addSchema('case-v1p0-cfdocument', cfDocumentSchemaV1p0)
+    jsonSchemaValidator.addSchema('case-v1p0-cfitem', cfItemSchemaV1p0)
+    jsonSchemaValidator.addSchema('case-v1p0-cfassociation', cfAssociationSchemaV1p0)
     
     logger.info('Loaded CASE JSON schemas for validation')
   } catch (error: any) {
@@ -150,7 +188,7 @@ export async function buildContainer(): Promise<Container> {
   const importFramework = new ImportFrameworkFromEndpoint(pkgRepo, caseApiClient, jsonSchemaValidator)
   
   // Initialize CASE endpoints
-  const getCFPackage = new GetCFPackage(pkgRepo)
+  const getCFPackage = new GetCFPackage(pkgRepo, store)
   const getCFDocument = new GetCFDocument(pkgRepo)
   const getAllCFDocuments = new GetAllCFDocuments(store)
   const getCFItem = new GetCFItem(pkgRepo, store)
@@ -173,6 +211,21 @@ export async function buildContainer(): Promise<Container> {
 
   // Initialize controllers
   const frameworksController = new FrameworksController(createFramework, importFramework)
+
+  const cfPackagesControllerV1p0 = new CFPackagesControllerV1p0(getCFPackage)
+  const cfDocumentsControllerV1p0 = new CFDocumentsControllerV1p0(getCFDocument)
+  const getAllCFDocumentsControllerV1p0 = new GetAllCFDocumentsControllerV1p0(getAllCFDocuments)
+  const cfItemsControllerV1p0 = new CFItemsControllerV1p0(getCFItem)
+  const cfAssociationsControllerV1p0 = new CFAssociationsControllerV1p0(getCFAssociation)
+  const cfItemAssociationsControllerV1p0 = new CFItemAssociationsControllerV1p0(getCFItemAssociations)
+  const cfRubricsControllerV1p0 = new CFRubricsControllerV1p0(getCFRubric)
+  const cfSubjectsControllerV1p0 = new CFSubjectsControllerV1p0(getCFSubject)
+  const cfConceptsControllerV1p0 = new CFConceptsControllerV1p0(getCFConcept)
+  const cfAssociationGroupingsControllerV1p0 = new CFAssociationGroupingsControllerV1p0(getCFAssociationGrouping)
+  const cfItemTypesControllerV1p0 = new CFItemTypesControllerV1p0(getCFItemType)
+  const cfLicensesControllerV1p0 = new CFLicensesControllerV1p0(getCFLicense)
+  const discoveryControllerV1p0 = new DiscoveryControllerV1p0()
+
   const cfPackagesControllerV1p1 = new CFPackagesControllerV1p1(getCFPackage)
   const cfDocumentsControllerV1p1 = new CFDocumentsControllerV1p1(getCFDocument)
   const getAllCFDocumentsControllerV1p1 = new GetAllCFDocumentsControllerV1p1(getAllCFDocuments)
@@ -246,6 +299,21 @@ export async function buildContainer(): Promise<Container> {
     jwtVerifier,
     store,
     controllers: {
+      v1p0: {
+        cfPackages: cfPackagesControllerV1p0,
+        cfDocuments: cfDocumentsControllerV1p0,
+        getAllCFDocuments: getAllCFDocumentsControllerV1p0,
+        cfItems: cfItemsControllerV1p0,
+        cfAssociations: cfAssociationsControllerV1p0,
+        cfItemAssociations: cfItemAssociationsControllerV1p0,
+        cfRubrics: cfRubricsControllerV1p0,
+        cfSubjects: cfSubjectsControllerV1p0,
+        cfConcepts: cfConceptsControllerV1p0,
+        cfAssociationGroupings: cfAssociationGroupingsControllerV1p0,
+        cfItemTypes: cfItemTypesControllerV1p0,
+        cfLicenses: cfLicensesControllerV1p0,
+        discovery: discoveryControllerV1p0
+      },
       v1p1: {
         cfPackages: cfPackagesControllerV1p1,
         cfDocuments: cfDocumentsControllerV1p1,

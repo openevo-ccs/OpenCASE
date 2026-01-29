@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { CFPackagesControllerV1p1 } from '../CFPackagesController';
 import { GetCFPackage } from '../../../../../../application/case/endpoints/GetCFPackage';
+import { absolutizeCaseUris } from '../../utils/httpUtils'
 
 describe('CFPackagesControllerV1p1', () => {
   let controller: CFPackagesControllerV1p1;
@@ -18,17 +19,24 @@ describe('CFPackagesControllerV1p1', () => {
     controller = new CFPackagesControllerV1p1(mockGetCFPackage);
 
     responseJson = jest.fn();
-    responseStatus = jest.fn().mockReturnValue({ json: responseJson });
+    mockResponse = {
+      setHeader: jest.fn(),
+      end: jest.fn()
+    } as any
+    responseStatus = jest.fn().mockReturnValue(mockResponse as any);
+    ;(mockResponse as any).status = responseStatus
+    ;(mockResponse as any).json = responseJson
 
     mockRequest = {
       params: { id: '550e8400-e29b-41d4-a716-446655440000' }, // Valid UUID
+      query: {},
+      protocol: 'http',
+      get: jest.fn().mockReturnValue('localhost'),
       header: jest.fn()
     };
 
-    mockResponse = {
-      status: responseStatus,
-      json: responseJson
-    };
+    // Ensure auth/header reads don't trigger 304
+    ;(mockRequest.header as any).mockReturnValue(undefined)
   });
 
   describe('getById', () => {
@@ -58,7 +66,7 @@ describe('CFPackagesControllerV1p1', () => {
         docId: '550e8400-e29b-41d4-a716-446655440000'
       });
       expect(responseStatus).toHaveBeenCalledWith(200);
-      expect(responseJson).toHaveBeenCalledWith(result);
+      expect(responseJson).toHaveBeenCalledWith(absolutizeCaseUris(result, 'http://localhost'));
     });
 
     it('should use default tenantId when not in request', async () => {
@@ -87,7 +95,7 @@ describe('CFPackagesControllerV1p1', () => {
         docId: '550e8400-e29b-41d4-a716-446655440000'
       });
       expect(responseStatus).toHaveBeenCalledWith(200);
-      expect(responseJson).toHaveBeenCalledWith(result);
+      expect(responseJson).toHaveBeenCalledWith(absolutizeCaseUris(result, 'http://localhost'));
     });
 
     it('should return 404 when package is not found', async () => {

@@ -1,8 +1,6 @@
 import { GetCFLicense } from '../GetCFLicense'
 import { CFPackageRepository } from '../../ports/CFPackageRepository'
 import { FileFrameworkStore } from '../../../../infrastructure/persistence/file/FileFrameworkStore'
-import { CFPackage } from '../../../../domain/case/entities/CFPackage'
-import { CFDocument } from '../../../../domain/case/entities/CFDocument'
 
 describe('GetCFLicense', () => {
   let mockRepository: jest.Mocked<CFPackageRepository>
@@ -16,7 +14,7 @@ describe('GetCFLicense', () => {
     } as any
 
     mockStore = {
-      getAllDocuments: jest.fn()
+      getDefinitionById: jest.fn()
     } as any
 
     getCFLicense = new GetCFLicense(mockRepository, mockStore)
@@ -28,24 +26,15 @@ describe('GetCFLicense', () => {
     const licenseId = 'license-123'
 
     it('should return null when license is not found', async () => {
-      mockStore.getAllDocuments.mockReturnValue([])
+      mockStore.getDefinitionById.mockReturnValue(null as any)
 
       const result = await getCFLicense.execute({ tenantId, caseVersion, sourcedId: licenseId })
 
       expect(result).toBeNull()
+      expect(mockStore.getDefinitionById).toHaveBeenCalledWith(tenantId, caseVersion, 'CFLicenses', licenseId)
     })
 
     it('should return CFLicense when found', async () => {
-      const document = CFDocument.create({
-        tenantId,
-        caseVersion,
-        sourcedId: 'doc-123',
-        uri: '/ims/case/v1p1/CFDocuments/doc-123',
-        creator: 'Test Creator',
-        title: 'Test Document',
-        lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
-      })
-
       const license = {
         identifier: licenseId,
         title: 'Test License',
@@ -54,31 +43,18 @@ describe('GetCFLicense', () => {
         lastChangeDateTime: '2024-01-01T00:00:00.000Z'
       }
 
-      const pkg = new CFPackage({
-        document,
-        items: [],
-        associations: [],
-        rubrics: [],
-        definitions: {
-          CFLicenses: [license]
-        }
-      })
-
-      mockStore.getAllDocuments.mockReturnValue([
-        {
-          sourcedId: 'doc-123',
-          title: 'Test Document',
-          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
-          currentFile: 'file.json'
-        }
-      ] as any)
-      mockRepository.load.mockResolvedValue(pkg)
+      mockStore.getDefinitionById.mockReturnValue({
+        docSourcedId: 'doc-123',
+        value: license,
+        lastChangeDateTime: '2024-01-01T00:00:00.000Z'
+      } as any)
 
       const result = await getCFLicense.execute({ tenantId, caseVersion, sourcedId: licenseId })
 
       expect(result).toEqual({
         CFLicense: license
       })
+      expect(mockStore.getDefinitionById).toHaveBeenCalledWith(tenantId, caseVersion, 'CFLicenses', licenseId)
     })
   })
 })

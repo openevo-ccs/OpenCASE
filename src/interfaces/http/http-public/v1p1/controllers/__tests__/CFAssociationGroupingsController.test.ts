@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { CFAssociationGroupingsControllerV1p1 } from '../CFAssociationGroupingsController'
 import { GetCFAssociationGrouping } from '../../../../../../application/case/endpoints/GetCFAssociationGrouping'
+import { absolutizeCaseUris } from '../../utils/httpUtils'
 
 describe('CFAssociationGroupingsControllerV1p1', () => {
   let controller: CFAssociationGroupingsControllerV1p1
@@ -18,15 +19,20 @@ describe('CFAssociationGroupingsControllerV1p1', () => {
     controller = new CFAssociationGroupingsControllerV1p1(mockGetCFAssociationGrouping)
 
     responseJson = jest.fn()
-    responseStatus = jest.fn().mockReturnValue({ json: responseJson })
+    mockResponse = {
+      setHeader: jest.fn(),
+      end: jest.fn()
+    } as any
+    responseStatus = jest.fn().mockReturnValue(mockResponse as any)
+    ;(mockResponse as any).status = responseStatus
+    ;(mockResponse as any).json = responseJson
 
     mockRequest = {
-      params: { id: '550e8400-e29b-41d4-a716-446655440000' }
-    }
-
-    mockResponse = {
-      status: responseStatus,
-      json: responseJson
+      params: { id: '550e8400-e29b-41d4-a716-446655440000' },
+      query: {},
+      protocol: 'http',
+      get: jest.fn().mockReturnValue('localhost'),
+      header: jest.fn().mockReturnValue(undefined)
     }
   })
 
@@ -52,7 +58,7 @@ describe('CFAssociationGroupingsControllerV1p1', () => {
         sourcedId: '550e8400-e29b-41d4-a716-446655440000'
       })
       expect(responseStatus).toHaveBeenCalledWith(200)
-      expect(responseJson).toHaveBeenCalledWith(result)
+      expect(responseJson).toHaveBeenCalledWith(absolutizeCaseUris(result as any, 'http://localhost'))
     })
 
     it('should return 404 when grouping is not found', async () => {

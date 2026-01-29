@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { GetAllCFDocuments } from '../../../../../application/case/endpoints/GetAllCFDocuments'
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter'
+import { absolutizeCaseUris, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
 
 export class GetAllCFDocumentsControllerV1p1 {
   constructor (private readonly getAllCFDocuments: GetAllCFDocuments) {}
@@ -9,24 +10,9 @@ export class GetAllCFDocumentsControllerV1p1 {
     try {
       const tenantId = (req as any).tenantId ?? 'demo'
 
-      // Parse query parameters
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined
-      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined
-      const sort = req.query.sort as string | undefined
-      const orderBy = req.query.orderBy as 'asc' | 'desc' | undefined
-      const filter = req.query.filter as string | undefined
-      const fields = req.query.fields ? (req.query.fields as string).split(',') : undefined
-
-      // Validate limit and offset
-      if (limit !== undefined && (isNaN(limit) || limit < 1)) {
-        return res.status(400).json(StatusInfoFormatter.invalidSelectionField('Invalid limit parameter.'))
-      }
-      if (offset !== undefined && (isNaN(offset) || offset < 0)) {
-        return res.status(400).json(StatusInfoFormatter.invalidSelectionField('Invalid offset parameter.'))
-      }
-      if (orderBy && orderBy !== 'asc' && orderBy !== 'desc') {
-        return res.status(400).json(StatusInfoFormatter.invalidSelectionField('Invalid orderBy parameter. Must be "asc" or "desc".'))
-      }
+      const parsed = parseCaseQueryParams(req)
+      if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
+      const { limit, offset, sort, orderBy, filter, fields } = parsed.value
 
       const result = await this.getAllCFDocuments.execute({
         tenantId,
@@ -39,7 +25,10 @@ export class GetAllCFDocumentsControllerV1p1 {
         fields
       })
 
-      return res.status(200).json(result)
+      const baseUrl = getBaseUrl(req)
+      const body = absolutizeCaseUris(result, baseUrl)
+      if (setEtagAndHandleNotModified(req, res, body)) return
+      return res.status(200).json(body)
     } catch (error: any) {
       if (error.status === 401) {
         return res.status(401).json(StatusInfoFormatter.unauthorized(error.message))

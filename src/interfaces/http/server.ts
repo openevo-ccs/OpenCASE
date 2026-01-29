@@ -2,6 +2,7 @@ import express, { type RequestHandler } from 'express'
 import cors from 'cors'
 import { makeAuthMiddleware } from './middleware/auth'
 import { registerV1p1Routes } from './http-public/v1p1/routes'
+import { registerV1p0Routes } from './http-public/v1p0/routes'
 import { registerAdminRoutes } from './http-admin/routes'
 import { registerManagementRoutes } from './http-management/routes'
 import { type Container } from '../../wiring/container'
@@ -26,6 +27,11 @@ export function createServer (container: Container): express.Express {
     container.controllers.v1p1.discovery.getOpenAPISpec as RequestHandler
   )
 
+  app.get(
+    '/ims/case/v1p0/discovery/imscasev1p0_openapi3_v1p0.json',
+    container.controllers.v1p0.discovery.getOpenAPISpec as RequestHandler
+  )
+
   // Protected routes
   const authMiddleware = makeAuthMiddleware(container.jwtVerifier)
   app.use('/ims/case', authMiddleware)
@@ -47,6 +53,21 @@ export function createServer (container: Container): express.Express {
     cfLicensesController: container.controllers.v1p1.cfLicenses
   })
 
+  registerV1p0Routes(app, {
+    cfPackagesController: container.controllers.v1p0.cfPackages,
+    cfDocumentsController: container.controllers.v1p0.cfDocuments,
+    getAllCFDocumentsController: container.controllers.v1p0.getAllCFDocuments,
+    cfItemsController: container.controllers.v1p0.cfItems,
+    cfAssociationsController: container.controllers.v1p0.cfAssociations,
+    cfItemAssociationsController: container.controllers.v1p0.cfItemAssociations,
+    cfRubricsController: container.controllers.v1p0.cfRubrics,
+    cfSubjectsController: container.controllers.v1p0.cfSubjects,
+    cfConceptsController: container.controllers.v1p0.cfConcepts,
+    cfAssociationGroupingsController: container.controllers.v1p0.cfAssociationGroupings,
+    cfItemTypesController: container.controllers.v1p0.cfItemTypes,
+    cfLicensesController: container.controllers.v1p0.cfLicenses
+  })
+
   registerAdminRoutes(app, {
     frameworksController: container.controllers.admin.frameworks
   })
@@ -59,8 +80,6 @@ export function createServer (container: Container): express.Express {
     frameworksController: container.controllers.management.frameworks,
     tenantsController: container.controllers.management.tenants,
     // Keycloak is the source of truth for accounts/clients in this deployment
-    accountsController: undefined,
-    oauthClientsController: undefined
   })
 
   // simple health endpoint

@@ -1662,304 +1662,7 @@ export class OpenAPISpecGenerator {
             security: [{ BearerAuth: ['case.owner'] }, { BearerAuth: ['case.admin'] }]
           }
         },
-        '/oauth/authorize': {
-          get: {
-            operationId: 'authorize',
-            summary: 'OAuth2 Authorization Endpoint (non-CASE-standard extension)',
-            tags: ['OAuth'],
-            description: 'This endpoint initiates the OAuth2 authorization code flow with PKCE for user authentication. This is NOT part of the CASE standard specification and is provided as extended functionality for React applications. Supports authorization_code grant type with PKCE.',
-            parameters: [
-              {
-                name: 'client_id',
-                in: 'query',
-                required: true,
-                description: 'The OAuth client identifier',
-                schema: { type: 'string' }
-              },
-              {
-                name: 'redirect_uri',
-                in: 'query',
-                required: true,
-                description: 'The redirect URI where the authorization code will be sent',
-                schema: { type: 'string', format: 'uri' }
-              },
-              {
-                name: 'response_type',
-                in: 'query',
-                required: true,
-                description: 'Must be "code" for authorization code flow',
-                schema: { type: 'string', enum: ['code'] }
-              },
-              {
-                name: 'code_challenge',
-                in: 'query',
-                required: true,
-                description: 'PKCE code challenge (base64url encoded SHA256 hash of code_verifier)',
-                schema: { type: 'string' }
-              },
-              {
-                name: 'code_challenge_method',
-                in: 'query',
-                required: false,
-                description: 'PKCE code challenge method (S256 or plain)',
-                schema: { type: 'string', enum: ['S256', 'plain'], default: 'S256' }
-              },
-              {
-                name: 'scope',
-                in: 'query',
-                required: false,
-                description: 'Space-separated list of scopes',
-                schema: { type: 'string' }
-              },
-              {
-                name: 'state',
-                in: 'query',
-                required: false,
-                description: 'Opaque value used to maintain state between request and callback',
-                schema: { type: 'string' }
-              }
-            ],
-            requestBody: {
-              required: true,
-              content: {
-                'application/x-www-form-urlencoded': {
-                  schema: {
-                    type: 'object',
-                    required: ['email', 'password'],
-                    properties: {
-                      email: { type: 'string', format: 'email' },
-                      password: { type: 'string' }
-                    }
-                  }
-                }
-              }
-            },
-            responses: {
-              302: {
-                description: 'Redirect to redirect_uri with authorization code',
-                headers: {
-                  Location: {
-                    schema: { type: 'string', format: 'uri' },
-                    description: 'Redirect URI with code and state query parameters'
-                  }
-                }
-              },
-              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } },
-              401: { description: 'Invalid credentials.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } }
-            },
-            'x-1edtech-confidentiality': 'restricted',
-            'x-1edtech-extension': true
-          },
-          post: {
-            operationId: 'authorizePost',
-            summary: 'OAuth2 Authorization Endpoint (POST) (non-CASE-standard extension)',
-            tags: ['OAuth'],
-            description: 'POST version of the authorization endpoint for form submissions.',
-            parameters: [
-              {
-                name: 'client_id',
-                in: 'query',
-                required: true,
-                schema: { type: 'string' }
-              },
-              {
-                name: 'redirect_uri',
-                in: 'query',
-                required: true,
-                schema: { type: 'string', format: 'uri' }
-              },
-              {
-                name: 'response_type',
-                in: 'query',
-                required: true,
-                schema: { type: 'string', enum: ['code'] }
-              },
-              {
-                name: 'code_challenge',
-                in: 'query',
-                required: true,
-                schema: { type: 'string' }
-              },
-              {
-                name: 'code_challenge_method',
-                in: 'query',
-                required: false,
-                schema: { type: 'string', enum: ['S256', 'plain'] }
-              },
-              {
-                name: 'scope',
-                in: 'query',
-                required: false,
-                schema: { type: 'string' }
-              },
-              {
-                name: 'state',
-                in: 'query',
-                required: false,
-                schema: { type: 'string' }
-              }
-            ],
-            requestBody: {
-              required: true,
-              content: {
-                'application/x-www-form-urlencoded': {
-                  schema: {
-                    type: 'object',
-                    required: ['email', 'password'],
-                    properties: {
-                      email: { type: 'string', format: 'email' },
-                      password: { type: 'string' }
-                    }
-                  }
-                }
-              }
-            },
-            responses: {
-              302: {
-                description: 'Redirect to redirect_uri with authorization code',
-                headers: {
-                  Location: {
-                    schema: { type: 'string', format: 'uri' }
-                  }
-                }
-              },
-              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } },
-              401: { description: 'Invalid credentials.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } }
-            },
-            'x-1edtech-confidentiality': 'restricted',
-            'x-1edtech-extension': true
-          }
-        },
-        '/oauth/token': {
-          post: {
-            operationId: 'token',
-            summary: 'OAuth2 Token Endpoint',
-            tags: ['OAuth'],
-            description: 'This endpoint issues access tokens. Supports client_credentials grant for service-to-service authentication and authorization_code grant with PKCE for user authentication.',
-            requestBody: {
-              required: true,
-              content: {
-                'application/x-www-form-urlencoded': {
-                  schema: {
-                    type: 'object',
-                    required: ['grant_type', 'client_id'],
-                    properties: {
-                      grant_type: {
-                        type: 'string',
-                        enum: ['client_credentials', 'authorization_code', 'refresh_token'],
-                        description: 'OAuth2 grant type'
-                      },
-                      client_id: {
-                        type: 'string',
-                        description: 'OAuth client identifier'
-                      },
-                      client_secret: {
-                        type: 'string',
-                        description: 'OAuth client secret (required for client_credentials grant)'
-                      },
-                      code: {
-                        type: 'string',
-                        description: 'Authorization code (required for authorization_code grant)'
-                      },
-                      redirect_uri: {
-                        type: 'string',
-                        format: 'uri',
-                        description: 'Redirect URI (required for authorization_code grant)'
-                      },
-                      code_verifier: {
-                        type: 'string',
-                        description: 'PKCE code verifier (required for authorization_code grant)'
-                      },
-                      refresh_token: {
-                        type: 'string',
-                        description: 'Refresh token (required for refresh_token grant)'
-                      },
-                      scope: {
-                        type: 'string',
-                        description: 'Space-separated list of scopes'
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            responses: {
-              200: {
-                description: 'Token issued successfully.',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        access_token: { type: 'string' },
-                        token_type: { type: 'string', example: 'Bearer' },
-                        expires_in: { type: 'integer' },
-                        scope: { type: 'string' },
-                        refresh_token: { type: 'string', description: 'Included for authorization_code grant' },
-                        refresh_token_expires_in: { type: 'integer', description: 'Included for authorization_code grant' }
-                      }
-                    }
-                  }
-                }
-              },
-              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } },
-              401: { description: 'Invalid client or credentials.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } }
-            },
-            'x-1edtech-confidentiality': 'restricted'
-          }
-        },
-        '/oauth/revoke': {
-          post: {
-            operationId: 'revokeToken',
-            summary: 'OAuth2 Token Revocation Endpoint (non-CASE-standard extension)',
-            tags: ['OAuth'],
-            description: 'This endpoint revokes refresh tokens. This is NOT part of the CASE standard specification and is provided as extended functionality for React applications.',
-            requestBody: {
-              required: true,
-              content: {
-                'application/x-www-form-urlencoded': {
-                  schema: {
-                    type: 'object',
-                    required: ['token', 'client_id'],
-                    properties: {
-                      token: {
-                        type: 'string',
-                        description: 'The refresh token to revoke'
-                      },
-                      token_type_hint: {
-                        type: 'string',
-                        enum: ['refresh_token'],
-                        description: 'Hint about the token type'
-                      },
-                      client_id: {
-                        type: 'string',
-                        description: 'OAuth client identifier'
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            responses: {
-              200: {
-                description: 'Token revoked successfully (or token not found, per RFC 7009).',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        revoked: { type: 'boolean' }
-                      }
-                    }
-                  }
-                }
-              },
-              400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, error_description: { type: 'string' } } } } } }
-            },
-            'x-1edtech-confidentiality': 'restricted',
-            'x-1edtech-extension': true
-          }
-        }
+        // Note: legacy /oauth/* endpoints were removed in favor of external OIDC (Keycloak).
       },
       components: {
         schemas: {
@@ -2324,5 +2027,53 @@ export class OpenAPISpecGenerator {
         }
       }
     }
+  }
+
+  static generateV1p0 (options: OpenAPISpecOptions): any {
+    // The service operations set is the same; this adapts the v1p1 OpenAPI surface to v1p0 paths/metadata.
+    const spec = this.generateV1p1(options)
+    spec.info = {
+      ...spec.info,
+      description: 'Competencies and Academic Standards Exchange (CASE) Service Version 1.0',
+      'x-1edtech-spec-version': '1.0'
+    }
+    // Rewrite v1p1 paths to v1p0
+    if (spec.paths && typeof spec.paths === 'object') {
+      const newPaths: any = {}
+      for (const [k, v] of Object.entries(spec.paths)) {
+        const nk = String(k).replace('/ims/case/v1p1/', '/ims/case/v1p0/')
+        newPaths[nk] = v
+      }
+      spec.paths = newPaths
+    }
+
+    // Adjust schemas for strict CASE 1.0 (remove CASE 1.1-only properties)
+    const schemas = spec?.components?.schemas
+    if (schemas && typeof schemas === 'object') {
+      // Remove `extensions` anywhere.
+      for (const s of Object.values(schemas as Record<string, any>)) {
+        if (!s || typeof s !== 'object') continue
+        const walk = (n: any) => {
+          if (!n || typeof n !== 'object') return
+          if (n.properties && typeof n.properties === 'object') {
+            delete n.properties.extensions
+            delete n.properties.frameworkType
+            delete n.properties.subject
+            delete n.properties.subjectURI
+            // CASE 1.1 addition on LinkGenURI
+            delete n.properties.targetType
+            // CASE 1.1 addition on CFAssociation
+            delete n.properties.notes
+          }
+          for (const v of Object.values(n)) {
+            if (Array.isArray(v)) v.forEach(walk)
+            else if (v && typeof v === 'object') walk(v)
+          }
+        }
+        walk(s)
+      }
+    }
+
+    return spec
   }
 }

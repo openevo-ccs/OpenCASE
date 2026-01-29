@@ -102,6 +102,12 @@ export class CFDocument {
         title: 'License'
       };
     }
+
+    // CASE 1.0 strictness: do not emit CASE 1.1-only fields
+    if (caseVersion === '1.0') {
+      delete result.frameworkType
+      delete result.extensions
+    }
     
     return result;
   }

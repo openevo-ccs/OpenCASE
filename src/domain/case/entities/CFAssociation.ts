@@ -93,6 +93,16 @@ export class CFAssociation {
     delete result.tenantId;
     delete result.caseVersion;
     delete result.sourcedId;
+
+    // CASE 1.0 strictness: do not emit CASE 1.1-only fields
+    if (caseVersion === '1.0') {
+      delete result.notes
+      delete result.extensions
+      if (result.originNodeURI && typeof result.originNodeURI === 'object') delete result.originNodeURI.targetType
+      if (result.destinationNodeURI && typeof result.destinationNodeURI === 'object') delete result.destinationNodeURI.targetType
+      if (result.CFDocumentURI && typeof result.CFDocumentURI === 'object') delete result.CFDocumentURI.targetType
+      if (result.CFAssociationGroupingURI && typeof result.CFAssociationGroupingURI === 'object') delete result.CFAssociationGroupingURI.targetType
+    }
     
     return result;
   }

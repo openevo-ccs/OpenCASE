@@ -1,6 +1,5 @@
 import { type CFPackageRepository } from '../ports/CFPackageRepository'
 import { type CaseVersion, type SourcedId, type TenantId } from '../../../domain/case/value-objects/Identifiers'
-import { logger } from '../../../infrastructure/logging/Logger'
 import { type FileFrameworkStore } from '../../../infrastructure/persistence/file/FileFrameworkStore'
 
 export interface GetCFAssociationQuery {

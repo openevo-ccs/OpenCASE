@@ -1,8 +1,6 @@
 import { GetCFItemType } from '../GetCFItemType'
 import { CFPackageRepository } from '../../ports/CFPackageRepository'
 import { FileFrameworkStore } from '../../../../infrastructure/persistence/file/FileFrameworkStore'
-import { CFPackage } from '../../../../domain/case/entities/CFPackage'
-import { CFDocument } from '../../../../domain/case/entities/CFDocument'
 
 describe('GetCFItemType', () => {
   let mockRepository: jest.Mocked<CFPackageRepository>
@@ -16,7 +14,7 @@ describe('GetCFItemType', () => {
     } as any
 
     mockStore = {
-      getAllDocuments: jest.fn()
+      getDefinitionById: jest.fn()
     } as any
 
     getCFItemType = new GetCFItemType(mockRepository, mockStore)
@@ -28,24 +26,15 @@ describe('GetCFItemType', () => {
     const itemTypeId = 'itemtype-123'
 
     it('should return null when item type is not found', async () => {
-      mockStore.getAllDocuments.mockReturnValue([])
+      mockStore.getDefinitionById.mockReturnValue(null as any)
 
       const result = await getCFItemType.execute({ tenantId, caseVersion, sourcedId: itemTypeId })
 
       expect(result).toBeNull()
+      expect(mockStore.getDefinitionById).toHaveBeenCalledWith(tenantId, caseVersion, 'CFItemTypes', itemTypeId)
     })
 
     it('should return CFItemType when found', async () => {
-      const document = CFDocument.create({
-        tenantId,
-        caseVersion,
-        sourcedId: 'doc-123',
-        uri: '/ims/case/v1p1/CFDocuments/doc-123',
-        creator: 'Test Creator',
-        title: 'Test Document',
-        lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
-      })
-
       const itemType = {
         identifier: itemTypeId,
         title: 'Test Item Type',
@@ -55,31 +44,18 @@ describe('GetCFItemType', () => {
         lastChangeDateTime: '2024-01-01T00:00:00.000Z'
       }
 
-      const pkg = new CFPackage({
-        document,
-        items: [],
-        associations: [],
-        rubrics: [],
-        definitions: {
-          CFItemTypes: [itemType]
-        }
-      })
-
-      mockStore.getAllDocuments.mockReturnValue([
-        {
-          sourcedId: 'doc-123',
-          title: 'Test Document',
-          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
-          currentFile: 'file.json'
-        }
-      ] as any)
-      mockRepository.load.mockResolvedValue(pkg)
+      mockStore.getDefinitionById.mockReturnValue({
+        docSourcedId: 'doc-123',
+        value: itemType,
+        lastChangeDateTime: '2024-01-01T00:00:00.000Z'
+      } as any)
 
       const result = await getCFItemType.execute({ tenantId, caseVersion, sourcedId: itemTypeId })
 
       expect(result).toEqual({
         CFItemType: itemType
       })
+      expect(mockStore.getDefinitionById).toHaveBeenCalledWith(tenantId, caseVersion, 'CFItemTypes', itemTypeId)
     })
   })
 })

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { GetCFPackage } from '../../../../../application/case/endpoints/GetCFPackage';
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter';
+import { absolutizeCaseUris, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
 
 export class CFPackagesControllerV1p1 {
   constructor(private readonly getCFPackage: GetCFPackage) {}
@@ -9,6 +10,8 @@ export class CFPackagesControllerV1p1 {
     try {
       const tenantId = (req as any).tenantId ?? 'demo';
       const docId = req.params.id;
+      const parsed = parseCaseQueryParams(req)
+      if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
 
       // Validate UUID format (basic check)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,7 +29,10 @@ export class CFPackagesControllerV1p1 {
         return res.status(404).json(StatusInfoFormatter.notFound('The requested CFPackage was not found.'));
       }
 
-      return res.status(200).json(result);
+      const baseUrl = getBaseUrl(req)
+      const body = absolutizeCaseUris(result, baseUrl)
+      if (setEtagAndHandleNotModified(req, res, body)) return
+      return res.status(200).json(body);
     } catch (error: any) {
       // Handle different error types
       if (error.status === 401) {

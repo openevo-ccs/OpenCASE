@@ -16,27 +16,9 @@ export class GetCFItemType {
   ) {}
 
   async execute (query: GetCFItemTypeQuery) {
-    logger.info({ query }, 'Executing GetCFItemType')
-
-    const documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)
-    
-    for (const docMeta of documents) {
-      const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, docMeta.sourcedId)
-      if (!pkg || !pkg.definitions) continue
-
-      const itemType = pkg.definitions.CFItemTypes?.find((it: any) => {
-        const itemTypeId = it.identifier ?? it.sourcedId
-        return itemTypeId === query.sourcedId
-      })
-
-      if (itemType) {
-        return {
-          CFItemType: itemType
-        }
-      }
-    }
-
-    return null
+    const entry = this.store.getDefinitionById(query.tenantId, query.caseVersion, 'CFItemTypes', query.sourcedId)
+    if (!entry) return null
+    return { CFItemType: entry.value }
   }
 }
 

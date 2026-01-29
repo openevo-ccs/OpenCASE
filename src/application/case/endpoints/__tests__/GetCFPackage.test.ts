@@ -4,9 +4,11 @@ import { CFPackage } from '../../../../domain/case/entities/CFPackage';
 import { CFDocument } from '../../../../domain/case/entities/CFDocument';
 import { CFItem } from '../../../../domain/case/entities/CFItem';
 import { CFAssociation } from '../../../../domain/case/entities/CFAssociation';
+import { FileFrameworkStore } from '../../../../infrastructure/persistence/file/FileFrameworkStore'
 
 describe('GetCFPackage', () => {
   let mockRepository: jest.Mocked<CFPackageRepository>;
+  let mockStore: jest.Mocked<FileFrameworkStore>;
   let getCFPackage: GetCFPackage;
 
   beforeEach(() => {
@@ -15,7 +17,17 @@ describe('GetCFPackage', () => {
       saveNewVersion: jest.fn()
     } as any;
 
-    getCFPackage = new GetCFPackage(mockRepository);
+    mockStore = {
+      getTenantDefinitions: jest.fn().mockReturnValue({
+        CFConcepts: [],
+        CFSubjects: [],
+        CFLicenses: [],
+        CFItemTypes: [],
+        CFAssociationGroupings: []
+      })
+    } as any
+
+    getCFPackage = new GetCFPackage(mockRepository, mockStore);
   });
 
   describe('execute', () => {

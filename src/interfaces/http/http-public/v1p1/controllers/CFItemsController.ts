@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { GetCFItem } from '../../../../../application/case/endpoints/GetCFItem'
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter'
+import { absolutizeCaseUris, applyFieldSelectionToEntity, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
 
 export class CFItemsControllerV1p1 {
   constructor (private readonly getCFItem: GetCFItem) {}
@@ -9,6 +10,8 @@ export class CFItemsControllerV1p1 {
     try {
       const tenantId = (req as any).tenantId ?? 'demo'
       const sourcedId = req.params.id
+      const parsed = parseCaseQueryParams(req)
+      if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
 
       // Validate UUID format (basic check)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -26,7 +29,14 @@ export class CFItemsControllerV1p1 {
         return res.status(404).json(StatusInfoFormatter.notFound('The requested CFItem was not found.'))
       }
 
-      return res.status(200).json(result)
+      const baseUrl = getBaseUrl(req)
+      const wrapped = { ...result } as any
+      if (wrapped.CFItem && parsed.value.fields?.length) {
+        wrapped.CFItem = applyFieldSelectionToEntity(wrapped.CFItem, parsed.value.fields)
+      }
+      const body = absolutizeCaseUris(wrapped, baseUrl)
+      if (setEtagAndHandleNotModified(req, res, body)) return
+      return res.status(200).json(body)
     } catch (error: any) {
       if (error.status === 401) {
         return res.status(401).json(StatusInfoFormatter.unauthorized(error.message))

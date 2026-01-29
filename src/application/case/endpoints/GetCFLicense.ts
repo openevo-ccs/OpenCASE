@@ -16,27 +16,9 @@ export class GetCFLicense {
   ) {}
 
   async execute (query: GetCFLicenseQuery) {
-    //logger.info({ query }, 'Executing GetCFLicense')
-
-    const documents = this.store.getAllDocuments(query.tenantId, query.caseVersion)
-    
-    for (const docMeta of documents) {
-      const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, docMeta.sourcedId)
-      if (!pkg || !pkg.definitions) continue
-
-      const license = pkg.definitions.CFLicenses?.find((l: any) => {
-        const licenseId = l.identifier ?? l.sourcedId
-        return licenseId === query.sourcedId
-      })
-
-      if (license) {
-        return {
-          CFLicense: license
-        }
-      }
-    }
-
-    return null
+    const entry = this.store.getDefinitionById(query.tenantId, query.caseVersion, 'CFLicenses', query.sourcedId)
+    if (!entry) return null
+    return { CFLicense: entry.value }
   }
 }
 

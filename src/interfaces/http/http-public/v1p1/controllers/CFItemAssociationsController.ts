@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { GetCFItemAssociations } from '../../../../../application/case/endpoints/GetCFItemAssociations'
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter'
+import { absolutizeCaseUris, applyQueryToArray, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
 
 export class CFItemAssociationsControllerV1p1 {
   constructor (private readonly getCFItemAssociations: GetCFItemAssociations) {}
@@ -9,6 +10,8 @@ export class CFItemAssociationsControllerV1p1 {
     try {
       const tenantId = (req as any).tenantId ?? 'demo'
       const sourcedId = req.params.id
+      const parsed = parseCaseQueryParams(req)
+      if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
 
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       if (!uuidRegex.test(sourcedId)) {
@@ -25,7 +28,22 @@ export class CFItemAssociationsControllerV1p1 {
         return res.status(404).json(StatusInfoFormatter.notFound('The requested CFItem was not found.'))
       }
 
-      return res.status(200).json(result)
+      // Apply query params to the association set (filter/sort/paging/fields)
+      let wrapped: any = result
+      if (result?.CFAssociationSet?.CFAssociations) {
+        const applied = applyQueryToArray(result.CFAssociationSet.CFAssociations, parsed.value)
+        if (!applied.ok) return res.status(applied.status).json(applied.body)
+        wrapped = {
+          CFAssociationSet: {
+            CFAssociations: applied.items
+          }
+        }
+      }
+
+      const baseUrl = getBaseUrl(req)
+      const body = absolutizeCaseUris(wrapped, baseUrl)
+      if (setEtagAndHandleNotModified(req, res, body)) return
+      return res.status(200).json(body)
     } catch (error: any) {
       if (error.status === 401) {
         return res.status(401).json(StatusInfoFormatter.unauthorized(error.message))

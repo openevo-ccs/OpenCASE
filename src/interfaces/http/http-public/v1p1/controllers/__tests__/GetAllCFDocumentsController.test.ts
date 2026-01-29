@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { GetAllCFDocumentsControllerV1p1 } from '../GetAllCFDocumentsController'
 import { GetAllCFDocuments } from '../../../../../../application/case/endpoints/GetAllCFDocuments'
+import { absolutizeCaseUris } from '../../utils/httpUtils'
 
 describe('GetAllCFDocumentsControllerV1p1', () => {
   let controller: GetAllCFDocumentsControllerV1p1
@@ -18,15 +19,19 @@ describe('GetAllCFDocumentsControllerV1p1', () => {
     controller = new GetAllCFDocumentsControllerV1p1(mockGetAllCFDocuments)
 
     responseJson = jest.fn()
-    responseStatus = jest.fn().mockReturnValue({ json: responseJson })
+    mockResponse = {
+      setHeader: jest.fn(),
+      end: jest.fn()
+    } as any
+    responseStatus = jest.fn().mockReturnValue(mockResponse as any)
+    ;(mockResponse as any).status = responseStatus
+    ;(mockResponse as any).json = responseJson
 
     mockRequest = {
-      query: {}
-    }
-
-    mockResponse = {
-      status: responseStatus,
-      json: responseJson
+      query: {},
+      protocol: 'http',
+      get: jest.fn().mockReturnValue('localhost'),
+      header: jest.fn().mockReturnValue(undefined)
     }
   })
 
@@ -62,7 +67,7 @@ describe('GetAllCFDocumentsControllerV1p1', () => {
         fields: undefined
       })
       expect(responseStatus).toHaveBeenCalledWith(200)
-      expect(responseJson).toHaveBeenCalledWith(result)
+      expect(responseJson).toHaveBeenCalledWith(absolutizeCaseUris(result as any, 'http://localhost'))
     })
 
     it('should handle query parameters', async () => {

@@ -32,11 +32,25 @@ interface AssocIndexEntry {
   docSourcedId: string
 }
 
+type DefinitionCategory =
+  | 'CFConcepts'
+  | 'CFSubjects'
+  | 'CFLicenses'
+  | 'CFItemTypes'
+  | 'CFAssociationGroupings'
+
+interface DefinitionIndexEntry {
+  docSourcedId: string
+  value: any
+  lastChangeDateTime?: string
+}
+
 export class FileFrameworkStore {
   private readonly documents = new Map<TenantId, Map<CaseVersion, Map<string, DocumentMetadata>>>()
   private readonly documentVersions = new Map<TenantId, Map<CaseVersion, Map<string, DocumentVersionInfo[]>>>()
   private readonly itemsIndex = new Map<TenantId, Map<CaseVersion, Map<string, ItemIndexEntry>>>()
   private readonly assocIndex = new Map<TenantId, Map<CaseVersion, Map<string, AssocIndexEntry>>>()
+  private readonly definitionsIndex = new Map<TenantId, Map<CaseVersion, Map<DefinitionCategory, Map<string, DefinitionIndexEntry>>>>()
 
   constructor (private readonly cfg: FileFrameworkStoreConfig) {}
 
@@ -75,11 +89,13 @@ export class FileFrameworkStore {
     const versionsMap = await this.loadDocumentVersionsIndex(idxDir)
     const itemsMap = await this.loadItemsIndex(idxDir)
     const assocMap = await this.loadAssociationsIndex(idxDir)
+    const defsMap = await this.loadDefinitionsIndex(idxDir)
 
     this.setTenantVersionMap(this.documents, tenantId, version, docsMap)
     this.setTenantVersionMap(this.documentVersions, tenantId, version, versionsMap)
     this.setTenantVersionMap(this.itemsIndex, tenantId, version, itemsMap)
     this.setTenantVersionMap(this.assocIndex, tenantId, version, assocMap)
+    this.setTenantVersionMap(this.definitionsIndex, tenantId, version, defsMap)
   }
 
   private setTenantVersionMap<T>(
@@ -174,6 +190,30 @@ export class FileFrameworkStore {
     return map
   }
 
+  private async loadDefinitionsIndex (
+    idxDir: string
+  ): Promise<Map<DefinitionCategory, Map<string, DefinitionIndexEntry>>> {
+    const result = new Map<DefinitionCategory, Map<string, DefinitionIndexEntry>>()
+    const categories: DefinitionCategory[] = ['CFConcepts', 'CFSubjects', 'CFLicenses', 'CFItemTypes', 'CFAssociationGroupings']
+    for (const c of categories) result.set(c, new Map())
+
+    try {
+      const raw = JSON.parse(await fs.readFile(path.join(idxDir, 'definitions.json'), 'utf8')) as any
+      for (const c of categories) {
+        const entries = raw?.[c]
+        if (!entries || typeof entries !== 'object') continue
+        const map = result.get(c)!
+        for (const [id, entry] of Object.entries(entries)) {
+          if (!entry || typeof entry !== 'object') continue
+          map.set(id, entry as DefinitionIndexEntry)
+        }
+      }
+    } catch {
+      // ignore missing
+    }
+    return result
+  }
+
   getTenantVersionRootDir (tenantId: TenantId, version: CaseVersion): string {
     const tenantDir = path.join(this.cfg.baseDataDir, 'tenants', tenantId)
     const vDir = version === '1.0' ? 'v1p0' : 'v1p1'
@@ -240,12 +280,14 @@ export class FileFrameworkStore {
     this.updateInMemoryDocumentVersionsIndex(tenantId, version, docId, relativePath, lastChangeDateTime, doc.version as string | undefined)
     this.updateInMemoryItemsIndex(tenantId, version, bundle.items ?? [], docId)
     this.updateInMemoryAssociationsIndex(tenantId, version, bundle.associations ?? [], docId)
+    this.updateInMemoryDefinitionsIndex(tenantId, version, (bundle as any).definitions, docId, lastChangeDateTime)
 
     // Write index files to disk
     await this.writeDocumentsIndex(idxDir, tenantId, version)
     await this.writeDocumentVersionsIndex(idxDir, tenantId, version)
     await this.writeItemsIndex(idxDir, tenantId, version)
     await this.writeAssociationsIndex(idxDir, tenantId, version)
+    await this.writeDefinitionsIndex(idxDir, tenantId, version)
   }
 
   private updateInMemoryDocumentIndex (
@@ -356,6 +398,58 @@ export class FileFrameworkStore {
     }
   }
 
+  private updateInMemoryDefinitionsIndex (
+    tenantId: TenantId,
+    version: CaseVersion,
+    definitions: any,
+    docId: string,
+    lastChangeDateTime: Date
+  ): void {
+    if (!definitions) return
+
+    let tenantMap = this.definitionsIndex.get(tenantId)
+    if (!tenantMap) {
+      tenantMap = new Map()
+      this.definitionsIndex.set(tenantId, tenantMap)
+    }
+    let versionMap = tenantMap.get(version)
+    if (!versionMap) {
+      versionMap = new Map()
+      tenantMap.set(version, versionMap)
+    }
+
+    const upsertCategory = (category: DefinitionCategory, list: any[] | undefined) => {
+      if (!Array.isArray(list)) return
+      let catMap = versionMap!.get(category)
+      if (!catMap) {
+        catMap = new Map()
+        versionMap!.set(category, catMap)
+      }
+      for (const v of list) {
+        const id = (v?.identifier ?? v?.sourcedId) as string | undefined
+        if (!id) continue
+        // "Per-tenant defaults": if duplicates exist across docs, keep latest change as default.
+        const existing = catMap.get(id)
+        const incoming: DefinitionIndexEntry = { docSourcedId: docId, value: v, lastChangeDateTime: lastChangeDateTime.toISOString() }
+        if (!existing) {
+          catMap.set(id, incoming)
+          continue
+        }
+        const existingTs = existing.lastChangeDateTime ? Date.parse(existing.lastChangeDateTime) : 0
+        const incomingTs = Date.parse(incoming.lastChangeDateTime!)
+        if (incomingTs >= existingTs) {
+          catMap.set(id, incoming)
+        }
+      }
+    }
+
+    upsertCategory('CFConcepts', definitions.CFConcepts)
+    upsertCategory('CFSubjects', definitions.CFSubjects)
+    upsertCategory('CFLicenses', definitions.CFLicenses)
+    upsertCategory('CFItemTypes', definitions.CFItemTypes)
+    upsertCategory('CFAssociationGroupings', definitions.CFAssociationGroupings)
+  }
+
   private async writeDocumentsIndex (
     idxDir: string,
     tenantId: TenantId,
@@ -446,6 +540,29 @@ export class FileFrameworkStore {
     )
   }
 
+  private async writeDefinitionsIndex (
+    idxDir: string,
+    tenantId: TenantId,
+    version: CaseVersion
+  ): Promise<void> {
+    const versionMap = this.definitionsIndex.get(tenantId)?.get(version)
+    if (!versionMap) return
+
+    const out: any = {}
+    for (const [category, catMap] of versionMap.entries()) {
+      out[category] = {}
+      for (const [id, entry] of catMap.entries()) {
+        out[category][id] = entry
+      }
+    }
+
+    await fs.writeFile(
+      path.join(idxDir, 'definitions.json'),
+      JSON.stringify(out, null, 2),
+      'utf8'
+    )
+  }
+
   // Helper methods for accessing indexes
   getDocumentIdForItem (tenantId: TenantId, version: CaseVersion, itemId: string): string | null {
     const entry = this.itemsIndex.get(tenantId)?.get(version)?.get(itemId)
@@ -501,5 +618,29 @@ export class FileFrameworkStore {
     await this.writeDocumentVersionsIndex(idxDir, tenantId, version)
     await this.writeItemsIndex(idxDir, tenantId, version)
     await this.writeAssociationsIndex(idxDir, tenantId, version)
+    await this.writeDefinitionsIndex(idxDir, tenantId, version)
+  }
+
+  getDefinitionById (
+    tenantId: TenantId,
+    version: CaseVersion,
+    category: DefinitionCategory,
+    id: string
+  ): DefinitionIndexEntry | null {
+    return this.definitionsIndex.get(tenantId)?.get(version)?.get(category)?.get(id) ?? null
+  }
+
+  getTenantDefinitions (
+    tenantId: TenantId,
+    version: CaseVersion
+  ): Record<DefinitionCategory, any[]> {
+    const categories: DefinitionCategory[] = ['CFConcepts', 'CFSubjects', 'CFLicenses', 'CFItemTypes', 'CFAssociationGroupings']
+    const versionMap = this.definitionsIndex.get(tenantId)?.get(version)
+    const result: any = {}
+    for (const c of categories) {
+      const catMap = versionMap?.get(c)
+      result[c] = catMap ? Array.from(catMap.values()).map(e => e.value) : []
+    }
+    return result
   }
 }
