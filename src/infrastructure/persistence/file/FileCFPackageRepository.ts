@@ -51,6 +51,9 @@ export class FileCFPackageRepository implements CFPackageRepository {
       bundle.definitions = pkg.definitions
     }
 
+    // Guard against GUID reuse across different frameworks/entities before writing.
+    this.store.assertNoEntityIdReuse(tenantId, version, docId, bundle)
+
     const { relativePath } = await this.store.writeBundleFile(tenantId, version, docId, bundle)
 
     // Update indexes (both in-memory and on disk)

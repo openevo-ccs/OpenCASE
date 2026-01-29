@@ -12,6 +12,7 @@ describe('FileCFPackageRepository', () => {
   beforeEach(() => {
     mockStore = {
       loadDocumentBundle: jest.fn(),
+      assertNoEntityIdReuse: jest.fn(),
       writeBundleFile: jest.fn(),
       updateIndexesForBundle: jest.fn().mockResolvedValue(undefined)
     } as any;

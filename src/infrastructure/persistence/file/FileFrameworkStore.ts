@@ -32,6 +32,10 @@ interface AssocIndexEntry {
   docSourcedId: string
 }
 
+interface RubricIndexEntry {
+  docSourcedId: string
+}
+
 type DefinitionCategory =
   | 'CFConcepts'
   | 'CFSubjects'
@@ -50,6 +54,7 @@ export class FileFrameworkStore {
   private readonly documentVersions = new Map<TenantId, Map<CaseVersion, Map<string, DocumentVersionInfo[]>>>()
   private readonly itemsIndex = new Map<TenantId, Map<CaseVersion, Map<string, ItemIndexEntry>>>()
   private readonly assocIndex = new Map<TenantId, Map<CaseVersion, Map<string, AssocIndexEntry>>>()
+  private readonly rubricsIndex = new Map<TenantId, Map<CaseVersion, Map<string, RubricIndexEntry>>>()
   private readonly definitionsIndex = new Map<TenantId, Map<CaseVersion, Map<DefinitionCategory, Map<string, DefinitionIndexEntry>>>>()
 
   constructor (private readonly cfg: FileFrameworkStoreConfig) {}
@@ -89,12 +94,14 @@ export class FileFrameworkStore {
     const versionsMap = await this.loadDocumentVersionsIndex(idxDir)
     const itemsMap = await this.loadItemsIndex(idxDir)
     const assocMap = await this.loadAssociationsIndex(idxDir)
+    const rubricsMap = await this.loadRubricsIndex(idxDir)
     const defsMap = await this.loadDefinitionsIndex(idxDir)
 
     this.setTenantVersionMap(this.documents, tenantId, version, docsMap)
     this.setTenantVersionMap(this.documentVersions, tenantId, version, versionsMap)
     this.setTenantVersionMap(this.itemsIndex, tenantId, version, itemsMap)
     this.setTenantVersionMap(this.assocIndex, tenantId, version, assocMap)
+    this.setTenantVersionMap(this.rubricsIndex, tenantId, version, rubricsMap)
     this.setTenantVersionMap(this.definitionsIndex, tenantId, version, defsMap)
   }
 
@@ -190,6 +197,21 @@ export class FileFrameworkStore {
     return map
   }
 
+  private async loadRubricsIndex (idxDir: string): Promise<Map<string, RubricIndexEntry>> {
+    const map = new Map<string, RubricIndexEntry>()
+    try {
+      const raw = JSON.parse(
+        await fs.readFile(path.join(idxDir, 'rubrics.json'), 'utf8')
+      ) as Record<string, { docSourcedId: string }>
+      for (const [rubricId, v] of Object.entries(raw)) {
+        map.set(rubricId, { docSourcedId: v.docSourcedId })
+      }
+    } catch {
+      // ignore missing
+    }
+    return map
+  }
+
   private async loadDefinitionsIndex (
     idxDir: string
   ): Promise<Map<DefinitionCategory, Map<string, DefinitionIndexEntry>>> {
@@ -264,6 +286,7 @@ export class FileFrameworkStore {
       document: any
       items?: any[]
       associations?: any[]
+      rubrics?: any[]
     },
     relativePath: string
   ): Promise<void> {
@@ -280,6 +303,7 @@ export class FileFrameworkStore {
     this.updateInMemoryDocumentVersionsIndex(tenantId, version, docId, relativePath, lastChangeDateTime, doc.version as string | undefined)
     this.updateInMemoryItemsIndex(tenantId, version, bundle.items ?? [], docId)
     this.updateInMemoryAssociationsIndex(tenantId, version, bundle.associations ?? [], docId)
+    this.updateInMemoryRubricsIndex(tenantId, version, (bundle as any).rubrics ?? [], docId)
     this.updateInMemoryDefinitionsIndex(tenantId, version, (bundle as any).definitions, docId, lastChangeDateTime)
 
     // Write index files to disk
@@ -287,6 +311,7 @@ export class FileFrameworkStore {
     await this.writeDocumentVersionsIndex(idxDir, tenantId, version)
     await this.writeItemsIndex(idxDir, tenantId, version)
     await this.writeAssociationsIndex(idxDir, tenantId, version)
+    await this.writeRubricsIndex(idxDir, tenantId, version)
     await this.writeDefinitionsIndex(idxDir, tenantId, version)
   }
 
@@ -365,6 +390,11 @@ export class FileFrameworkStore {
       tenantMap.set(version, versionMap)
     }
 
+    // Clear existing items for this doc to avoid stale entries when a new version removes items.
+    for (const [itemId, entry] of versionMap.entries()) {
+      if (entry.docSourcedId === docId) versionMap.delete(itemId)
+    }
+
     for (const item of items) {
       const itemId = (item.sourcedId ?? item.identifier) as string | undefined
       if (itemId) {
@@ -390,10 +420,45 @@ export class FileFrameworkStore {
       tenantMap.set(version, versionMap)
     }
 
+    // Clear existing associations for this doc to avoid stale entries when a new version removes associations.
+    for (const [assocId, entry] of versionMap.entries()) {
+      if (entry.docSourcedId === docId) versionMap.delete(assocId)
+    }
+
     for (const assoc of associations) {
       const assocId = (assoc.sourcedId ?? assoc.identifier) as string | undefined
       if (assocId) {
         versionMap.set(assocId, { docSourcedId: docId })
+      }
+    }
+  }
+
+  private updateInMemoryRubricsIndex (
+    tenantId: TenantId,
+    version: CaseVersion,
+    rubrics: any[],
+    docId: string
+  ): void {
+    let tenantMap = this.rubricsIndex.get(tenantId)
+    if (!tenantMap) {
+      tenantMap = new Map()
+      this.rubricsIndex.set(tenantId, tenantMap)
+    }
+    let versionMap = tenantMap.get(version)
+    if (!versionMap) {
+      versionMap = new Map()
+      tenantMap.set(version, versionMap)
+    }
+
+    // Clear existing rubrics for this doc (new version may remove rubrics).
+    for (const [rubricId, entry] of versionMap.entries()) {
+      if (entry.docSourcedId === docId) versionMap.delete(rubricId)
+    }
+
+    for (const r of rubrics ?? []) {
+      const rubricId = (r?.identifier ?? r?.id ?? r?.sourcedId) as string | undefined
+      if (rubricId) {
+        versionMap.set(rubricId, { docSourcedId: docId })
       }
     }
   }
@@ -540,6 +605,26 @@ export class FileFrameworkStore {
     )
   }
 
+  private async writeRubricsIndex (
+    idxDir: string,
+    tenantId: TenantId,
+    version: CaseVersion
+  ): Promise<void> {
+    const versionMap = this.rubricsIndex.get(tenantId)?.get(version)
+    if (!versionMap) return
+
+    const rubrics: Record<string, { docSourcedId: string }> = {}
+    for (const [rubricId, entry] of versionMap.entries()) {
+      rubrics[rubricId] = { docSourcedId: entry.docSourcedId }
+    }
+
+    await fs.writeFile(
+      path.join(idxDir, 'rubrics.json'),
+      JSON.stringify(rubrics, null, 2),
+      'utf8'
+    )
+  }
+
   private async writeDefinitionsIndex (
     idxDir: string,
     tenantId: TenantId,
@@ -610,6 +695,14 @@ export class FileFrameworkStore {
     }
   }
 
+  removeRubricFromIndex (tenantId: TenantId, version: CaseVersion, rubricId: string): void {
+    const tenantMap = this.rubricsIndex.get(tenantId)
+    const versionMap = tenantMap?.get(version)
+    if (versionMap) {
+      versionMap.delete(rubricId)
+    }
+  }
+
   async writeIndexesToDisk (tenantId: TenantId, version: CaseVersion): Promise<void> {
     const rootDir = this.getTenantVersionRootDir(tenantId, version)
     const idxDir = path.join(rootDir, 'indexes')
@@ -618,7 +711,83 @@ export class FileFrameworkStore {
     await this.writeDocumentVersionsIndex(idxDir, tenantId, version)
     await this.writeItemsIndex(idxDir, tenantId, version)
     await this.writeAssociationsIndex(idxDir, tenantId, version)
+    await this.writeRubricsIndex(idxDir, tenantId, version)
     await this.writeDefinitionsIndex(idxDir, tenantId, version)
+  }
+
+  /**
+   * Guard against accidental GUID reuse across different frameworks (docs/items/associations/rubrics).
+   * Note: definition IDs are intentionally reusable (per-tenant defaults) so they are not enforced here.
+   */
+  assertNoEntityIdReuse (
+    tenantId: TenantId,
+    version: CaseVersion,
+    docId: string,
+    bundle: { document: any, items?: any[], associations?: any[], rubrics?: any[] }
+  ): void {
+    const ids = new Map<string, string>() // id -> kind
+
+    const add = (id: string | undefined, kind: string) => {
+      if (!id) return
+      const existing = ids.get(id)
+      if (existing && existing !== kind) {
+        throw new Error(`ID reuse detected within bundle: '${id}' is used as both ${existing} and ${kind}`)
+      }
+      ids.set(id, kind)
+    }
+
+    add(docId, 'CFDocument')
+    for (const it of bundle.items ?? []) add((it?.sourcedId ?? it?.identifier) as string | undefined, 'CFItem')
+    for (const a of bundle.associations ?? []) add((a?.sourcedId ?? a?.identifier) as string | undefined, 'CFAssociation')
+    for (const r of bundle.rubrics ?? []) add((r?.identifier ?? r?.id ?? r?.sourcedId) as string | undefined, 'CFRubric')
+
+    const itemsMap = this.itemsIndex.get(tenantId)?.get(version) ?? new Map()
+    const assocMap = this.assocIndex.get(tenantId)?.get(version) ?? new Map()
+    const rubricsMap = this.rubricsIndex.get(tenantId)?.get(version) ?? new Map()
+    const docsMap = this.documents.get(tenantId)?.get(version) ?? new Map()
+
+    for (const [id, kind] of ids.entries()) {
+      if (kind === 'CFDocument') {
+        // Allowed: docId already exists (publishing new version).
+        // Disallowed: docId is used by any other entity.
+        if (itemsMap.get(id) || assocMap.get(id) || rubricsMap.get(id)) {
+          throw new Error(`ID '${id}' is already used by another entity and cannot be used as a CFDocument id`)
+        }
+        continue
+      }
+
+      // Prevent collisions with document IDs
+      if (docsMap.get(id)) {
+        throw new Error(`ID '${id}' is already used as a CFDocument id and cannot be reused for ${kind}`)
+      }
+
+      if (kind === 'CFItem') {
+        const existing = itemsMap.get(id)
+        if (existing && (existing as any).docSourcedId !== docId) {
+          throw new Error(`CFItem id '${id}' is already used in a different framework (docId=${(existing as any).docSourcedId})`)
+        }
+        if (assocMap.get(id)) throw new Error(`ID '${id}' is already used as a CFAssociation id and cannot be reused for CFItem`)
+        if (rubricsMap.get(id)) throw new Error(`ID '${id}' is already used as a CFRubric id and cannot be reused for CFItem`)
+      }
+
+      if (kind === 'CFAssociation') {
+        const existing = assocMap.get(id)
+        if (existing && (existing as any).docSourcedId !== docId) {
+          throw new Error(`CFAssociation id '${id}' is already used in a different framework (docId=${(existing as any).docSourcedId})`)
+        }
+        if (itemsMap.get(id)) throw new Error(`ID '${id}' is already used as a CFItem id and cannot be reused for CFAssociation`)
+        if (rubricsMap.get(id)) throw new Error(`ID '${id}' is already used as a CFRubric id and cannot be reused for CFAssociation`)
+      }
+
+      if (kind === 'CFRubric') {
+        const existing = rubricsMap.get(id)
+        if (existing && (existing as any).docSourcedId !== docId) {
+          throw new Error(`CFRubric id '${id}' is already used in a different framework (docId=${(existing as any).docSourcedId})`)
+        }
+        if (itemsMap.get(id)) throw new Error(`ID '${id}' is already used as a CFItem id and cannot be reused for CFRubric`)
+        if (assocMap.get(id)) throw new Error(`ID '${id}' is already used as a CFAssociation id and cannot be reused for CFRubric`)
+      }
+    }
   }
 
   getDefinitionById (

@@ -14,7 +14,7 @@ describe('FrameworksController', () => {
 
   beforeEach(() => {
     mockCreateFramework = {
-      execute: jest.fn().mockResolvedValue(undefined)
+      execute: jest.fn().mockResolvedValue({ status: 'created', docId: 'doc-123' })
     } as any
 
     mockImportFramework = {
@@ -54,7 +54,7 @@ describe('FrameworksController', () => {
         payload: mockRequest.body
       })
       expect(responseStatus).toHaveBeenCalledWith(201)
-      expect(responseJson).toHaveBeenCalledWith({ status: 'created' })
+      expect(responseJson).toHaveBeenCalledWith({ status: 'created', docId: 'doc-123' })
     })
 
     it('should default to caseVersion 1.1 when not provided', async () => {
@@ -110,6 +110,15 @@ describe('FrameworksController', () => {
         payload: mockRequest.body
       })
       expect(responseStatus).toHaveBeenCalledWith(201)
+    })
+
+    it('should return 200 when payload is unchanged', async () => {
+      mockCreateFramework.execute.mockResolvedValueOnce({ status: 'unchanged', docId: 'doc-123' } as any)
+
+      await controller.create(mockRequest as Request, mockResponse as Response)
+
+      expect(responseStatus).toHaveBeenCalledWith(200)
+      expect(responseJson).toHaveBeenCalledWith({ status: 'unchanged', docId: 'doc-123' })
     })
 
     it('should handle errors from command', async () => {

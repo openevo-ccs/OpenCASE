@@ -13,13 +13,14 @@ export class FrameworksController {
     const caseVersion = (req.query.caseVersion as '1.0' | '1.1') ?? '1.1'
 
     try {
-      await this.createFramework.execute({
+      const result = await this.createFramework.execute({
         tenantId,
         caseVersion,
         payload: req.body
       })
 
-      res.status(201).json({ status: 'created' })
+      const statusCode = result.status === 'unchanged' ? 200 : 201
+      res.status(statusCode).json(result)
     } catch (error: any) {
       if (error.message?.includes('Schema validation failed')) {
         return res.status(400).json({

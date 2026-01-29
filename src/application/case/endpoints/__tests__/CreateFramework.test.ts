@@ -1,25 +1,26 @@
-import { CreateFramework } from '../CreateFramework';
-import { CFPackageRepository } from '../../ports/CFPackageRepository';
-import { CFDocument } from '../../../../domain/case/entities/CFDocument';
-import { CFItem } from '../../../../domain/case/entities/CFItem';
-import { CFAssociation } from '../../../../domain/case/entities/CFAssociation';
+import { CreateFramework } from '../CreateFramework'
+import { CFPackageRepository } from '../../ports/CFPackageRepository'
+import { CFDocument } from '../../../../domain/case/entities/CFDocument'
+import { CFItem } from '../../../../domain/case/entities/CFItem'
+import { CFAssociation } from '../../../../domain/case/entities/CFAssociation'
+import { CFPackage } from '../../../../domain/case/entities/CFPackage'
 
 describe('CreateFramework', () => {
-  let mockRepository: jest.Mocked<CFPackageRepository>;
-  let createFramework: CreateFramework;
+  let mockRepository: jest.Mocked<CFPackageRepository>
+  let createFramework: CreateFramework
 
   beforeEach(() => {
     mockRepository = {
-      load: jest.fn(),
+      load: jest.fn().mockResolvedValue(null),
       saveNewVersion: jest.fn().mockResolvedValue(undefined)
-    } as any;
+    } as any
 
-    createFramework = new CreateFramework(mockRepository);
-  });
+    createFramework = new CreateFramework(mockRepository)
+  })
 
   describe('execute', () => {
-    const tenantId = 'test-tenant';
-    const caseVersion = '1.1';
+    const tenantId = 'test-tenant'
+    const caseVersion = '1.1'
 
     it('should create and save a framework with all components', async () => {
       const payload = {
@@ -47,21 +48,22 @@ describe('CreateFramework', () => {
           }
         ],
         rubrics: [{ id: 'rubric-1', type: 'test' }]
-      };
+      }
 
-      await createFramework.execute({ tenantId, caseVersion, payload });
+      const result = await createFramework.execute({ tenantId, caseVersion, payload })
 
-      expect(mockRepository.saveNewVersion).toHaveBeenCalledTimes(1);
-      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2];
+      expect(result).toEqual({ status: 'created', docId: 'doc-123' })
+      expect(mockRepository.saveNewVersion).toHaveBeenCalledTimes(1)
+      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2]
 
-      expect(savedPkg.document.sourcedId).toBe('doc-123');
-      expect(savedPkg.items).toHaveLength(2);
-      expect(savedPkg.items[0].sourcedId).toBe('item-1');
-      expect(savedPkg.items[1].sourcedId).toBe('item-2');
-      expect(savedPkg.associations).toHaveLength(1);
-      expect(savedPkg.associations[0].sourcedId).toBe('assoc-1');
-      expect(savedPkg.rubrics).toEqual([{ id: 'rubric-1', type: 'test' }]);
-    });
+      expect(savedPkg.document.sourcedId).toBe('doc-123')
+      expect(savedPkg.items).toHaveLength(2)
+      expect(savedPkg.items[0].sourcedId).toBe('item-1')
+      expect(savedPkg.items[1].sourcedId).toBe('item-2')
+      expect(savedPkg.associations).toHaveLength(1)
+      expect(savedPkg.associations[0].sourcedId).toBe('assoc-1')
+      expect(savedPkg.rubrics).toEqual([{ id: 'rubric-1', type: 'test' }])
+    })
 
     it('should handle missing optional arrays', async () => {
       const payload = {
@@ -70,17 +72,18 @@ describe('CreateFramework', () => {
           title: 'Test Document',
           lastChangeDateTime: '2024-01-01T00:00:00Z'
         }
-      };
+      }
 
-      await createFramework.execute({ tenantId, caseVersion, payload });
+      const result = await createFramework.execute({ tenantId, caseVersion, payload })
 
-      expect(mockRepository.saveNewVersion).toHaveBeenCalledTimes(1);
-      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2];
+      expect(result).toEqual({ status: 'created', docId: 'doc-123' })
+      expect(mockRepository.saveNewVersion).toHaveBeenCalledTimes(1)
+      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2]
 
-      expect(savedPkg.items).toEqual([]);
-      expect(savedPkg.associations).toEqual([]);
-      expect(savedPkg.rubrics).toEqual([]);
-    });
+      expect(savedPkg.items).toEqual([])
+      expect(savedPkg.associations).toEqual([])
+      expect(savedPkg.rubrics).toEqual([])
+    })
 
     it('should handle empty arrays', async () => {
       const payload = {
@@ -92,17 +95,43 @@ describe('CreateFramework', () => {
         items: [],
         associations: [],
         rubrics: []
-      };
+      }
 
-      await createFramework.execute({ tenantId, caseVersion, payload });
+      const result = await createFramework.execute({ tenantId, caseVersion, payload })
 
-      expect(mockRepository.saveNewVersion).toHaveBeenCalledTimes(1);
-      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2];
+      expect(result).toEqual({ status: 'created', docId: 'doc-123' })
+      expect(mockRepository.saveNewVersion).toHaveBeenCalledTimes(1)
+      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2]
 
-      expect(savedPkg.items).toEqual([]);
-      expect(savedPkg.associations).toEqual([]);
-      expect(savedPkg.rubrics).toEqual([]);
-    });
+      expect(savedPkg.items).toEqual([])
+      expect(savedPkg.associations).toEqual([])
+      expect(savedPkg.rubrics).toEqual([])
+    })
+
+    it('should not publish a new version when payload is unchanged', async () => {
+      const payload = {
+        document: {
+          sourcedId: 'doc-123',
+          title: 'Test Document',
+          lastChangeDateTime: '2024-01-01T00:00:00Z'
+        },
+        items: [{ sourcedId: 'item-1', fullStatement: 'Statement 1' }],
+        associations: [],
+        rubrics: [{ id: 'rubric-1', type: 'test' }]
+      }
+
+      const doc = CFDocument.fromRaw(tenantId, caseVersion as any, payload.document)
+      const docURI = doc.toJSON().uri
+      const items = payload.items.map(i => CFItem.fromRaw(tenantId, caseVersion as any, i, doc.sourcedId, docURI))
+      const associations = payload.associations.map(a => CFAssociation.fromRaw(tenantId, caseVersion as any, a))
+      const existingPkg = new CFPackage({ document: doc, items, associations, rubrics: payload.rubrics, definitions: null })
+      mockRepository.load.mockResolvedValueOnce(existingPkg as any)
+
+      const result = await createFramework.execute({ tenantId, caseVersion: caseVersion as any, payload })
+
+      expect(result).toEqual({ status: 'unchanged', docId: 'doc-123' })
+      expect(mockRepository.saveNewVersion).not.toHaveBeenCalled()
+    })
 
     it('should propagate errors from repository', async () => {
       const payload = {
@@ -111,15 +140,15 @@ describe('CreateFramework', () => {
           title: 'Test Document',
           lastChangeDateTime: '2024-01-01T00:00:00Z'
         }
-      };
+      }
 
-      const error = new Error('Repository error');
-      mockRepository.saveNewVersion.mockRejectedValue(error);
+      const error = new Error('Repository error')
+      mockRepository.saveNewVersion.mockRejectedValue(error)
 
       await expect(
         createFramework.execute({ tenantId, caseVersion, payload })
-      ).rejects.toThrow('Repository error');
-    });
+      ).rejects.toThrow('Repository error')
+    })
 
     it('should propagate validation errors from domain entities', async () => {
       const payload = {
@@ -128,12 +157,12 @@ describe('CreateFramework', () => {
           title: 'Test Document',
           lastChangeDateTime: '2024-01-01T00:00:00Z'
         }
-      };
+      }
 
       await expect(
         createFramework.execute({ tenantId, caseVersion, payload })
-      ).rejects.toThrow('CFDocument.sourcedId is required');
-    });
-  });
-});
+      ).rejects.toThrow('CFDocument.sourcedId is required')
+    })
+  })
+})
 

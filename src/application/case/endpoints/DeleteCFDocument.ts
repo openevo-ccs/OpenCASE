@@ -38,6 +38,12 @@ export class DeleteCFDocument {
       this.store.removeAssociationFromIndex(tenantId, caseVersion, assoc.sourcedId)
     }
 
+    // Remove rubrics from index
+    for (const r of existingPkg.rubrics ?? []) {
+      const rubricId = (r?.identifier ?? r?.id ?? r?.sourcedId) as string | undefined
+      if (rubricId) this.store.removeRubricFromIndex(tenantId, caseVersion, rubricId)
+    }
+
     // Delete framework directory
     const rootDir = this.store.getTenantVersionRootDir(tenantId, caseVersion)
     const frameworksDir = path.join(rootDir, 'frameworks', sourcedId)
