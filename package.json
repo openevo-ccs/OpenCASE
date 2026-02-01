@@ -21,7 +21,8 @@
     "cors": "^2.8.5",
     "express": "^5.2.0",
     "jsonwebtoken": "^9.0.2",
-    "pino": "^10.1.0"
+    "pino": "^10.1.0",
+    "swagger-jsdoc": "^6.2.8"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

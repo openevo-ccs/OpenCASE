@@ -1,18 +1,18 @@
-import { Express } from 'express'
-import { CFDocumentsManagementController } from './controllers/CFDocumentsManagementController'
-import { CFItemsManagementController } from './controllers/CFItemsManagementController'
-import { CFAssociationsManagementController } from './controllers/CFAssociationsManagementController'
-import { FrameworksManagementController } from './controllers/FrameworksManagementController'
-import { TenantsManagementController } from './controllers/TenantsManagementController'
+import type { Express, RequestHandler } from 'express'
+import type { CFDocumentsManagementController } from './controllers/CFDocumentsManagementController'
+import type { CFItemsManagementController } from './controllers/CFItemsManagementController'
+import type { CFAssociationsManagementController } from './controllers/CFAssociationsManagementController'
+import type { FrameworksManagementController } from './controllers/FrameworksManagementController'
+import type { TenantsManagementController } from './controllers/TenantsManagementController'
 import { requireScope } from '../middleware/scope'
 
 /**
  * Management API Routes
- * 
+ *
  * These endpoints provide UPDATE and DELETE operations for CASE entities.
  * These operations are NOT part of the CASE standard specification and are
  * provided as extended functionality for management purposes.
- * 
+ *
  * All endpoints require authentication and are scoped to the authenticated tenant.
  * Tenant management endpoints require the 'case.admin' scope.
  */
@@ -24,6 +24,117 @@ export interface ManagementDeps {
   tenantsController: TenantsManagementController
 }
 
+/**
+ * @openapi
+ * /management/tenants:
+ *   get:
+ *     operationId: listTenants
+ *     summary: List all tenants (non-CASE extension)
+ *     tags: [DefinitionsManager]
+ *     security:
+ *       - BearerAuth: []
+ *     x-required-scopes: [case.admin]
+ *     responses:
+ *       200: { description: OK }
+ *   post:
+ *     operationId: createTenant
+ *     summary: Create a tenant (non-CASE extension)
+ *     tags: [DefinitionsManager]
+ *     security:
+ *       - BearerAuth: []
+ *     x-required-scopes: [case.admin]
+ *     responses:
+ *       201: { description: Created }
+ *
+ * /management/tenants/{tenantId}/CFDocuments/{id}:
+ *   put:
+ *     operationId: updateCFDocument
+ *     summary: Update a CFDocument (non-CASE extension)
+ *     tags: [DocumentsManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+ *       - { name: caseVersion, in: query, required: false, schema: { type: string, enum: [1.0, 1.1], default: 1.1 } }
+ *     responses:
+ *       200: { description: Updated }
+ *   delete:
+ *     operationId: deleteCFDocument
+ *     summary: Delete a CFDocument (non-CASE extension)
+ *     tags: [DocumentsManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+ *       - { name: caseVersion, in: query, required: false, schema: { type: string, enum: [1.0, 1.1], default: 1.1 } }
+ *     responses:
+ *       200: { description: Deleted }
+ *
+ * /management/tenants/{tenantId}/CFItems/{id}:
+ *   put:
+ *     operationId: updateCFItem
+ *     summary: Update a CFItem (non-CASE extension)
+ *     tags: [ItemsManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+ *       - { name: caseVersion, in: query, required: false, schema: { type: string, enum: [1.0, 1.1], default: 1.1 } }
+ *     responses:
+ *       200: { description: Updated }
+ *   delete:
+ *     operationId: deleteCFItem
+ *     summary: Delete a CFItem (non-CASE extension)
+ *     tags: [ItemsManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+ *       - { name: caseVersion, in: query, required: false, schema: { type: string, enum: [1.0, 1.1], default: 1.1 } }
+ *     responses:
+ *       200: { description: Deleted }
+ *
+ * /management/tenants/{tenantId}/CFAssociations/{id}:
+ *   put:
+ *     operationId: updateCFAssociation
+ *     summary: Update a CFAssociation (non-CASE extension)
+ *     tags: [AssociationsManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+ *       - { name: caseVersion, in: query, required: false, schema: { type: string, enum: [1.0, 1.1], default: 1.1 } }
+ *     responses:
+ *       200: { description: Updated }
+ *   delete:
+ *     operationId: deleteCFAssociation
+ *     summary: Delete a CFAssociation (non-CASE extension)
+ *     tags: [AssociationsManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+ *       - { name: caseVersion, in: query, required: false, schema: { type: string, enum: [1.0, 1.1], default: 1.1 } }
+ *     responses:
+ *       200: { description: Deleted }
+ *
+ * /management/tenants/{tenantId}/frameworks:
+ *   get:
+ *     operationId: listFrameworks
+ *     summary: List frameworks for a tenant (non-CASE extension)
+ *     tags: [PackagesManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *       - { name: caseVersion, in: query, required: false, schema: { type: string, enum: [1.0, 1.1] } }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /management/tenants/{tenantId}/frameworks/{docId}:
+ *   delete:
+ *     operationId: deleteFramework
+ *     summary: Delete a framework for a tenant (non-CASE extension)
+ *     tags: [PackagesManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *       - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+ *       - { name: caseVersion, in: query, required: false, schema: { type: string, enum: [1.0, 1.1], default: 1.1 } }
+ *     responses:
+ *       200: { description: Deleted }
+ */
 export function registerManagementRoutes (app: Express, deps: ManagementDeps): void {
   // CFDocument management endpoints
   app.put(
@@ -64,7 +175,7 @@ export function registerManagementRoutes (app: Express, deps: ManagementDeps): v
   // Framework delete endpoint
   app.delete(
     '/management/tenants/:tenantId/frameworks/:docId',
-    deps.frameworksController.delete
+    deps.frameworksController.delete as RequestHandler<{ tenantId: string, docId: string }>
   )
 
   // Tenant management endpoints (require case.admin scope)
@@ -79,4 +190,3 @@ export function registerManagementRoutes (app: Express, deps: ManagementDeps): v
     deps.tenantsController.create
   )
 }
-

@@ -27,6 +27,166 @@ export interface PublicV1p1Deps {
   cfLicensesController: CFLicensesControllerV1p1
 }
 
+/**
+ * @openapi
+ * /ims/case/v1p1/CFPackages/{id}:
+ *   get:
+ *     operationId: getCFPackage
+ *     summary: Get a CFPackage by id
+ *     tags: [PackagesManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFDocuments:
+ *   get:
+ *     operationId: getAllCFDocuments
+ *     summary: Get all CFDocuments
+ *     tags: [DocumentsManager]
+ *     parameters:
+ *       - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1 } }
+ *       - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0 } }
+ *       - { name: sort, in: query, required: false, schema: { type: string } }
+ *       - { name: orderBy, in: query, required: false, schema: { type: string, enum: [asc, desc] } }
+ *       - { name: filter, in: query, required: false, schema: { type: string } }
+ *       - { name: fields, in: query, required: false, schema: { type: string } }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFDocuments/{id}:
+ *   get:
+ *     operationId: getCFDocument
+ *     summary: Get a CFDocument by id
+ *     tags: [DocumentsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFItems/{id}:
+ *   get:
+ *     operationId: getCFItem
+ *     summary: Get a CFItem by id
+ *     tags: [ItemsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFItemAssociations/{id}:
+ *   get:
+ *     operationId: getCFItemAssociations
+ *     summary: Get CFItem associations by item id
+ *     tags: [AssociationsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFAssociations/{id}:
+ *   get:
+ *     operationId: getCFAssociation
+ *     summary: Get a CFAssociation by id
+ *     tags: [AssociationsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFRubrics/{id}:
+ *   get:
+ *     operationId: getCFRubric
+ *     summary: Get a CFRubric by id
+ *     tags: [RubricsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFSubjects/{id}:
+ *   get:
+ *     operationId: getCFSubject
+ *     summary: Get a CFSubject by id
+ *     tags: [DefinitionsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFConcepts/{id}:
+ *   get:
+ *     operationId: getCFConcept
+ *     summary: Get a CFConcept by id
+ *     tags: [DefinitionsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFAssociationGroupings/{id}:
+ *   get:
+ *     operationId: getCFAssociationGrouping
+ *     summary: Get a CFAssociationGrouping by id
+ *     tags: [DefinitionsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFItemTypes/{id}:
+ *   get:
+ *     operationId: getCFItemType
+ *     summary: Get a CFItemType by id
+ *     tags: [DefinitionsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ *
+ * /ims/case/v1p1/CFLicenses/{id}:
+ *   get:
+ *     operationId: getCFLicense
+ *     summary: Get a CFLicense by id
+ *     tags: [DefinitionsManager]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ */
 export function registerV1p1Routes (app: Express, deps: PublicV1p1Deps) {
   // Note: Discovery endpoint is registered in server.ts before auth middleware
   // to ensure it's accessible without authentication (as required by spec)

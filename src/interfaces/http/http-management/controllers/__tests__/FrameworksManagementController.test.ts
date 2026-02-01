@@ -11,6 +11,7 @@ describe('FrameworksManagementController', () => {
   let mockResponse: Partial<Response>
   let responseJson: jest.Mock
   let responseStatus: jest.Mock
+  let next: jest.Mock
 
   beforeEach(() => {
     mockListFrameworks = {
@@ -46,13 +47,15 @@ describe('FrameworksManagementController', () => {
       status: responseStatus,
       json: responseJson
     }
+
+    next = jest.fn()
   })
 
   describe('list', () => {
     it('should list frameworks successfully', async () => {
       ;(mockRequest as any).tenantId = 'test-tenant'
 
-      await controller.list(mockRequest as Request, mockResponse as Response)
+      await (controller.list as any)(mockRequest as Request, mockResponse as Response, next)
 
       expect(mockListFrameworks.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
@@ -70,7 +73,7 @@ describe('FrameworksManagementController', () => {
       mockRequest.query = { caseVersion: '1.0' }
       ;(mockRequest as any).tenantId = 'test-tenant'
 
-      await controller.list(mockRequest as Request, mockResponse as Response)
+      await (controller.list as any)(mockRequest as Request, mockResponse as Response, next)
 
       expect(mockListFrameworks.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
@@ -81,7 +84,7 @@ describe('FrameworksManagementController', () => {
     it('should return 403 when tenant mismatch', async () => {
       ;(mockRequest as any).tenantId = 'different-tenant'
 
-      await controller.list(mockRequest as Request, mockResponse as Response)
+      await (controller.list as any)(mockRequest as Request, mockResponse as Response, next)
 
       expect(responseStatus).toHaveBeenCalledWith(403)
       expect(responseJson).toHaveBeenCalledWith({
@@ -95,7 +98,7 @@ describe('FrameworksManagementController', () => {
       mockListFrameworks.execute.mockRejectedValue(error)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
-      await controller.list(mockRequest as Request, mockResponse as Response)
+      await (controller.list as any)(mockRequest as Request, mockResponse as Response, next)
 
       expect(responseStatus).toHaveBeenCalledWith(400)
       expect(responseJson).toHaveBeenCalledWith({
@@ -109,7 +112,7 @@ describe('FrameworksManagementController', () => {
       ;(mockRequest as any).tenantId = 'test-tenant'
       mockRequest.params = { tenantId: 'test-tenant', docId: 'doc-1' } as any
 
-      await controller.delete(mockRequest as Request, mockResponse as Response)
+      await (controller.delete as any)(mockRequest as Request, mockResponse as Response, next)
 
       expect(mockDeleteCFDocument.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
@@ -124,7 +127,7 @@ describe('FrameworksManagementController', () => {
       ;(mockRequest as any).tenantId = 'different-tenant'
       mockRequest.params = { tenantId: 'test-tenant', docId: 'doc-1' } as any
 
-      await controller.delete(mockRequest as Request, mockResponse as Response)
+      await (controller.delete as any)(mockRequest as Request, mockResponse as Response, next)
 
       expect(responseStatus).toHaveBeenCalledWith(403)
       expect(mockDeleteCFDocument.execute).not.toHaveBeenCalled()

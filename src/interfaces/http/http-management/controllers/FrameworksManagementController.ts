@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { type Request, type Response } from 'express'
+import { type Request, type Response, type RequestHandler } from 'express'
 import { type ListFrameworks } from '../../../../application/case/endpoints/ListFrameworks'
 import { type DeleteCFDocument } from '../../../../application/case/endpoints/DeleteCFDocument'
 
@@ -9,7 +9,7 @@ export class FrameworksManagementController {
     private readonly deleteCFDocument: DeleteCFDocument
   ) {}
 
-  list = async (req: Request, res: Response) => {
+  list: RequestHandler<{ tenantId: string }> = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).tenantId ?? req.params.tenantId
       const urlTenantId = req.params.tenantId
@@ -31,7 +31,7 @@ export class FrameworksManagementController {
     }
   }
 
-  delete = async (req: Request, res: Response) => {
+  delete: RequestHandler<{ tenantId: string, docId: string }> = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).tenantId ?? req.params.tenantId
       const urlTenantId = req.params.tenantId

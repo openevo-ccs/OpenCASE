@@ -1,14 +1,14 @@
 import type { Request, Response, RequestHandler } from 'express'
-import { OpenAPISpecGenerator } from '../../../../../infrastructure/http/OpenAPISpecGenerator'
 import { getBaseUrl } from '../utils/httpUtils'
+import { generateOpenApiFromJSDoc } from '../../../../../infrastructure/http/swagger'
 
 export class DiscoveryControllerV1p1 {
   getOpenAPISpec: RequestHandler = (req: Request, res: Response) => {
     const baseUrl = getBaseUrl(req)
 
-    // Generate OpenAPI spec
-    const spec = OpenAPISpecGenerator.generateV1p1({
+    const spec = generateOpenApiFromJSDoc({
       baseUrl,
+      caseVersion: '1.1',
       version: '1.0.0'
     })
 
