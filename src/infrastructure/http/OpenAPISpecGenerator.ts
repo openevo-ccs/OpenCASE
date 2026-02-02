@@ -2039,132 +2039,112 @@ export class OpenAPISpecGenerator {
     delete spec.paths?.['/management/tenants/{tenantId}/clients']
     delete spec.paths?.['/management/tenants/{tenantId}/clients/{clientId}']
 
-    // Add management framework delete endpoint (non-CASE-standard extension)
+    // Add management CFPackage endpoints (non-CASE-standard extension)
     spec.paths = spec.paths ?? {}
-    spec.paths['/management/tenants/{tenantId}/frameworks/{docId}'] = {
-      delete: {
-        operationId: 'deleteFramework',
-        summary: 'Delete a framework (package+document) for a tenant (non-CASE-standard extension)',
+
+    spec.paths['/management/tenants/{tenantId}/CFPackages'] = {
+      get: {
+        operationId: 'listCFPackages',
+        summary: 'List CFPackages for a tenant (non-CASE-standard extension)',
         tags: ['PackagesManager'],
-        description: 'Deletes a framework and all versions of its stored package for a tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
         parameters: [
           { name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'docId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
-          { name: 'caseVersion', in: 'query', required: false, schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' } }
+          { name: 'caseVersion', in: 'query', required: false, schema: { type: 'string', enum: ['1.0', '1.1'] } }
+        ],
+        responses: { 200: { description: 'OK.' } },
+        'x-1edtech-confidentiality': 'restricted',
+        'x-1edtech-extension': true
+      }
+    }
+
+    spec.paths['/management/tenants/{tenantId}/ims/case/v1p0/CFPackages'] = {
+      post: {
+        operationId: 'createCFPackageV1p0',
+        summary: 'Create/publish a CFPackage (non-CASE-standard extension) (CASE v1p0)',
+        tags: ['PackagesManager'],
+        parameters: [{ name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } },
+        responses: {
+          200: { description: 'Unchanged (idempotent).' },
+          201: { description: 'Created/published.' },
+          400: { description: 'Invalid request.' }
+        },
+        'x-1edtech-confidentiality': 'restricted',
+        'x-1edtech-extension': true
+      }
+    }
+
+    spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages'] = {
+      post: {
+        operationId: 'createCFPackageV1p1',
+        summary: 'Create/publish a CFPackage (non-CASE-standard extension) (CASE v1p1)',
+        tags: ['PackagesManager'],
+        parameters: [{ name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } },
+        responses: {
+          200: { description: 'Unchanged (idempotent).' },
+          201: { description: 'Created/published.' },
+          400: { description: 'Invalid request.' }
+        },
+        'x-1edtech-confidentiality': 'restricted',
+        'x-1edtech-extension': true
+      }
+    }
+
+    spec.paths['/management/tenants/{tenantId}/ims/case/v1p0/CFPackages/import'] = {
+      post: {
+        operationId: 'importCFPackageV1p0',
+        summary: 'Import a CFPackage from an endpoint (non-CASE-standard extension) (CASE v1p0)',
+        tags: ['PackagesManager'],
+        parameters: [{ name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } },
+        responses: { 201: { description: 'Imported.' }, 400: { description: 'Import failed.' } },
+        'x-1edtech-confidentiality': 'restricted',
+        'x-1edtech-extension': true
+      }
+    }
+
+    spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages/import'] = {
+      post: {
+        operationId: 'importCFPackageV1p1',
+        summary: 'Import a CFPackage from an endpoint (non-CASE-standard extension) (CASE v1p1)',
+        tags: ['PackagesManager'],
+        parameters: [{ name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } },
+        responses: { 201: { description: 'Imported.' }, 400: { description: 'Import failed.' } },
+        'x-1edtech-confidentiality': 'restricted',
+        'x-1edtech-extension': true
+      }
+    }
+
+    const deleteByVersion = (caseVersion: '1.0' | '1.1') => ({
+      delete: {
+        operationId: caseVersion === '1.0' ? 'deleteCFPackageV1p0' : 'deleteCFPackageV1p1',
+        summary: `Delete a CFPackage for a tenant (non-CASE-standard extension) (CASE v${caseVersion === '1.0' ? '1p0' : '1p1'})`,
+        tags: ['PackagesManager'],
+        description: 'Deletes a CFPackage and all versions of its stored package for a tenant. This is NOT part of the CASE standard specification and is provided as extended functionality for management purposes. Requires authentication and tenant-scoped access.',
+        parameters: [
+          { name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
         ],
         responses: {
           200: {
-            description: 'Framework deleted successfully.',
-            content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', example: 'deleted' }, docId: { type: 'string' } } } } }
+            description: 'CFPackage deleted successfully.',
+            content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', example: 'deleted' }, id: { type: 'string' } } } } }
           },
           400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } },
           401: { description: 'The request was not correctly authorised.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } },
           403: { description: 'Tenant mismatch or insufficient permissions.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } } },
-          404: { description: 'Framework not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } },
+          404: { description: 'CFPackage not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } },
           500: { description: 'Internal server error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/imsx_StatusInfoDType' } } } }
         },
         'x-1edtech-confidentiality': 'restricted',
         'x-1edtech-extension': true
       }
-    }
+    })
 
-    // Admin endpoints (non-CASE-standard extension)
-    if (Array.isArray(spec.tags) && !spec.tags.some((t: any) => t?.name === 'Admin')) {
-      spec.tags.push({ name: 'Admin', description: 'Administrative endpoints (non-CASE-standard extensions).' })
-    }
-
-    spec.paths['/admin/tenants/{tenantId}/frameworks'] = {
-      post: {
-        operationId: 'adminCreateFramework',
-        summary: 'Create/publish a framework (non-CASE-standard extension)',
-        tags: ['Admin'],
-        description: 'Creates a framework package for a tenant. If the docId already exists, this publishes a new version unless the payload is unchanged.',
-        parameters: [
-          { name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'caseVersion', in: 'query', required: false, schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' } }
-        ],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['document'],
-                properties: {
-                  document: { type: 'object' },
-                  items: { type: 'array', items: { type: 'object' } },
-                  associations: { type: 'array', items: { type: 'object' } },
-                  rubrics: { type: 'array', items: { type: 'object' } },
-                  definitions: { type: 'object' }
-                }
-              }
-            }
-          }
-        },
-        responses: {
-          200: { description: 'Unchanged (idempotent).', content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', example: 'unchanged' }, docId: { type: 'string' } } } } } },
-          201: { description: 'Created/published.', content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', enum: ['created', 'published'] }, docId: { type: 'string' } } } } } },
-          400: { description: 'Invalid request.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } }
-        },
-        'x-1edtech-confidentiality': 'restricted',
-        'x-1edtech-extension': true
-      }
-    }
-
-    spec.paths['/admin/tenants/{tenantId}/frameworks/import'] = {
-      post: {
-        operationId: 'adminImportFramework',
-        summary: 'Import a framework from an endpoint (non-CASE-standard extension)',
-        tags: ['Admin'],
-        parameters: [
-          { name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'caseVersion', in: 'query', required: false, schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' } }
-        ],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['endpointUrl'],
-                properties: {
-                  endpointUrl: { type: 'string', format: 'uri' },
-                  accessToken: { type: 'string' },
-                  validateSchema: { type: 'boolean' },
-                  schemaName: { type: 'string' }
-                }
-              }
-            }
-          }
-        },
-        responses: {
-          201: { description: 'Imported.', content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', example: 'imported' }, docId: { type: 'string' }, version: { type: 'integer' } } } } } },
-          400: { description: 'Import failed.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } }
-        },
-        'x-1edtech-confidentiality': 'restricted',
-        'x-1edtech-extension': true
-      }
-    }
-
-    spec.paths['/admin/tenants/{tenantId}/frameworks/{docId}'] = {
-      delete: {
-        operationId: 'adminDeleteFramework',
-        summary: 'Delete a framework (package+document) (non-CASE-standard extension)',
-        tags: ['Admin'],
-        parameters: [
-          { name: 'tenantId', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'docId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
-          { name: 'caseVersion', in: 'query', required: false, schema: { type: 'string', enum: ['1.0', '1.1'], default: '1.1' } }
-        ],
-        responses: {
-          200: { description: 'Deleted.', content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', example: 'deleted' }, docId: { type: 'string' } } } } } },
-          400: { description: 'Delete failed.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } },
-          404: { description: 'Framework not found.', content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' }, message: { type: 'string' } } } } } }
-        },
-        'x-1edtech-confidentiality': 'restricted',
-        'x-1edtech-extension': true
-      }
-    }
+    spec.paths['/management/tenants/{tenantId}/ims/case/v1p0/CFPackages/{id}'] = deleteByVersion('1.0')
+    spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages/{id}'] = deleteByVersion('1.1')
 
     return spec
   }
@@ -2181,7 +2161,9 @@ export class OpenAPISpecGenerator {
     if (spec.paths && typeof spec.paths === 'object') {
       const newPaths: any = {}
       for (const [k, v] of Object.entries(spec.paths)) {
-        const nk = String(k).replace('/ims/case/v1p1/', '/ims/case/v1p0/')
+        const key = String(k)
+        // Only rewrite public CASE paths; management endpoints may include explicit v1p0/v1p1 segments intentionally.
+        const nk = key.startsWith('/ims/case/v1p1/') ? key.replace('/ims/case/v1p1/', '/ims/case/v1p0/') : key
         newPaths[nk] = v
       }
       spec.paths = newPaths

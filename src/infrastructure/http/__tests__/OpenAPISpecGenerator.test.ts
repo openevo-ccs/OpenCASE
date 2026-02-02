@@ -5,10 +5,10 @@ describe('OpenAPISpecGenerator (discovery)', () => {
     const spec = OpenAPISpecGenerator.generateV1p1({ baseUrl: 'https://example.com', version: '1.0.0' })
 
     // New/updated endpoints
-    expect(spec.paths['/management/tenants/{tenantId}/frameworks/{docId}']).toBeDefined()
-    expect(spec.paths['/admin/tenants/{tenantId}/frameworks']).toBeDefined()
-    expect(spec.paths['/admin/tenants/{tenantId}/frameworks/import']).toBeDefined()
-    expect(spec.paths['/admin/tenants/{tenantId}/frameworks/{docId}']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/CFPackages']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages/import']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages/{id}']).toBeDefined()
 
     // Removed legacy endpoints (Keycloak is source of truth)
     expect(spec.paths['/management/tenants/{tenantId}/accounts']).toBeUndefined()
@@ -24,9 +24,10 @@ describe('OpenAPISpecGenerator (discovery)', () => {
     expect(spec.paths['/ims/case/v1p0/CFDocuments']).toBeDefined()
     expect(spec.paths['/ims/case/v1p1/CFDocuments']).toBeUndefined()
 
-    // Admin/management paths should still exist (not versioned)
-    expect(spec.paths['/management/tenants/{tenantId}/frameworks/{docId}']).toBeDefined()
-    expect(spec.paths['/admin/tenants/{tenantId}/frameworks/{docId}']).toBeDefined()
+    // Management paths should still exist (and may include explicit v1p0/v1p1 segments)
+    expect(spec.paths['/management/tenants/{tenantId}/CFPackages']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/ims/case/v1p0/CFPackages/{id}']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages/{id}']).toBeDefined()
   })
 })
 

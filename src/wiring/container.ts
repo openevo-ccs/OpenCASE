@@ -25,7 +25,6 @@ import { UpdateCFAssociation } from '../application/case/endpoints/UpdateCFAssoc
 import { DeleteCFDocument } from '../application/case/endpoints/DeleteCFDocument'
 import { DeleteCFItem } from '../application/case/endpoints/DeleteCFItem'
 import { DeleteCFAssociation } from '../application/case/endpoints/DeleteCFAssociation'
-import { FrameworksController } from '../interfaces/http/http-admin/controllers/FrameworksController'
 import { CFPackagesControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFPackagesController'
 import { CFDocumentsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFDocumentsController'
 import { GetAllCFDocumentsControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/GetAllCFDocumentsController'
@@ -55,7 +54,7 @@ import { DiscoveryControllerV1p1 } from '../interfaces/http/http-public/v1p1/con
 import { CFDocumentsManagementController } from '../interfaces/http/http-management/controllers/CFDocumentsManagementController'
 import { CFItemsManagementController } from '../interfaces/http/http-management/controllers/CFItemsManagementController'
 import { CFAssociationsManagementController } from '../interfaces/http/http-management/controllers/CFAssociationsManagementController'
-import { FrameworksManagementController } from '../interfaces/http/http-management/controllers/FrameworksManagementController'
+import { CFPackagesManagementController } from '../interfaces/http/http-management/controllers/CFPackagesManagementController'
 import { TenantsManagementController } from '../interfaces/http/http-management/controllers/TenantsManagementController'
 import { ListFrameworks } from '../application/case/endpoints/ListFrameworks'
 import { ListTenants } from '../application/case/endpoints/ListTenants'
@@ -101,14 +100,11 @@ export interface Container {
       cfLicenses: CFLicensesControllerV1p1
       discovery: DiscoveryControllerV1p1
     }
-    admin: {
-      frameworks: FrameworksController
-    }
     management: {
       cfDocuments: CFDocumentsManagementController
       cfItems: CFItemsManagementController
       cfAssociations: CFAssociationsManagementController
-      frameworks: FrameworksManagementController
+      cfPackages: CFPackagesManagementController
       tenants: TenantsManagementController
     }
   }
@@ -209,9 +205,6 @@ export async function buildContainer(): Promise<Container> {
   const deleteCFItem = new DeleteCFItem(pkgRepo, store)
   const deleteCFAssociation = new DeleteCFAssociation(pkgRepo, store)
 
-  // Initialize controllers
-  const frameworksController = new FrameworksController(createFramework, importFramework, deleteCFDocument)
-
   const cfPackagesControllerV1p0 = new CFPackagesControllerV1p0(getCFPackage)
   const cfDocumentsControllerV1p0 = new CFDocumentsControllerV1p0(getCFDocument)
   const getAllCFDocumentsControllerV1p0 = new GetAllCFDocumentsControllerV1p0(getAllCFDocuments)
@@ -284,7 +277,9 @@ export async function buildContainer(): Promise<Container> {
     updateCFAssociation,
     deleteCFAssociation
   )
-  const frameworksManagementController = new FrameworksManagementController(
+  const cfPackagesManagementController = new CFPackagesManagementController(
+    createFramework,
+    importFramework,
     listFrameworks,
     deleteCFDocument
   )
@@ -330,14 +325,11 @@ export async function buildContainer(): Promise<Container> {
         cfLicenses: cfLicensesControllerV1p1,
         discovery: discoveryControllerV1p1
       },
-      admin: {
-        frameworks: frameworksController
-      },
       management: {
         cfDocuments: cfDocumentsManagementController,
         cfItems: cfItemsManagementController,
         cfAssociations: cfAssociationsManagementController,
-        frameworks: frameworksManagementController,
+        cfPackages: cfPackagesManagementController,
         tenants: tenantsManagementController
       }
     }

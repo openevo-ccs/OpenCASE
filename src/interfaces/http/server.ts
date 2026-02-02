@@ -3,7 +3,6 @@ import cors from 'cors'
 import { makeAuthMiddleware } from './middleware/auth'
 import { registerV1p1Routes } from './http-public/v1p1/routes'
 import { registerV1p0Routes } from './http-public/v1p0/routes'
-import { registerAdminRoutes } from './http-admin/routes'
 import { registerManagementRoutes } from './http-management/routes'
 import { type Container } from '../../wiring/container'
 
@@ -35,7 +34,6 @@ export function createServer (container: Container): express.Express {
   // Protected routes
   const authMiddleware = makeAuthMiddleware(container.jwtVerifier)
   app.use('/ims/case', authMiddleware)
-  app.use('/admin', authMiddleware)
   app.use('/management', authMiddleware)
 
   registerV1p1Routes(app, {
@@ -68,16 +66,12 @@ export function createServer (container: Container): express.Express {
     cfLicensesController: container.controllers.v1p0.cfLicenses
   })
 
-  registerAdminRoutes(app, {
-    frameworksController: container.controllers.admin.frameworks
-  })
-
   // Management routes (non-CASE-standard UPDATE/DELETE endpoints)
   registerManagementRoutes(app, {
     cfDocumentsController: container.controllers.management.cfDocuments,
     cfItemsController: container.controllers.management.cfItems,
     cfAssociationsController: container.controllers.management.cfAssociations,
-    frameworksController: container.controllers.management.frameworks,
+    cfPackagesController: container.controllers.management.cfPackages,
     tenantsController: container.controllers.management.tenants,
     // Keycloak is the source of truth for accounts/clients in this deployment
   })

@@ -2,14 +2,14 @@ import type { Express, RequestHandler } from 'express'
 import type { CFDocumentsManagementController } from './controllers/CFDocumentsManagementController'
 import type { CFItemsManagementController } from './controllers/CFItemsManagementController'
 import type { CFAssociationsManagementController } from './controllers/CFAssociationsManagementController'
-import type { FrameworksManagementController } from './controllers/FrameworksManagementController'
+import type { CFPackagesManagementController } from './controllers/CFPackagesManagementController'
 import type { TenantsManagementController } from './controllers/TenantsManagementController'
 import { requireScope } from '../middleware/scope'
 
 function withCaseVersion (caseVersion: '1.0' | '1.1', handler: RequestHandler): RequestHandler {
   return (req, res, next) => {
-    // Treat query param as legacy; versioned routes set it explicitly.
-    ;(req as any).query = { ...(req as any).query, caseVersion }
+    // Express 5's req.query is effectively read-only; stash an override instead.
+    ;(req as unknown as { caseVersionOverride?: '1.0' | '1.1' }).caseVersionOverride = caseVersion
     return handler(req, res, next)
   }
 }
@@ -28,7 +28,7 @@ export interface ManagementDeps {
   cfDocumentsController: CFDocumentsManagementController
   cfItemsController: CFItemsManagementController
   cfAssociationsController: CFAssociationsManagementController
-  frameworksController: FrameworksManagementController
+  cfPackagesController: CFPackagesManagementController
   tenantsController: TenantsManagementController
 }
 
@@ -185,6 +185,48 @@ export interface ManagementDeps {
  *     responses:
  *       200: { description: OK }
  *
+ * /management/tenants/{tenantId}/ims/case/v1p0/CFPackages:
+ *   post:
+ *     operationId: createCFPackageV1p0
+ *     summary: Create/publish a CFPackage (non-CASE extension) (CASE v1p0)
+ *     tags: [PackagesManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Unchanged }
+ *       201: { description: Created/Published }
+ *
+ * /management/tenants/{tenantId}/ims/case/v1p1/CFPackages:
+ *   post:
+ *     operationId: createCFPackageV1p1
+ *     summary: Create/publish a CFPackage (non-CASE extension) (CASE v1p1)
+ *     tags: [PackagesManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Unchanged }
+ *       201: { description: Created/Published }
+ *
+ * /management/tenants/{tenantId}/ims/case/v1p0/CFPackages/import:
+ *   post:
+ *     operationId: importCFPackageV1p0
+ *     summary: Import a CFPackage from endpoint (non-CASE extension) (CASE v1p0)
+ *     tags: [PackagesManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       201: { description: Imported }
+ *
+ * /management/tenants/{tenantId}/ims/case/v1p1/CFPackages/import:
+ *   post:
+ *     operationId: importCFPackageV1p1
+ *     summary: Import a CFPackage from endpoint (non-CASE extension) (CASE v1p1)
+ *     tags: [PackagesManager]
+ *     parameters:
+ *       - { name: tenantId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       201: { description: Imported }
+ *
  * /management/tenants/{tenantId}/ims/case/v1p0/CFPackages/{id}:
  *   delete:
  *     operationId: deleteCFPackageV1p0
@@ -208,43 +250,28 @@ export interface ManagementDeps {
  *       200: { description: Deleted }
  */
 export function registerManagementRoutes (app: Express, deps: ManagementDeps): void {
-  // CFDocument management endpoints
-  app.put(
-    '/management/tenants/:tenantId/CFDocuments/:id',
-    deps.cfDocumentsController.update
-  )
-  app.delete(
-    '/management/tenants/:tenantId/CFDocuments/:id',
-    deps.cfDocumentsController.delete
-  )
-
-  // CFItem management endpoints
-  app.put(
-    '/management/tenants/:tenantId/CFItems/:id',
-    deps.cfItemsController.update
-  )
-  app.delete(
-    '/management/tenants/:tenantId/CFItems/:id',
-    deps.cfItemsController.delete
-  )
-
-  // CFAssociation management endpoints
-  app.put(
-    '/management/tenants/:tenantId/CFAssociations/:id',
-    deps.cfAssociationsController.update
-  )
-  app.delete(
-    '/management/tenants/:tenantId/CFAssociations/:id',
-    deps.cfAssociationsController.delete
-  )
-
-  // CFPackage listing endpoint (non-CASE extension)
+  // CFPackage list/create/import/delete endpoints (non-CASE extension)
   app.get(
     '/management/tenants/:tenantId/CFPackages',
-    deps.frameworksController.list
+    deps.cfPackagesController.list
   )
-
-  // Preferred: explicit CASE version in the path for mutation endpoints
+  app.post(
+    '/management/tenants/:tenantId/ims/case/v1p0/CFPackages',
+    withCaseVersion('1.0', deps.cfPackagesController.create as unknown as RequestHandler)
+  )
+  app.post(
+    '/management/tenants/:tenantId/ims/case/v1p1/CFPackages',
+    withCaseVersion('1.1', deps.cfPackagesController.create as unknown as RequestHandler)
+  )
+  app.post(
+    '/management/tenants/:tenantId/ims/case/v1p0/CFPackages/import',
+    withCaseVersion('1.0', deps.cfPackagesController.importFromEndpoint as unknown as RequestHandler)
+  )
+  app.post(
+    '/management/tenants/:tenantId/ims/case/v1p1/CFPackages/import',
+    withCaseVersion('1.1', deps.cfPackagesController.importFromEndpoint as unknown as RequestHandler)
+  )
+  // CASE entity management endpoints (explicit version in the path)
   app.put(
     '/management/tenants/:tenantId/ims/case/v1p0/CFDocuments/:id',
     withCaseVersion('1.0', deps.cfDocumentsController.update as unknown as RequestHandler)
@@ -298,11 +325,11 @@ export function registerManagementRoutes (app: Express, deps: ManagementDeps): v
 
   app.delete(
     '/management/tenants/:tenantId/ims/case/v1p0/CFPackages/:id',
-    withCaseVersion('1.0', deps.frameworksController.delete as unknown as RequestHandler)
+    withCaseVersion('1.0', deps.cfPackagesController.delete as unknown as RequestHandler)
   )
   app.delete(
     '/management/tenants/:tenantId/ims/case/v1p1/CFPackages/:id',
-    withCaseVersion('1.1', deps.frameworksController.delete as unknown as RequestHandler)
+    withCaseVersion('1.1', deps.cfPackagesController.delete as unknown as RequestHandler)
   )
 
   // Tenant management endpoints (require case.admin scope)

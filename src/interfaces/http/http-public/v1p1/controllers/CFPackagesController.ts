@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { GetCFPackage } from '../../../../../application/case/endpoints/GetCFPackage';
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter';
 import { absolutizeCaseUris, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
+import { getParam } from '../../../utils/expressParams'
 
 export class CFPackagesControllerV1p1 {
   constructor(private readonly getCFPackage: GetCFPackage) {}
@@ -9,13 +10,13 @@ export class CFPackagesControllerV1p1 {
   getById = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).tenantId ?? 'demo';
-      const docId = req.params.id;
+      const docId = getParam(req, 'id')
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
 
       // Validate UUID format (basic check)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(docId)) {
+      if (!docId || !uuidRegex.test(docId)) {
         return res.status(404).json(StatusInfoFormatter.invalidUUID('The supplied identifier is not a valid UUID.'));
       }
 

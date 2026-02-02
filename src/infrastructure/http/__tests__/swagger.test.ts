@@ -14,9 +14,9 @@ describe('swagger-jsdoc discovery generation', () => {
     expect(spec.paths['/ims/case/v1p1/CFDocuments']).toBeDefined()
     expect(spec.paths['/ims/case/v1p0/CFDocuments']).toBeUndefined()
 
-    expect(spec.paths['/management/tenants/{tenantId}/frameworks']).toBeDefined()
-    expect(spec.paths['/management/tenants/{tenantId}/frameworks/{docId}']).toBeDefined()
-    expect(spec.paths['/admin/tenants/{tenantId}/frameworks']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/CFPackages']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages']).toBeDefined()
+    expect(spec.paths['/management/tenants/{tenantId}/ims/case/v1p1/CFPackages/{id}']).toBeDefined()
 
     // Legacy routes should not appear (no annotations and removed from runtime)
     expect(spec.paths['/management/tenants/{tenantId}/accounts']).toBeUndefined()

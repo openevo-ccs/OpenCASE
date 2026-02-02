@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
 import { UpdateCFAssociation } from '../../../../application/case/endpoints/UpdateCFAssociation'
 import { DeleteCFAssociation } from '../../../../application/case/endpoints/DeleteCFAssociation'
+import { getParam } from '../../utils/expressParams'
+import { getCaseVersion } from '../../utils/caseVersion'
 
 export class CFAssociationsManagementController {
   constructor (
@@ -11,14 +13,15 @@ export class CFAssociationsManagementController {
   update = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).tenantId ?? 'demo'
-      const urlTenantId = req.params.tenantId
-      const sourcedId = req.params.id
-      const caseVersion = (req.query.caseVersion as '1.0' | '1.1') ?? '1.1'
+      const urlTenantId = getParam(req, 'tenantId')
+      const sourcedId = getParam(req, 'id')
+      const caseVersion = getCaseVersion(req, { default: '1.1' })!
 
       // Verify tenant from JWT matches URL parameter
       if (urlTenantId && urlTenantId !== tenantId) {
         return res.status(403).json({ error: 'Tenant mismatch - authenticated tenant does not match URL parameter' })
       }
+      if (!sourcedId) return res.status(400).json({ error: 'Missing id' })
 
       await this.updateCFAssociation.execute({
         tenantId,
@@ -45,14 +48,15 @@ export class CFAssociationsManagementController {
   delete = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).tenantId ?? 'demo'
-      const urlTenantId = req.params.tenantId
-      const sourcedId = req.params.id
-      const caseVersion = (req.query.caseVersion as '1.0' | '1.1') ?? '1.1'
+      const urlTenantId = getParam(req, 'tenantId')
+      const sourcedId = getParam(req, 'id')
+      const caseVersion = getCaseVersion(req, { default: '1.1' })!
 
       // Verify tenant from JWT matches URL parameter
       if (urlTenantId && urlTenantId !== tenantId) {
         return res.status(403).json({ error: 'Tenant mismatch - authenticated tenant does not match URL parameter' })
       }
+      if (!sourcedId) return res.status(400).json({ error: 'Missing id' })
 
       await this.deleteCFAssociation.execute({
         tenantId,
