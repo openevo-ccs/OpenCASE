@@ -8,3 +8,4 @@ export * from './commands/PublishFramework'
 export * from './ports/FrameworkRepository'
 export * from './ports/IdGenerator'
 
+export * from './services/FrameworkLoader'

@@ -1,4 +1,4 @@
-import type { CFPackage } from '@/domain/case/types'
+import type { CFDocument, CFPackage } from '@/domain/case/types'
 import type { HttpClient } from './http'
 
 export type OpenCaseCfPackageResponse = { CFPackage: CFPackage }
@@ -12,6 +12,22 @@ export type OpenCaseManagementCfPackageSummary = {
   version?: string
   lastChangeDateTime?: string
   [k: string]: unknown
+}
+
+/**
+ * Summary of a CFDocument returned by the CFDocuments list endpoint.
+ * Based on CASE v1.1 spec: GET /ims/case/v1p1/CFDocuments
+ */
+export type CfDocumentSummary = {
+  identifier: string
+  uri?: string
+  title?: string
+  creator?: string
+  description?: string
+  frameworkType?: string
+  adoptionStatus?: string
+  lastChangeDateTime?: string
+  caseVersion?: string
 }
 
 export class CaseApiClient {
@@ -47,6 +63,51 @@ export class CaseApiClient {
       return (res as OpenCaseCfPackageResponse).CFPackage
     }
     throw new Error('Unexpected CFPackage response shape')
+  }
+
+  /**
+   * List all CFDocuments from the CASE API.
+   *
+   * Uses the standard CASE endpoint: GET /ims/case/{version}/CFDocuments
+   * Returns a list of document summaries without full item/association data.
+   */
+  async listCfDocuments(params?: { caseVersion?: 'v1p0' | 'v1p1'; limit?: number; offset?: number }): Promise<CfDocumentSummary[]> {
+    const v = params?.caseVersion ?? 'v1p1'
+    const queryParams = new URLSearchParams()
+    if (params?.limit != null) queryParams.set('limit', String(params.limit))
+    if (params?.offset != null) queryParams.set('offset', String(params.offset))
+
+    const query = queryParams.toString()
+    const url = `/ims/case/${v}/CFDocuments${query ? `?${query}` : ''}`
+
+    const res = (await this._http.get(url)) as unknown
+
+    // Handle various response shapes:
+    // - Direct array: [...]
+    // - v1p1 style: { CFDocuments: [...] }
+    // - Set wrapper: { CFDocumentSet: { CFDocuments: [...] } }
+    if (Array.isArray(res)) {
+      return res as CfDocumentSummary[]
+    }
+
+    if (res && typeof res === 'object') {
+      const obj = res as Record<string, unknown>
+
+      // Check for CFDocumentSet wrapper (CASE spec format)
+      if ('CFDocumentSet' in obj && obj.CFDocumentSet && typeof obj.CFDocumentSet === 'object') {
+        const set = obj.CFDocumentSet as Record<string, unknown>
+        if (Array.isArray(set.CFDocuments)) {
+          return set.CFDocuments as CfDocumentSummary[]
+        }
+      }
+
+      // Check for direct CFDocuments array
+      if ('CFDocuments' in obj && Array.isArray(obj.CFDocuments)) {
+        return obj.CFDocuments as CfDocumentSummary[]
+      }
+    }
+
+    return []
   }
 }
 
