@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EditorProvider } from '@/ui/editor/state/EditorContext'
 import EditorCanvas from '@/ui/editor/EditorCanvas'
 import HomeScreen from '@/ui/home/HomeScreen'
-import { createNewFrameworkDraft, loadFrameworks, saveFrameworks, type HomeFramework } from '@/ui/home/frameworkStore'
+import { createNewFrameworkDraft, createHomeFrameworkFromDomain, loadFrameworks, saveFrameworks, type HomeFramework } from '@/ui/home/frameworkStore'
 import type { CreateFrameworkDraft } from '@/ui/home/CreateFrameworkDialog'
 import { AuthProvider, useAuth } from '@/app/providers/AuthProvider'
 import { getAppConfig } from '@/app/config'
 import { CaseApiClient } from '@/infrastructure/caseApi/CaseApiClient'
 import { createFetchHttpClient } from '@/infrastructure/caseApi/http'
-import { createGraphFromCfPackage } from '@/ui/editor/state/editorFactories'
+import { loadFrameworkFromCfPackage } from '@/application/framework/services/FrameworkLoader'
+import { toReactFlowGraph } from '@/ui/editor/reactflow/mapping'
 import LoginScreen from '@/ui/auth/LoginScreen'
 
 export default function App() {
@@ -101,9 +102,18 @@ function AppInner() {
     async (docId: string) => {
       setRemoteOpenState('loading')
       try {
+        // Fetch the CASE package from the API
         const pkg = await api.getCfPackage({ docId, caseVersion: 'v1p1' })
-        const graph = createGraphFromCfPackage(pkg)
-        const fw: HomeFramework = { id: pkg.CFDocument.identifier, cfDocument: pkg.CFDocument, graph }
+
+        // Use the FrameworkLoader to map CASE → domain Framework
+        // This handles v1p0/v1p1 differences through the normalization layer
+        const framework = loadFrameworkFromCfPackage(pkg)
+        if (!framework) {
+          throw new Error('Failed to load framework from CASE package')
+        }
+
+        // Create a HomeFramework entry from the domain Framework
+        const fw = createHomeFrameworkFromDomain(framework)
 
         setFrameworks((prev) => {
           const exists = prev.some((f) => f.id === fw.id)
@@ -121,6 +131,20 @@ function AppInner() {
     },
     [api],
   )
+
+  // Derive the graph from the active framework
+  // This converts the domain Framework to React Flow format
+  const activeGraph = useMemo(() => {
+    if (!activeFramework) return null
+
+    // Use legacy graph if available (for backward compatibility with stored data)
+    if (activeFramework.graph) {
+      return activeFramework.graph
+    }
+
+    // Otherwise, derive from the domain Framework
+    return toReactFlowGraph({ framework: activeFramework.framework })
+  }, [activeFramework])
 
   if (authCallbackState === 'processing') {
     return (
@@ -165,7 +189,7 @@ function AppInner() {
     )
   }
 
-  if (!activeFramework) {
+  if (!activeFramework || !activeGraph) {
     return (
       <HomeScreen
         frameworks={frameworks}
@@ -178,7 +202,7 @@ function AppInner() {
   }
 
   return (
-    <EditorProvider initialGraph={activeFramework.graph} graphKey={activeFramework.id}>
+    <EditorProvider initialGraph={activeGraph} graphKey={activeFramework.id}>
       <EditorCanvas
         onBack={() => {
           setScreen('home')
@@ -187,4 +211,3 @@ function AppInner() {
     </EditorProvider>
   )
 }
-

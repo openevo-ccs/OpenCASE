@@ -9,6 +9,11 @@ export type AssociationType = 'isChildOf' | 'isPartOf' | 'isRelatedTo'
 export type FrameworkMetadata = {
   title?: string
   description?: string
+  creator?: string
+  frameworkType?: string
+  adoptionStatus?: string
+  caseVersion?: string
+  lastChangeDateTime?: string
 }
 
 export type ItemMetadata = Record<string, unknown>
