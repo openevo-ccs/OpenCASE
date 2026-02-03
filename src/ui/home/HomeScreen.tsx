@@ -8,6 +8,7 @@ import { useAuth } from '@/app/providers/AuthProvider'
 import { getAppConfig } from '@/app/config'
 import { CaseApiClient, type OpenCaseManagementCfPackageSummary } from '@/infrastructure/caseApi/CaseApiClient'
 import { createFetchHttpClient } from '@/infrastructure/caseApi/http'
+import CanvasHeader from '@/ui/editor/components/CanvasHeader'
 
 export default function HomeScreen({
   frameworks,
@@ -60,30 +61,29 @@ export default function HomeScreen({
   )
 
   return (
-    <div className="min-h-screen w-full bg-slate-50">
-      <div className="mx-auto w-full max-w-6xl px-5 py-8">
+    <div className="relative min-h-screen w-full bg-slate-50">
+      <CanvasHeader
+        frameworkTitle="CASE Editor"
+        frameworkSubtitle="Home"
+        userName={userName ?? undefined}
+        reserveRightForPanel={false}
+        onSignOut={
+          status !== 'authenticated'
+            ? undefined
+            : () => {
+                void signOut()
+              }
+        }
+      />
+
+      <div className="mx-auto w-full max-w-6xl px-5 pb-8 pt-24">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-lg font-semibold text-slate-900">CASE Editor</div>
-            <div className="text-sm text-slate-600">Open a framework to create, edit, and publish.</div>
-          </div>
+          <div className="text-sm text-slate-600">Open a framework to create, edit, and publish.</div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                if (status === 'authenticated') void signOut()
-              }}
-              disabled={status !== 'authenticated'}
-            >
-              Sign out
-            </Button>
-
-            <Button onClick={() => setCreateOpen(true)}>
-              <PlusIcon className="h-4 w-4" aria-hidden />
-              Create framework
-            </Button>
-          </div>
+          <Button onClick={() => setCreateOpen(true)}>
+            <PlusIcon className="h-4 w-4" aria-hidden />
+            Create framework
+          </Button>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-700">
