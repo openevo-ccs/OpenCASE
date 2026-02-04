@@ -84,15 +84,48 @@ export default function CaseFrameworkNode({ id, data, selected }: NodeProps<Case
         selected={selected}
         rightHint="Select to edit"
       >
+        {/* Bottom handle - primary source for hierarchical edges */}
         <Handle
+          id="bottom"
           position={Position.Bottom}
           type="source"
-          // Anchor to the visible card, not the (potentially larger) node bounds.
+          isConnectableStart={true}
+          isConnectableEnd={true}
           style={{
             background: 'none',
             border: 'none',
             width: '1em',
             height: '1em',
+          }}
+        />
+
+        {/* Left handle - for side connections */}
+        <Handle
+          id="left"
+          position={Position.Left}
+          type="source"
+          isConnectableStart={true}
+          isConnectableEnd={true}
+          style={{
+            background: '#ede9fe',
+            border: '2px solid #a78bfa',
+            width: 10,
+            height: 10,
+          }}
+        />
+
+        {/* Right handle - for side connections */}
+        <Handle
+          id="right"
+          position={Position.Right}
+          type="source"
+          isConnectableStart={true}
+          isConnectableEnd={true}
+          style={{
+            background: '#ede9fe',
+            border: '2px solid #a78bfa',
+            width: 10,
+            height: 10,
           }}
         />
       </FrameworkCard>

@@ -6,6 +6,7 @@ import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow } from '@xy
 import { nodeTypes } from '@/ui/editor/reactflow/nodeTypes'
 import CanvasHeader from '@/ui/editor/components/CanvasHeader'
 import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
+import EdgePropertiesPanel from '@/ui/editor/components/EdgePropertiesPanel'
 import AddItemDialog from '@/ui/editor/components/AddItemDialog'
 import ConfirmDeleteDialog from '@/ui/editor/components/ConfirmDeleteDialog'
 import ConfirmLeaveDialog from '@/ui/editor/components/ConfirmLeaveDialog'
@@ -24,9 +25,11 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
     onConnect,
     onSelectionChange,
     selectedNode,
+    selectedEdge,
     frameworkInfo,
     clearSelection,
     updateNodeData,
+    updateEdgeData,
     layoutVersion,
     addItemDialog,
     setAddItemDraft,
@@ -143,7 +146,7 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
         220
 
       const wrapRect = wrap.getBoundingClientRect()
-      const panelWidth = selectedNode ? Math.min(460, globalThis.innerWidth * 0.92) : 0
+      const panelWidth = (selectedNode || selectedEdge) ? Math.min(460, globalThis.innerWidth * 0.92) : 0
 
       const margin = 24
       const safeTop = 96 // leave room for the floating header
@@ -306,7 +309,7 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
         frameworkTitle={frameworkInfo.title}
         frameworkSubtitle={frameworkInfo.subtitle}
         userName={userName ?? undefined}
-        reserveRightForPanel={Boolean(selectedNode)}
+        reserveRightForPanel={Boolean(selectedNode || selectedEdge)}
         onSignIn={undefined}
         onSignOut={
           authStatus !== 'authenticated'
@@ -335,6 +338,16 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
           onSelectionChange={onSelectionChangeWithPan}
           onBeforeDelete={onBeforeDelete}
           nodeTypes={nodeTypes}
+          edgesUpdatable
+          edgesFocusable
+          elevateEdgesOnSelect
+          connectOnClick={true}
+          connectionMode="loose"
+          defaultEdgeOptions={{
+            interactionWidth: 20,
+            style: { strokeWidth: 1.5, stroke: '#94a3b8' },
+            focusable: true,
+          }}
           proOptions={{ hideAttribution: true }}
           onInit={(instance) => {
             reactFlowRef.current = instance as unknown as ReactFlowInstance<CaseEditorNodeType>
@@ -348,6 +361,13 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
       </div>
 
       <NodePropertiesPanel node={selectedNode} onClose={clearSelection} onChangeNode={updateNodeData} />
+
+      <EdgePropertiesPanel
+        edge={selectedEdge}
+        nodes={nodesWithCallbacks}
+        onClose={clearSelection}
+        onChangeEdge={updateEdgeData}
+      />
 
       <AddItemDialog
         open={addItemDialog.open}

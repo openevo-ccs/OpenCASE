@@ -33,7 +33,7 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
   return (
     <div
       className={[
-        'group relative rounded-lg border bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow-md',
+        'group relative h-full w-full rounded-lg border bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow-md',
         selected ? 'border-violet-500 shadow-md ring-2 ring-violet-500/15' : 'border-slate-300',
       ].join(' ')}
     >
@@ -139,9 +139,13 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
         </div>
       ) : null}
 
+      {/* Top handle - primary target for hierarchical edges */}
       <Handle
+        id="top"
         position={Position.Top}
         type="target"
+        isConnectableStart={true}
+        isConnectableEnd={true}
         style={{
           background: 'none',
           border: 'none',
@@ -159,9 +163,13 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
         />
       </Handle>
 
+      {/* Bottom handle - primary source for hierarchical edges */}
       <Handle
+        id="bottom"
         position={Position.Bottom}
         type="source"
+        isConnectableStart={true}
+        isConnectableEnd={true}
         style={{
           background: 'none',
           border: 'none',
@@ -178,6 +186,36 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
           }}
         />
       </Handle>
+
+      {/* Left handles - for side connections */}
+      <Handle
+        id="left"
+        position={Position.Left}
+        type="source"
+        isConnectableStart={true}
+        isConnectableEnd={true}
+        style={{
+          background: '#e2e8f0',
+          border: '2px solid #94a3b8',
+          width: 10,
+          height: 10,
+        }}
+      />
+
+      {/* Right handles - for side connections */}
+      <Handle
+        id="right"
+        position={Position.Right}
+        type="source"
+        isConnectableStart={true}
+        isConnectableEnd={true}
+        style={{
+          background: '#e2e8f0',
+          border: '2px solid #94a3b8',
+          width: 10,
+          height: 10,
+        }}
+      />
 
       <div className="pointer-events-none absolute bottom-2 right-3 text-[10px] font-medium text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         Select to edit

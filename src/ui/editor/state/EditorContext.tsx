@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
-import type { Connection, Edge, EdgeChange, NodeChange, OnSelectionChangeFunc } from '@xyflow/react'
+import type { Connection, EdgeChange, NodeChange, OnSelectionChangeFunc } from '@xyflow/react'
 import { addEdge, applyEdgeChanges, applyNodeChanges } from '@xyflow/react'
 import type {
+  CaseEdgeDataPatch,
+  CaseEditorEdge,
   CaseEditorNodeDataPatch,
   CaseEditorNodeType,
   CaseFrameworkNodeType,
@@ -11,7 +13,7 @@ import type {
 import type { CFDocument, CFItem } from '@/domain/case/types'
 import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
-import { createSampleGraph, makeCfItem } from '@/ui/editor/state/editorFactories'
+import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, makeCfItem } from '@/ui/editor/state/editorFactories'
 
 const DEFAULT_NODE_WIDTH = 360
 const DEFAULT_NODE_HEIGHT = 220
@@ -83,19 +85,22 @@ const DEFAULT_GRAPH = createSampleGraph()
 
 type EditorState = {
   nodes: CaseEditorNodeType[]
-  edges: Edge[]
+  edges: CaseEditorEdge[]
   selectedNodeId: string | null
+  selectedEdgeId: string | null
   layoutVersion: number
   dirty: boolean
 }
 
 type Action =
-  | { type: 'selection/set'; nodeId: string | null }
+  | { type: 'selection/setNode'; nodeId: string | null }
+  | { type: 'selection/setEdge'; edgeId: string | null }
   | { type: 'selection/clear' }
   | { type: 'nodes/applyChanges'; changes: NodeChange<CaseEditorNodeType>[] }
   | { type: 'edges/applyChanges'; changes: EdgeChange[] }
   | { type: 'edges/connect'; connection: Connection }
   | { type: 'node/updateData'; nodeId: string; patch: CaseEditorNodeDataPatch }
+  | { type: 'edge/updateData'; edgeId: string; patch: CaseEdgeDataPatch }
   | { type: 'node/addChild'; parentId: string; childId: string; cfItem: CFItem }
   | { type: 'graph/delete'; nodeIds: string[]; edgeIds: string[]; reattachChildren: boolean }
   | { type: 'layout/apply'; positions: Record<string, { x: number; y: number }> }
@@ -103,21 +108,40 @@ type Action =
 
 function reducer(state: EditorState, action: Action): EditorState {
   switch (action.type) {
-    case 'selection/set':
-      return { ...state, selectedNodeId: action.nodeId }
+    case 'selection/setNode':
+      return { ...state, selectedNodeId: action.nodeId, selectedEdgeId: null }
+    case 'selection/setEdge':
+      return { ...state, selectedEdgeId: action.edgeId, selectedNodeId: null }
     case 'selection/clear':
       return {
         ...state,
         selectedNodeId: null,
+        selectedEdgeId: null,
         nodes: state.nodes.map((n) => ({ ...n, selected: false })),
         edges: state.edges.map((e) => ({ ...e, selected: false })),
       }
     case 'nodes/applyChanges':
       return { ...state, nodes: applyNodeChanges<CaseEditorNodeType>(action.changes, state.nodes), dirty: true }
     case 'edges/applyChanges':
-      return { ...state, edges: applyEdgeChanges(action.changes, state.edges), dirty: true }
-    case 'edges/connect':
-      return { ...state, edges: addEdge(action.connection, state.edges), dirty: true }
+      return { ...state, edges: applyEdgeChanges(action.changes, state.edges) as CaseEditorEdge[], dirty: true }
+    case 'edges/connect': {
+      const { source, target, sourceHandle, targetHandle } = action.connection
+      if (!source || !target) return state
+      // Create a properly formatted edge with data and markers
+      const newEdge: CaseEditorEdge = {
+        id: `e_${source}_${target}_${Date.now()}`,
+        source,
+        target,
+        sourceHandle: sourceHandle ?? undefined,
+        targetHandle: targetHandle ?? undefined,
+        data: {
+          isHierarchical: false,
+          associationType: 'isRelatedTo', // Default for user-created connections
+        },
+        ...getEdgeMarkers('isRelatedTo'),
+      }
+      return { ...state, edges: [...state.edges, newEdge], dirty: true }
+    }
     case 'node/updateData': {
       const { nodeId, patch } = action
       const nodes = state.nodes.map((n) => {
@@ -131,6 +155,42 @@ function reducer(state: EditorState, action: Action): EditorState {
         return n
       })
       return { ...state, nodes, dirty: true }
+    }
+    case 'edge/updateData': {
+      const { edgeId, patch } = action
+      const edges = state.edges.map((e) => {
+        if (e.id !== edgeId) return e
+        const currentData = e.data ?? {}
+        const newData = { ...currentData }
+        
+        // Merge top-level edge data fields
+        if (patch.associationType !== undefined) newData.associationType = patch.associationType
+        if (patch.sequenceNumber !== undefined) newData.sequenceNumber = patch.sequenceNumber
+        if (patch.isHierarchical !== undefined) newData.isHierarchical = patch.isHierarchical
+        
+        // Merge cfAssociation if provided
+        if (patch.cfAssociation) {
+          newData.cfAssociation = {
+            ...(currentData.cfAssociation ?? {
+              identifier: edgeId,
+              uri: `urn:case:association:${edgeId}`,
+              associationType: currentData.associationType ?? 'isChildOf',
+              originNodeURI: { uri: '', identifier: e.source },
+              destinationNodeURI: { uri: '', identifier: e.target },
+              lastChangeDateTime: new Date().toISOString(),
+            }),
+            ...patch.cfAssociation,
+            lastChangeDateTime: new Date().toISOString(),
+          }
+        }
+        
+        // Update markers if association type changed
+        const finalAssocType = newData.associationType ?? currentData.associationType ?? 'isChildOf'
+        const markers = getEdgeMarkers(finalAssocType)
+        
+        return { ...e, ...markers, data: newData }
+      })
+      return { ...state, edges, dirty: true }
     }
     case 'node/addChild': {
       const parent = state.nodes.find((n) => n.id === action.parentId)
@@ -159,12 +219,18 @@ function reducer(state: EditorState, action: Action): EditorState {
       }
 
       const nextNodes = [...state.nodes.map((n) => ({ ...n, selected: false })), { ...childNode, selected: true }]
-      const nextEdges: Edge[] = [
+      const nextEdges: CaseEditorEdge[] = [
         ...state.edges.map((e) => ({ ...e, selected: false })),
-        { id: `e_${action.parentId}_${childId}`, source: action.parentId, target: childId },
+        {
+          id: `e_${action.parentId}_${childId}`,
+          source: action.parentId,
+          target: childId,
+          markerEnd: DEFAULT_EDGE_MARKER,
+          data: { isHierarchical: true, associationType: 'isChildOf' },
+        },
       ]
 
-      return { ...state, nodes: nextNodes, edges: nextEdges, selectedNodeId: childId, dirty: true }
+      return { ...state, nodes: nextNodes, edges: nextEdges, selectedNodeId: childId, selectedEdgeId: null, dirty: true }
     }
     case 'graph/delete': {
       const deleteNodeIds = new Set(action.nodeIds)
@@ -208,7 +274,16 @@ function reducer(state: EditorState, action: Action): EditorState {
           for (const [childId, parentId] of reparentMap.entries()) {
             const newEdgeId = `e_${parentId}_${childId}`
             if (!existingEdgeIds.has(newEdgeId)) {
-              remainingEdges = [...remainingEdges, { id: newEdgeId, source: parentId, target: childId }]
+              remainingEdges = [
+                ...remainingEdges,
+                {
+                  id: newEdgeId,
+                  source: parentId,
+                  target: childId,
+                  markerEnd: DEFAULT_EDGE_MARKER,
+                  data: { isHierarchical: true, associationType: 'isChildOf' },
+                },
+              ]
               existingEdgeIds.add(newEdgeId)
             }
           }
@@ -216,11 +291,13 @@ function reducer(state: EditorState, action: Action): EditorState {
       }
 
       const selectedNodeId = state.selectedNodeId && deleteNodeIds.has(state.selectedNodeId) ? null : state.selectedNodeId
+      const selectedEdgeId = state.selectedEdgeId && deleteEdgeIds.has(state.selectedEdgeId) ? null : state.selectedEdgeId
       return {
         ...state,
         selectedNodeId,
+        selectedEdgeId,
         nodes: remainingNodes.map((n) => ({ ...n, selected: selectedNodeId ? n.id === selectedNodeId : false })),
-        edges: remainingEdges.map((e) => ({ ...e, selected: false })),
+        edges: remainingEdges.map((e) => ({ ...e, selected: selectedEdgeId ? e.id === selectedEdgeId : false })) as CaseEditorEdge[],
         dirty: true,
       }
     }
@@ -236,6 +313,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         nodes: action.graph.nodes,
         edges: action.graph.edges,
         selectedNodeId: null,
+        selectedEdgeId: null,
         layoutVersion: 0,
         dirty: false,
       }
@@ -247,19 +325,23 @@ function reducer(state: EditorState, action: Action): EditorState {
 
 type EditorContextValue = {
   nodes: CaseEditorNodeType[]
-  edges: Edge[]
+  edges: CaseEditorEdge[]
   selectedNodeId: string | null
+  selectedEdgeId: string | null
   selectedNode: CaseEditorNodeType | null
+  selectedEdge: CaseEditorEdge | null
   nodesWithCallbacks: CaseEditorNodeType[]
   frameworkInfo: { title: string; subtitle?: string; creator?: string }
   layoutVersion: number
   isDirty: boolean
   onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType>
+  onEdgeSelectionChange: (_edgeId: string | null) => void
   onNodesChange: (_changes: NodeChange<CaseEditorNodeType>[]) => void
   onEdgesChange: (_changes: EdgeChange[]) => void
   onConnect: (_connection: Connection) => void
   clearSelection: () => void
   updateNodeData: (_nodeId: string, _patch: CaseEditorNodeDataPatch) => void
+  updateEdgeData: (_edgeId: string, _patch: CaseEdgeDataPatch) => void
   addChild: (_parentId: string) => void
   addItemDialog: {
     open: boolean
@@ -280,7 +362,7 @@ export function EditorProvider({
   graphKey,
 }: Readonly<{ children: ReactNode; initialGraph?: EditorGraph; graphKey?: string }>) {
   const seed = useMemo(() => initialGraph ?? DEFAULT_GRAPH, [initialGraph])
-  const [state, dispatch] = useReducer(reducer, { nodes: seed.nodes, edges: seed.edges, selectedNodeId: null, layoutVersion: 0, dirty: false })
+  const [state, dispatch] = useReducer(reducer, { nodes: seed.nodes, edges: seed.edges, selectedNodeId: null, selectedEdgeId: null, layoutVersion: 0, dirty: false })
   const didInitialLayout = useRef(false)
   const [addItemDialog, setAddItemDialog] = useState<{ open: boolean; parentId: string | null; draft: AddItemDraft }>({
     open: false,
@@ -297,6 +379,11 @@ export function EditorProvider({
   const selectedNode = useMemo(
     () => (state.selectedNodeId ? state.nodes.find((n) => n.id === state.selectedNodeId) ?? null : null),
     [state.nodes, state.selectedNodeId],
+  )
+
+  const selectedEdge = useMemo(
+    () => (state.selectedEdgeId ? state.edges.find((e) => e.id === state.selectedEdgeId) ?? null : null),
+    [state.edges, state.selectedEdgeId],
   )
 
   const frameworkInfo = useMemo(() => {
@@ -432,8 +519,14 @@ export function EditorProvider({
   const deleteElements = useCallback((params: { nodeIds: string[]; edgeIds: string[]; reattachChildren: boolean }) => {
     dispatch({ type: 'graph/delete', ...params })
   }, [])
+  
   const updateNodeData = useCallback(
     (nodeId: string, patch: CaseEditorNodeDataPatch) => dispatch({ type: 'node/updateData', nodeId, patch }),
+    [],
+  )
+
+  const updateEdgeData = useCallback(
+    (edgeId: string, patch: CaseEdgeDataPatch) => dispatch({ type: 'edge/updateData', edgeId, patch }),
     [],
   )
 
@@ -464,8 +557,23 @@ export function EditorProvider({
     })
   }, [state.nodes, addChild, updateNodeData])
 
-  const onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType> = useCallback(({ nodes }) => {
-    dispatch({ type: 'selection/set', nodeId: nodes?.[0]?.id ?? null })
+  const onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType> = useCallback(({ nodes, edges }) => {
+    // Prioritize node selection over edge selection
+    if (nodes?.[0]?.id) {
+      dispatch({ type: 'selection/setNode', nodeId: nodes[0].id })
+    } else if (edges?.[0]?.id) {
+      dispatch({ type: 'selection/setEdge', edgeId: edges[0].id })
+    } else {
+      dispatch({ type: 'selection/clear' })
+    }
+  }, [])
+
+  const onEdgeSelectionChange = useCallback((edgeId: string | null) => {
+    if (edgeId) {
+      dispatch({ type: 'selection/setEdge', edgeId })
+    } else {
+      dispatch({ type: 'selection/clear' })
+    }
   }, [])
 
   const onNodesChange = useCallback((changes: NodeChange<CaseEditorNodeType>[]) => {
@@ -487,17 +595,21 @@ export function EditorProvider({
       nodes: state.nodes,
       edges: state.edges,
       selectedNodeId: state.selectedNodeId,
+      selectedEdgeId: state.selectedEdgeId,
       selectedNode,
+      selectedEdge,
       nodesWithCallbacks,
       frameworkInfo,
       layoutVersion: state.layoutVersion,
       isDirty: state.dirty,
       onSelectionChange,
+      onEdgeSelectionChange,
       onNodesChange,
       onEdgesChange,
       onConnect,
       clearSelection,
       updateNodeData,
+      updateEdgeData,
       addChild,
       addItemDialog,
       setAddItemDraft,
@@ -509,17 +621,21 @@ export function EditorProvider({
       state.nodes,
       state.edges,
       state.selectedNodeId,
+      state.selectedEdgeId,
       selectedNode,
+      selectedEdge,
       nodesWithCallbacks,
       frameworkInfo,
       state.layoutVersion,
       state.dirty,
       onSelectionChange,
+      onEdgeSelectionChange,
       onNodesChange,
       onEdgesChange,
       onConnect,
       clearSelection,
       updateNodeData,
+      updateEdgeData,
       addChild,
       addItemDialog,
       setAddItemDraft,

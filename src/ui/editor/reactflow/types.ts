@@ -1,5 +1,5 @@
-import type { Node } from '@xyflow/react'
-import type { CFDocument, CFItem } from '@/domain/case/types'
+import type { Edge, Node } from '@xyflow/react'
+import type { CFAssociation, CFDocument, CFItem } from '@/domain/case/types'
 
 export type CaseItemNodeData = {
   cfItem: CFItem
@@ -30,3 +30,41 @@ export type CaseFrameworkNodeDataPatch = Partial<Omit<CaseFrameworkNodeData, 'cf
 }
 
 export type CaseEditorNodeDataPatch = CaseItemNodeDataPatch | CaseFrameworkNodeDataPatch
+
+// ========== Edge Types ==========
+
+/**
+ * CASE association types from the CASE 1.1 specification.
+ * These are the standard types plus an extension pattern for custom types.
+ */
+export const CASE_ASSOCIATION_TYPES = [
+  'isChildOf',
+  'isPeerOf',
+  'isPartOf',
+  'exactMatchOf',
+  'precedes',
+  'isRelatedTo',
+  'isTranslationOf',
+] as const
+
+export type CaseAssociationType = (typeof CASE_ASSOCIATION_TYPES)[number] | `ext:${string}` | string
+
+/**
+ * Data attached to ReactFlow edges representing CASE associations.
+ */
+export type CaseEdgeData = {
+  /** The full CFAssociation DTO when available */
+  cfAssociation?: CFAssociation
+  /** Whether this is a hierarchical relationship (isChildOf/isPartOf) used for layout */
+  isHierarchical?: boolean
+  /** Association type for quick access */
+  associationType?: CaseAssociationType
+  /** Sequence number for ordering */
+  sequenceNumber?: number
+}
+
+export type CaseEditorEdge = Edge<CaseEdgeData>
+
+export type CaseEdgeDataPatch = Partial<Omit<CaseEdgeData, 'cfAssociation'>> & {
+  cfAssociation?: Partial<CFAssociation>
+}

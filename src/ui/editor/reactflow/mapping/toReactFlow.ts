@@ -1,9 +1,9 @@
-import type { Edge } from '@xyflow/react'
-import type { Framework } from '@/domain/framework/model/types'
+import type { Association, Framework } from '@/domain/framework/model/types'
 import type { ItemId } from '@/domain/shared/types'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
-import type { CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
-import type { CFDocument, CFItem } from '@/domain/case/types'
+import { getEdgeMarkers } from '@/ui/editor/state/editorFactories'
+import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
+import type { CFAssociation, CFDocument, CFItem } from '@/domain/case/types'
 import type { LayoutState } from './types'
 
 const DEFAULT_NODE_WIDTH = 360
@@ -55,6 +55,36 @@ function mapDomainItemToCfItem(framework: Framework, itemId: string): CFItem {
   }
 }
 
+function mapDomainAssociationToCfAssociation(framework: Framework, association: Association): CFAssociation {
+  const fwId = framework.id as unknown as string
+  const assocId = association.id as unknown as string
+  const fromId = association.fromItemId as unknown as string
+  const toId = association.toItemId as unknown as string
+  const md = (association.metadata ?? {}) as Record<string, unknown>
+  
+  const s = (k: string) => (typeof md[k] === 'string' ? (md[k] as string) : undefined)
+  const n = (k: string) => (typeof md[k] === 'number' ? (md[k] as number) : undefined)
+
+  return {
+    identifier: assocId,
+    uri: s('caseUri') ?? `urn:case:association:${assocId}`,
+    associationType: association.associationType,
+    originNodeURI: {
+      identifier: fromId,
+      uri: s('originUri') ?? `urn:case:item:${fromId}`,
+    },
+    destinationNodeURI: {
+      identifier: toId,
+      uri: s('destinationUri') ?? `urn:case:item:${toId}`,
+    },
+    sequenceNumber: n('sequenceNumber'),
+    notes: s('notes'),
+    lastChangeDateTime: s('lastChangeDateTime') ?? nowIso(),
+    CFDocumentURI: { uri: `urn:case:document:${fwId}` },
+    extensions: (md.extensions as Record<string, unknown> | undefined) ?? undefined,
+  }
+}
+
 const wrapperNodeClassName = 'bg-transparent border-0 p-0 shadow-none'
 
 function getLayout(layout: LayoutState | undefined, nodeId: string, fallback: { x: number; y: number; w: number; h: number }) {
@@ -88,15 +118,23 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
   }
 
   const nodes: CaseEditorNodeType[] = [fwNode]
-  const edges: Edge[] = []
+  const edges: CaseEditorEdge[] = []
 
+  // Map child -> parent and track associations by their origin/destination for edge data
   const parentByChild = new Map<string, string>()
+  const associationByEdgeKey = new Map<string, Association>()
+  
   for (const a of framework.associations.values()) {
-    if (a.associationType !== 'isChildOf' && a.associationType !== 'isPartOf') continue
-    const childId = a.fromItemId as unknown as string
-    const parentId = a.toItemId as unknown as string
-    if (!childId || !parentId) continue
-    parentByChild.set(childId, parentId)
+    const fromId = a.fromItemId as unknown as string
+    const toId = a.toItemId as unknown as string
+    if (!fromId || !toId) continue
+    
+    if (a.associationType === 'isChildOf' || a.associationType === 'isPartOf') {
+      parentByChild.set(fromId, toId)
+    }
+    // Store association by edge key (source_target) for lookup when creating edges
+    associationByEdgeKey.set(`${toId}_${fromId}`, a) // For hierarchical: parent -> child
+    associationByEdgeKey.set(`${fromId}_${toId}`, a) // For non-hierarchical: from -> to
   }
 
   const itemIds = Array.from(framework.items.keys()).map((x) => x as unknown as string).sort((a, b) => a.localeCompare(b))
@@ -122,7 +160,24 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
   // Hierarchy edges used by layout (source=parent, target=child).
   for (const itemId of itemIds) {
     const parentId = parentByChild.get(itemId) ?? fwId
-    edges.push({ id: `e_${parentId}_${itemId}`, source: parentId, target: itemId })
+    const association = associationByEdgeKey.get(`${parentId}_${itemId}`)
+    const cfAssociation = association ? mapDomainAssociationToCfAssociation(framework, association) : undefined
+    const md = (association?.metadata ?? {}) as Record<string, unknown>
+    const assocType = association?.associationType ?? 'isChildOf'
+    const markers = getEdgeMarkers(assocType)
+    
+    edges.push({
+      id: `e_${parentId}_${itemId}`,
+      source: parentId,
+      target: itemId,
+      ...markers,
+      data: {
+        cfAssociation,
+        isHierarchical: true,
+        associationType: assocType,
+        sequenceNumber: typeof md.sequenceNumber === 'number' ? md.sequenceNumber : undefined,
+      },
+    })
   }
 
   // Non-hierarchical associations as edges (source=from, target=to).
@@ -131,7 +186,23 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
     const fromId = a.fromItemId as unknown as string
     const toId = a.toItemId as unknown as string
     if (!fromId || !toId) continue
-    edges.push({ id: a.id as unknown as string, source: fromId, target: toId })
+    
+    const cfAssociation = mapDomainAssociationToCfAssociation(framework, a)
+    const md = (a.metadata ?? {}) as Record<string, unknown>
+    const markers = getEdgeMarkers(a.associationType)
+    
+    edges.push({
+      id: a.id as unknown as string,
+      source: fromId,
+      target: toId,
+      ...markers,
+      data: {
+        cfAssociation,
+        isHierarchical: false,
+        associationType: a.associationType,
+        sequenceNumber: typeof md.sequenceNumber === 'number' ? md.sequenceNumber : undefined,
+      },
+    })
   }
 
   // Ensure all edges reference existing nodes.

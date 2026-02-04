@@ -1,10 +1,34 @@
-import type { Edge } from '@xyflow/react'
+import { MarkerType } from '@xyflow/react'
 import type { CFDocument, CFItem } from '@/domain/case/types'
-import type { CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
+import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
 
 export type EditorGraph = {
   nodes: CaseEditorNodeType[]
-  edges: Edge[]
+  edges: CaseEditorEdge[]
+}
+
+/** Default arrow marker for edges */
+export const DEFAULT_EDGE_MARKER = {
+  type: MarkerType.ArrowClosed,
+  width: 16,
+  height: 16,
+  color: '#94a3b8', // slate-400
+}
+
+/** Get edge markers based on association type */
+export function getEdgeMarkers(associationType: string) {
+  // isRelatedTo is bidirectional - arrows on both ends
+  if (associationType === 'isRelatedTo') {
+    return {
+      markerStart: DEFAULT_EDGE_MARKER,
+      markerEnd: DEFAULT_EDGE_MARKER,
+    }
+  }
+
+  // All other types: single arrow at the end (pointing to destination/child)
+  return {
+    markerEnd: DEFAULT_EDGE_MARKER,
+  }
 }
 
 const DEFAULT_NODE_WIDTH = 360
@@ -135,10 +159,10 @@ export function createSampleGraph(): EditorGraph {
     },
   ]
 
-  const edges: Edge[] = [
-    { id: 'fw1-n1', source: 'fw1', target: 'n1' },
-    { id: 'n1-n2', source: 'n1', target: 'n2' },
-    { id: 'n2-n3', source: 'n2', target: 'n3' },
+  const edges: CaseEditorEdge[] = [
+    { id: 'fw1-n1', source: 'fw1', target: 'n1', markerEnd: DEFAULT_EDGE_MARKER, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n1-n2', source: 'n1', target: 'n2', markerEnd: DEFAULT_EDGE_MARKER, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n2-n3', source: 'n2', target: 'n3', markerEnd: DEFAULT_EDGE_MARKER, data: { isHierarchical: true, associationType: 'isChildOf' } },
   ]
 
   return { nodes, edges }
