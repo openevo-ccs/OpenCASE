@@ -99,61 +99,38 @@ export default function ExternalFrameworkNode({ id, data, selected }: NodeProps<
           </div>
         )}
 
-        {/* Handles for connections */}
+        {/* Bidirectional handles on all four sides - graph style connections */}
         <Handle
           id="top"
           position={Position.Top}
-          type="target"
+          type="source"
           isConnectableStart={true}
           isConnectableEnd={true}
-          style={{
-            background: '#cbd5e1',
-            border: '2px solid #94a3b8',
-            width: 10,
-            height: 10,
-          }}
+          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-200 transition-colors hover:!border-slate-600 hover:!bg-slate-300"
         />
-
         <Handle
           id="bottom"
           position={Position.Bottom}
           type="source"
           isConnectableStart={true}
           isConnectableEnd={true}
-          style={{
-            background: '#cbd5e1',
-            border: '2px solid #94a3b8',
-            width: 10,
-            height: 10,
-          }}
+          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-200 transition-colors hover:!border-slate-600 hover:!bg-slate-300"
         />
-
         <Handle
           id="left"
           position={Position.Left}
           type="source"
           isConnectableStart={true}
           isConnectableEnd={true}
-          style={{
-            background: '#cbd5e1',
-            border: '2px solid #94a3b8',
-            width: 10,
-            height: 10,
-          }}
+          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-200 transition-colors hover:!border-slate-600 hover:!bg-slate-300"
         />
-
         <Handle
           id="right"
           position={Position.Right}
           type="source"
           isConnectableStart={true}
           isConnectableEnd={true}
-          style={{
-            background: '#cbd5e1',
-            border: '2px solid #94a3b8',
-            width: 10,
-            height: 10,
-          }}
+          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-200 transition-colors hover:!border-slate-600 hover:!bg-slate-300"
         />
       </div>
     </div>

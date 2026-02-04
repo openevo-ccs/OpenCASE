@@ -9,6 +9,7 @@ type Props = {
   nodes: CaseEditorNodeType[]
   onClose?: () => void
   onChangeEdge?: (_edgeId: string, _patch: CaseEdgeDataPatch) => void
+  onFlipEdge?: (_edgeId: string) => void
 }
 
 /** Human-friendly labels for CASE association types */
@@ -24,16 +25,16 @@ const ASSOCIATION_TYPE_LABELS: Record<string, string> = {
 
 /** Descriptions for each association type */
 const ASSOCIATION_TYPE_DESCRIPTIONS: Record<string, string> = {
-  isChildOf: 'The origin item is a child of the destination item (hierarchical)',
+  isChildOf: 'The destination item is a child of the origin item (hierarchical)',
   isPeerOf: 'The origin item is a peer/sibling of the destination item',
-  isPartOf: 'The origin item is a component part of the destination item',
+  isPartOf: 'The destination item is a component part of the origin item',
   exactMatchOf: 'The origin item has an exact semantic match with the destination',
   precedes: 'The origin item should come before the destination (ordering)',
   isRelatedTo: 'The origin item is related to the destination (general relationship)',
-  isTranslationOf: 'The origin item is a translation of the destination item',
+  isTranslationOf: 'The destination item is a translation of the origin item',
 }
 
-export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge }: Readonly<Props>) {
+export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge, onFlipEdge }: Readonly<Props>) {
   const [copied, setCopied] = useState<null | 'uri'>(null)
   const [customType, setCustomType] = useState('')
 
@@ -183,10 +184,21 @@ export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge
                   <div className="text-sm font-medium text-slate-900">{getNodeLabel(sourceNode)}</div>
                 </div>
               </div>
-              <div className="ml-3 border-l-2 border-slate-200 py-1 pl-4">
+              <div className="ml-3 flex items-center gap-2 border-l-2 border-slate-200 py-1 pl-4">
                 <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                 </svg>
+                <button
+                  type="button"
+                  onClick={() => edge && onFlipEdge?.(edge.id)}
+                  className="ml-auto flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                  title="Swap origin and destination"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                  Flip
+                </button>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-700">

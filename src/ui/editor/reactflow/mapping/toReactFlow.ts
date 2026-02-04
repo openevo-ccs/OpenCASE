@@ -159,19 +159,22 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
 
   const defaultLabelStyle = { fill: '#94a3b8', fontSize: 11, fontWeight: 500 }
 
-  // Hierarchy edges used by layout (source=parent, target=child).
+  // Hierarchy edges: source=child, target=parent
+  // This matches CASE semantics: "child isChildOf parent"
+  // Arrow at markerEnd points to parent, handles auto-routed by React Flow
   for (const itemId of itemIds) {
     const parentId = parentByChild.get(itemId) ?? fwId
-    const association = associationByEdgeKey.get(`${parentId}_${itemId}`)
+    const association = associationByEdgeKey.get(`${parentId}_${itemId}`) ?? associationByEdgeKey.get(`${itemId}_${parentId}`)
     const cfAssociation = association ? mapDomainAssociationToCfAssociation(framework, association) : undefined
     const md = (association?.metadata ?? {}) as Record<string, unknown>
     const assocType = association?.associationType ?? 'isChildOf'
     const markers = getEdgeMarkers(assocType)
     
     edges.push({
-      id: `e_${parentId}_${itemId}`,
-      source: parentId,
-      target: itemId,
+      id: `e_${itemId}_${parentId}`,
+      source: itemId,        // child (origin)
+      target: parentId,      // parent (destination)
+      // No explicit handles - let React Flow route naturally
       label: formatAssociationType(assocType),
       labelStyle: defaultLabelStyle,
       ...markers,

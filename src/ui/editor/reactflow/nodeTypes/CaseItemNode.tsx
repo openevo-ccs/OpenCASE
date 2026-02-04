@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps, NodeResizer, useReactFlow } from '@xyflow/react'
-import { ArrowUpCircleIcon, ArrowDownCircleIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
+import { PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
 import type { CaseItemNodeType } from '../types'
 import type { CaseEditorNodeType } from '@/ui/editor/reactflow/types'
 
@@ -139,82 +139,38 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
         </div>
       ) : null}
 
-      {/* Top handle - primary target for hierarchical edges */}
+      {/* Bidirectional handles on all four sides - graph style connections */}
       <Handle
         id="top"
         position={Position.Top}
-        type="target"
+        type="source"
         isConnectableStart={true}
         isConnectableEnd={true}
-        style={{
-          background: 'none',
-          border: 'none',
-          width: '0.9em',
-          height: '0.9em',
-        }}
-      >
-        <ArrowUpCircleIcon
-          style={{
-            pointerEvents: 'none',
-            fontSize: '1em',
-            left: 0,
-            position: 'absolute',
-          }}
-        />
-      </Handle>
-
-      {/* Bottom handle - primary source for hierarchical edges */}
+        className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-100 transition-colors hover:!border-violet-500 hover:!bg-violet-100"
+      />
       <Handle
         id="bottom"
         position={Position.Bottom}
         type="source"
         isConnectableStart={true}
         isConnectableEnd={true}
-        style={{
-          background: 'none',
-          border: 'none',
-          width: '1em',
-          height: '1em',
-        }}
-      >
-        <ArrowDownCircleIcon
-          style={{
-            pointerEvents: 'none',
-            fontSize: '1em',
-            left: 0,
-            position: 'absolute',
-          }}
-        />
-      </Handle>
-
-      {/* Left handles - for side connections */}
+        className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-100 transition-colors hover:!border-violet-500 hover:!bg-violet-100"
+      />
       <Handle
         id="left"
         position={Position.Left}
         type="source"
         isConnectableStart={true}
         isConnectableEnd={true}
-        style={{
-          background: '#e2e8f0',
-          border: '2px solid #94a3b8',
-          width: 10,
-          height: 10,
-        }}
+        className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-100 transition-colors hover:!border-violet-500 hover:!bg-violet-100"
       />
-
-      {/* Right handles - for side connections */}
       <Handle
         id="right"
         position={Position.Right}
         type="source"
         isConnectableStart={true}
         isConnectableEnd={true}
-        style={{
-          background: '#e2e8f0',
-          border: '2px solid #94a3b8',
-          width: 10,
-          height: 10,
-        }}
+        className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-100 transition-colors hover:!border-violet-500 hover:!bg-violet-100"
       />
 
       <div className="pointer-events-none absolute bottom-2 right-3 text-[10px] font-medium text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">

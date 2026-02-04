@@ -15,7 +15,17 @@ export const DEFAULT_EDGE_MARKER = {
   color: '#94a3b8', // slate-400
 }
 
-/** Get edge markers based on association type */
+/** Get edge markers based on association type
+ * 
+ * CASE association semantics:
+ * - isChildOf: origin IS CHILD OF destination (arrow points to destination/parent)
+ * - isPartOf: origin IS PART OF destination (arrow points to destination/whole)
+ * - precedes: origin PRECEDES destination (arrow points to destination)
+ * - isRelatedTo: bidirectional relationship (arrows both ways)
+ * 
+ * Edges are created with source=origin, target=destination (semantic direction).
+ * Arrow at markerEnd points to the destination, showing the "of" relationship.
+ */
 export function getEdgeMarkers(associationType: string) {
   // isRelatedTo is bidirectional - arrows on both ends
   if (associationType === 'isRelatedTo') {
@@ -25,8 +35,7 @@ export function getEdgeMarkers(associationType: string) {
     }
   }
 
-  // All other types: single arrow at the end (pointing to destination/child)
-  // Explicitly set markerStart to undefined to clear it when switching from bidirectional
+  // All directional types: arrow at END pointing to destination
   return {
     markerStart: undefined,
     markerEnd: DEFAULT_EDGE_MARKER,
@@ -178,10 +187,12 @@ export function createSampleGraph(): EditorGraph {
 
   const defaultLabelStyle = { fill: '#94a3b8', fontSize: 11, fontWeight: 500 }
   
+  // Edge goes child → parent, arrow at parent shows "child is child OF parent"
+  // No explicit handles - let React Flow route naturally
   const edges: CaseEditorEdge[] = [
-    { id: 'fw1-n1', source: 'fw1', target: 'n1', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
-    { id: 'n1-n2', source: 'n1', target: 'n2', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
-    { id: 'n2-n3', source: 'n2', target: 'n3', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n1-fw1', source: 'n1', target: 'fw1', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n2-n1', source: 'n2', target: 'n1', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n3-n2', source: 'n3', target: 'n2', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
   ]
 
   return { nodes, edges }

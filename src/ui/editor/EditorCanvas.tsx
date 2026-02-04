@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactFlowInstance } from '@xyflow/react'
+import type { ReactFlowInstance, Connection, Edge } from '@xyflow/react'
 import type { OnBeforeDelete } from '@xyflow/react'
 import type { OnSelectionChangeFunc } from '@xyflow/react'
 import { Background, BackgroundVariant, ConnectionMode, Controls, MiniMap, ReactFlow } from '@xyflow/react'
@@ -33,6 +33,8 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
     clearSelection,
     updateNodeData,
     updateEdgeData,
+    flipEdge,
+    reconnectEdge: reconnectEdgeAction,
     layoutVersion,
     addItemDialog,
     setAddItemDraft,
@@ -53,12 +55,47 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [externalFwDialogOpen, setExternalFwDialogOpen] = useState(false)
+  
+  // Track the edge being reconnected
+  const edgeReconnectSuccessful = useRef(true)
 
   // Apply the edge type setting to all edges
   const edgesWithType = useMemo<CaseEditorEdge[]>(
     () => editorEdges.map((edge) => ({ ...edge, type: settings.edgeType })),
     [editorEdges, settings.edgeType],
   )
+  
+  // Handle edge reconnection - when user drags an edge endpoint to a new handle/node
+  const onReconnectStart = useCallback(() => {
+    edgeReconnectSuccessful.current = false
+  }, [])
+  
+  const onReconnect = useCallback((oldEdge: Edge, newConnection: Connection) => {
+    edgeReconnectSuccessful.current = true
+    
+    // Use our dedicated reconnect action to update the edge in place
+    const newSource = newConnection.source ?? oldEdge.source
+    const newTarget = newConnection.target ?? oldEdge.target
+    const newSourceHandle = newConnection.sourceHandle ?? undefined
+    const newTargetHandle = newConnection.targetHandle ?? undefined
+    
+    reconnectEdgeAction(
+      oldEdge.id,
+      newSource,
+      newTarget,
+      newSourceHandle,
+      newTargetHandle
+    )
+  }, [reconnectEdgeAction])
+  
+  const onReconnectEnd = useCallback((_: unknown, edge: Edge) => {
+    // If reconnection wasn't successful (dropped in empty space), optionally remove the edge
+    // For now, we'll keep the edge if reconnection fails (user just cancels)
+    if (!edgeReconnectSuccessful.current) {
+      // Edge stays as-is if dropped in empty space
+    }
+    edgeReconnectSuccessful.current = true
+  }, [])
 
   const [pendingDelete, setPendingDelete] = useState<null | {
     nodeIds: string[]
@@ -358,12 +395,17 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
           nodeTypes={nodeTypes}
           edgesFocusable
           elevateEdgesOnSelect
+          edgesReconnectable
+          onReconnectStart={onReconnectStart}
+          onReconnect={onReconnect}
+          onReconnectEnd={onReconnectEnd}
           connectOnClick={true}
           connectionMode={ConnectionMode.Loose}
           defaultEdgeOptions={{
             interactionWidth: 20,
             style: { strokeWidth: 1.5, stroke: '#94a3b8' },
             focusable: true,
+            reconnectable: true,
           }}
           proOptions={{ hideAttribution: true }}
           onInit={(instance) => {
@@ -391,6 +433,7 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
         nodes={nodesWithCallbacks}
         onClose={clearSelection}
         onChangeEdge={updateEdgeData}
+        onFlipEdge={flipEdge}
       />
 
       <AddItemDialog

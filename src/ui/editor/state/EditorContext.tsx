@@ -104,6 +104,8 @@ type Action =
   | { type: 'edges/connect'; connection: Connection }
   | { type: 'node/updateData'; nodeId: string; patch: CaseEditorNodeDataPatch }
   | { type: 'edge/updateData'; edgeId: string; patch: CaseEdgeDataPatch }
+  | { type: 'edge/flip'; edgeId: string }
+  | { type: 'edge/reconnect'; edgeId: string; newSource: string; newTarget: string; newSourceHandle?: string; newTargetHandle?: string }
   | { type: 'node/addChild'; parentId: string; childId: string; cfItem: CFItem }
   | { type: 'node/addDetachedItem'; nodeId: string; cfItem: CFItem }
   | { type: 'node/addExternalFramework'; nodeId: string; data: ExternalFrameworkNodeData }
@@ -132,18 +134,20 @@ function reducer(state: EditorState, action: Action): EditorState {
     case 'edges/connect': {
       const { source, target, sourceHandle, targetHandle } = action.connection
       if (!source || !target) return state
-      const defaultAssocType = 'isRelatedTo'
-      // Create a properly formatted edge with data, markers, and label
+      // Default to isChildOf - source is child, target is parent
+      const defaultAssocType = 'isChildOf'
+      
       const newEdge: CaseEditorEdge = {
         id: `e_${source}_${target}_${Date.now()}`,
         source,
         target,
+        // Only use handles if user explicitly dragged from a specific handle
         sourceHandle: sourceHandle ?? undefined,
         targetHandle: targetHandle ?? undefined,
         label: formatAssociationType(defaultAssocType),
         labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
         data: {
-          isHierarchical: false,
+          isHierarchical: true,
           associationType: defaultAssocType,
         },
         ...getEdgeMarkers(defaultAssocType),
@@ -207,6 +211,77 @@ function reducer(state: EditorState, action: Action): EditorState {
       })
       return { ...state, edges, dirty: true }
     }
+    case 'edge/flip': {
+      const { edgeId } = action
+      const edges = state.edges.map((e) => {
+        if (e.id !== edgeId) return e
+        
+        // Swap source and target
+        const newSource = e.target
+        const newTarget = e.source
+        
+        // Update cfAssociation origin/destination if present
+        const currentData = e.data ?? {}
+        const cfAssoc = currentData.cfAssociation
+        const newCfAssociation = cfAssoc ? {
+          ...cfAssoc,
+          originNodeURI: cfAssoc.destinationNodeURI,
+          destinationNodeURI: cfAssoc.originNodeURI,
+          lastChangeDateTime: new Date().toISOString(),
+        } : undefined
+        
+        return {
+          ...e,
+          source: newSource,
+          target: newTarget,
+          // Swap handles if they exist
+          sourceHandle: e.targetHandle,
+          targetHandle: e.sourceHandle,
+          data: {
+            ...currentData,
+            cfAssociation: newCfAssociation,
+          },
+        }
+      })
+      return { ...state, edges, dirty: true }
+    }
+    case 'edge/reconnect': {
+      const { edgeId, newSource, newTarget, newSourceHandle, newTargetHandle } = action
+      const edges = state.edges.map((e) => {
+        if (e.id !== edgeId) return e
+        
+        // Update the edge with new source/target while preserving all other data
+        const currentData = e.data ?? {}
+        const cfAssoc = currentData.cfAssociation
+        
+        // Update cfAssociation URIs if present
+        const newCfAssociation = cfAssoc ? {
+          ...cfAssoc,
+          originNodeURI: { 
+            ...cfAssoc.originNodeURI,
+            identifier: newSource 
+          },
+          destinationNodeURI: { 
+            ...cfAssoc.destinationNodeURI,
+            identifier: newTarget 
+          },
+          lastChangeDateTime: new Date().toISOString(),
+        } : undefined
+        
+        return {
+          ...e,
+          source: newSource,
+          target: newTarget,
+          sourceHandle: newSourceHandle,
+          targetHandle: newTargetHandle,
+          data: {
+            ...currentData,
+            cfAssociation: newCfAssociation,
+          },
+        }
+      })
+      return { ...state, edges, dirty: true }
+    }
     case 'node/addChild': {
       const parent = state.nodes.find((n) => n.id === action.parentId)
       if (!parent) return state
@@ -234,15 +309,17 @@ function reducer(state: EditorState, action: Action): EditorState {
       }
 
       const nextNodes = [...state.nodes.map((n) => ({ ...n, selected: false })), { ...childNode, selected: true }]
+      // Edge goes child → parent, arrow at parent shows "child is child OF parent"
+      // No explicit handles - let React Flow route naturally
       const nextEdges: CaseEditorEdge[] = [
         ...state.edges.map((e) => ({ ...e, selected: false })),
         {
-          id: `e_${action.parentId}_${childId}`,
-          source: action.parentId,
-          target: childId,
+          id: `e_${childId}_${action.parentId}`,
+          source: childId,
+          target: action.parentId,
           label: formatAssociationType('isChildOf'),
           labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
-          markerEnd: DEFAULT_EDGE_MARKER,
+          ...getEdgeMarkers('isChildOf'),
           data: { isHierarchical: true, associationType: 'isChildOf' },
         },
       ]
@@ -405,6 +482,8 @@ type EditorContextValue = {
   clearSelection: () => void
   updateNodeData: (_nodeId: string, _patch: CaseEditorNodeDataPatch) => void
   updateEdgeData: (_edgeId: string, _patch: CaseEdgeDataPatch) => void
+  flipEdge: (_edgeId: string) => void
+  reconnectEdge: (_edgeId: string, _newSource: string, _newTarget: string, _newSourceHandle?: string, _newTargetHandle?: string) => void
   addChild: (_parentId: string) => void
   addDetachedItem: () => void
   addExternalFramework: (_data: ExternalFrameworkNodeData) => void
@@ -635,6 +714,17 @@ export function EditorProvider({
     [],
   )
 
+  const flipEdge = useCallback(
+    (edgeId: string) => dispatch({ type: 'edge/flip', edgeId }),
+    [],
+  )
+
+  const reconnectEdge = useCallback(
+    (edgeId: string, newSource: string, newTarget: string, newSourceHandle?: string, newTargetHandle?: string) => 
+      dispatch({ type: 'edge/reconnect', edgeId, newSource, newTarget, newSourceHandle, newTargetHandle }),
+    [],
+  )
+
   const nodesWithCallbacks = useMemo(() => {
     return state.nodes.map((n) => {
       if (isItemNode(n)) {
@@ -717,6 +807,8 @@ export function EditorProvider({
       clearSelection,
       updateNodeData,
       updateEdgeData,
+      flipEdge,
+      reconnectEdge,
       addChild,
       addDetachedItem,
       addExternalFramework,
@@ -747,6 +839,8 @@ export function EditorProvider({
       clearSelection,
       updateNodeData,
       updateEdgeData,
+      flipEdge,
+      reconnectEdge,
       addChild,
       addDetachedItem,
       addExternalFramework,

@@ -84,49 +84,38 @@ export default function CaseFrameworkNode({ id, data, selected }: NodeProps<Case
         selected={selected}
         rightHint="Select to edit"
       >
-        {/* Bottom handle - primary source for hierarchical edges */}
+        {/* Bidirectional handles on all four sides - graph style connections */}
+        <Handle
+          id="top"
+          position={Position.Top}
+          type="source"
+          isConnectableStart={true}
+          isConnectableEnd={true}
+          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-violet-400 !bg-violet-100 transition-colors hover:!border-violet-600 hover:!bg-violet-200"
+        />
         <Handle
           id="bottom"
           position={Position.Bottom}
           type="source"
           isConnectableStart={true}
           isConnectableEnd={true}
-          style={{
-            background: 'none',
-            border: 'none',
-            width: '1em',
-            height: '1em',
-          }}
+          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-violet-400 !bg-violet-100 transition-colors hover:!border-violet-600 hover:!bg-violet-200"
         />
-
-        {/* Left handle - for side connections */}
         <Handle
           id="left"
           position={Position.Left}
           type="source"
           isConnectableStart={true}
           isConnectableEnd={true}
-          style={{
-            background: '#ede9fe',
-            border: '2px solid #a78bfa',
-            width: 10,
-            height: 10,
-          }}
+          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-violet-400 !bg-violet-100 transition-colors hover:!border-violet-600 hover:!bg-violet-200"
         />
-
-        {/* Right handle - for side connections */}
         <Handle
           id="right"
           position={Position.Right}
           type="source"
           isConnectableStart={true}
           isConnectableEnd={true}
-          style={{
-            background: '#ede9fe',
-            border: '2px solid #a78bfa',
-            width: 10,
-            height: 10,
-          }}
+          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-violet-400 !bg-violet-100 transition-colors hover:!border-violet-600 hover:!bg-violet-200"
         />
       </FrameworkCard>
     </div>
