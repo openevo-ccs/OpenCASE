@@ -1,10 +1,22 @@
-import { Handle, Position, type NodeProps, NodeResizer, useReactFlow } from '@xyflow/react'
+import { Handle, Position, type NodeProps, NodeResizer, useReactFlow, useConnection } from '@xyflow/react'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
 import type { CaseItemNodeType } from '../types'
 import type { CaseEditorNodeType } from '@/ui/editor/reactflow/types'
 
 export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemNodeType>) {
   const rf = useReactFlow<CaseEditorNodeType>()
+  
+  // Get connection state to show visual feedback during drag (React Flow v12+)
+  const connection = useConnection()
+  const connectionInProgress = connection.inProgress
+  const connectionNodeId = connection.fromNode?.id ?? null
+  
+  // Check if the node being dragged from is a framework
+  const sourceNodeType = connection.fromNode?.type
+  const isSourceFramework = sourceNodeType === 'caseFrameworkNode' || sourceNodeType === 'externalFrameworkNode'
+  
+  // This item is a valid target when dragging from a framework (show positive feedback)
+  const isValidTarget = connectionInProgress && isSourceFramework && connectionNodeId !== id
 
   // Defensive typing: React Flow's NodeProps typing can lag behind our node-data evolution.
   // Runtime `data` is shaped by `App.tsx` and always includes `cfItem` for CASE item nodes.
@@ -33,8 +45,9 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
   return (
     <div
       className={[
-        'group relative h-full w-full rounded-lg border bg-white px-3 py-2 shadow-sm transition-shadow hover:shadow-md',
+        'group relative h-full w-full rounded-lg border bg-white px-3 py-2 shadow-sm transition-all hover:shadow-md',
         selected ? 'border-violet-500 shadow-md ring-2 ring-violet-500/15' : 'border-slate-300',
+        isValidTarget ? 'border-emerald-400 ring-2 ring-emerald-400/30 shadow-lg shadow-emerald-100' : '',
       ].join(' ')}
     >
       <NodeResizer
@@ -146,7 +159,11 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
         type="source"
         isConnectableStart={true}
         isConnectableEnd={true}
-        className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-100 transition-colors hover:!border-violet-500 hover:!bg-violet-100"
+        className={`!h-2.5 !w-2.5 !rounded-full !border-2 transition-colors ${
+          isValidTarget
+            ? '!border-emerald-500 !bg-emerald-100 !scale-125'
+            : '!border-slate-400 !bg-slate-100 hover:!border-violet-500 hover:!bg-violet-100'
+        }`}
       />
       <Handle
         id="bottom"
@@ -154,7 +171,11 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
         type="source"
         isConnectableStart={true}
         isConnectableEnd={true}
-        className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-100 transition-colors hover:!border-violet-500 hover:!bg-violet-100"
+        className={`!h-2.5 !w-2.5 !rounded-full !border-2 transition-colors ${
+          isValidTarget
+            ? '!border-emerald-500 !bg-emerald-100 !scale-125'
+            : '!border-slate-400 !bg-slate-100 hover:!border-violet-500 hover:!bg-violet-100'
+        }`}
       />
       <Handle
         id="left"
@@ -162,7 +183,11 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
         type="source"
         isConnectableStart={true}
         isConnectableEnd={true}
-        className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-100 transition-colors hover:!border-violet-500 hover:!bg-violet-100"
+        className={`!h-2.5 !w-2.5 !rounded-full !border-2 transition-colors ${
+          isValidTarget
+            ? '!border-emerald-500 !bg-emerald-100 !scale-125'
+            : '!border-slate-400 !bg-slate-100 hover:!border-violet-500 hover:!bg-violet-100'
+        }`}
       />
       <Handle
         id="right"
@@ -170,7 +195,11 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
         type="source"
         isConnectableStart={true}
         isConnectableEnd={true}
-        className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-100 transition-colors hover:!border-violet-500 hover:!bg-violet-100"
+        className={`!h-2.5 !w-2.5 !rounded-full !border-2 transition-colors ${
+          isValidTarget
+            ? '!border-emerald-500 !bg-emerald-100 !scale-125'
+            : '!border-slate-400 !bg-slate-100 hover:!border-violet-500 hover:!bg-violet-100'
+        }`}
       />
 
       <div className="pointer-events-none absolute bottom-2 right-3 text-[10px] font-medium text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">

@@ -186,15 +186,25 @@ function reducer(state: EditorState, action: Action): EditorState {
       const { source, target, sourceHandle, targetHandle } = action.connection
       if (!source || !target) return state
       
-      // Check if either node is a framework node - use isPartOf for framework connections
+      // Check node types
       const sourceNode = state.nodes.find((n) => n.id === source)
       const targetNode = state.nodes.find((n) => n.id === target)
-      const involvesFramework = 
+      
+      const isSourceFramework = 
         sourceNode?.type === 'caseFrameworkNode' || 
-        sourceNode?.type === 'externalFrameworkNode' ||
+        sourceNode?.type === 'externalFrameworkNode'
+      const isTargetFramework = 
         targetNode?.type === 'caseFrameworkNode' || 
         targetNode?.type === 'externalFrameworkNode'
       
+      // Prevent framework-to-framework connections
+      if (isSourceFramework && isTargetFramework) {
+        // Silently reject - framework nodes can only connect to items
+        return state
+      }
+      
+      // Use isPartOf for framework connections, isChildOf for item-to-item
+      const involvesFramework = isSourceFramework || isTargetFramework
       const defaultAssocType = involvesFramework ? 'isPartOf' : 'isChildOf'
       
       const newEdge: CaseEditorEdge = {
@@ -309,6 +319,22 @@ function reducer(state: EditorState, action: Action): EditorState {
     }
     case 'edge/reconnect': {
       const { edgeId, newSource, newTarget, newSourceHandle, newTargetHandle } = action
+      
+      // Check if this would create a framework-to-framework connection
+      const newSourceNode = state.nodes.find((n) => n.id === newSource)
+      const newTargetNode = state.nodes.find((n) => n.id === newTarget)
+      const isSourceFramework = 
+        newSourceNode?.type === 'caseFrameworkNode' || 
+        newSourceNode?.type === 'externalFrameworkNode'
+      const isTargetFramework = 
+        newTargetNode?.type === 'caseFrameworkNode' || 
+        newTargetNode?.type === 'externalFrameworkNode'
+      
+      // Prevent framework-to-framework connections
+      if (isSourceFramework && isTargetFramework) {
+        return state // Reject the reconnection
+      }
+      
       const edges = state.edges.map((e) => {
         if (e.id !== edgeId) return e
         

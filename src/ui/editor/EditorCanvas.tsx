@@ -70,6 +70,26 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
     [editorEdges, settings.edgeType],
   )
   
+  // Validate connections - prevent framework-to-framework connections
+  const isValidConnection = useCallback((connection: Connection) => {
+    const sourceNode = nodesWithCallbacks.find((n) => n.id === connection.source)
+    const targetNode = nodesWithCallbacks.find((n) => n.id === connection.target)
+    
+    const isSourceFramework = 
+      sourceNode?.type === 'caseFrameworkNode' || 
+      sourceNode?.type === 'externalFrameworkNode'
+    const isTargetFramework = 
+      targetNode?.type === 'caseFrameworkNode' || 
+      targetNode?.type === 'externalFrameworkNode'
+    
+    // Reject framework-to-framework connections
+    if (isSourceFramework && isTargetFramework) {
+      return false
+    }
+    
+    return true
+  }, [nodesWithCallbacks])
+  
   // Handle edge reconnection - when user drags an edge endpoint to a new handle/node
   const onReconnectStart = useCallback(() => {
     edgeReconnectSuccessful.current = false
@@ -395,6 +415,7 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          isValidConnection={isValidConnection}
           onSelectionChange={onSelectionChangeWithPan}
           onBeforeDelete={onBeforeDelete}
           nodeTypes={nodeTypes}

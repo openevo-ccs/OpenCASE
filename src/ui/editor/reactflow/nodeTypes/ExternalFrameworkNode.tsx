@@ -1,9 +1,19 @@
-import { Handle, Position, type NodeProps, NodeResizer, useReactFlow } from '@xyflow/react'
+import { Handle, Position, type NodeProps, NodeResizer, useConnection } from '@xyflow/react'
 import { TrashIcon, LinkIcon } from '@heroicons/react/24/solid'
-import type { ExternalFrameworkNodeType, CaseEditorNodeType } from '../types'
+import type { ExternalFrameworkNodeType } from '../types'
 
 export default function ExternalFrameworkNode({ id, data, selected }: NodeProps<ExternalFrameworkNodeType>) {
-  const rf = useReactFlow<CaseEditorNodeType>()
+  // Get connection state to show visual feedback during drag (React Flow v12+)
+  const connection = useConnection()
+  const connectionInProgress = connection.inProgress
+  const connectionNodeId = connection.fromNode?.id ?? null
+  
+  // Check if the node being dragged from is a framework
+  const sourceNodeType = connection.fromNode?.type
+  const isSourceFramework = sourceNodeType === 'caseFrameworkNode' || sourceNodeType === 'externalFrameworkNode'
+  
+  // This framework is an invalid target if dragging from another framework
+  const isInvalidTarget = connectionInProgress && isSourceFramework && connectionNodeId !== id
 
   const typedData = data as unknown as {
     title?: string
@@ -56,10 +66,20 @@ export default function ExternalFrameworkNode({ id, data, selected }: NodeProps<
       {/* Card content - grey themed to indicate external */}
       <div
         className={[
-          'flex h-full w-full flex-col rounded-xl border-2 border-dashed bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm transition-shadow',
+          'relative flex h-full w-full flex-col rounded-xl border-2 border-dashed bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm transition-all',
           selected ? 'border-slate-500 shadow-md ring-2 ring-slate-400/20' : 'border-slate-300',
+          isInvalidTarget ? 'opacity-40 grayscale ring-2 ring-red-300' : '',
         ].join(' ')}
       >
+        {/* Invalid target indicator */}
+        {isInvalidTarget && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-red-50/50">
+            <div className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600">
+              Cannot link frameworks
+            </div>
+          </div>
+        )}
+        
         {/* Header with icon */}
         <div className="mb-2 flex items-center gap-2">
           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-200 text-slate-600">
@@ -93,7 +113,7 @@ export default function ExternalFrameworkNode({ id, data, selected }: NodeProps<
         </div>
 
         {/* Hint when not selected */}
-        {!selected && (
+        {!selected && !isInvalidTarget && (
           <div className="absolute bottom-2 right-3 text-xs text-slate-400">
             Select to edit
           </div>
@@ -105,32 +125,48 @@ export default function ExternalFrameworkNode({ id, data, selected }: NodeProps<
           position={Position.Top}
           type="source"
           isConnectableStart={true}
-          isConnectableEnd={true}
-          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-200 transition-colors hover:!border-slate-600 hover:!bg-slate-300"
+          isConnectableEnd={!isInvalidTarget}
+          className={`!h-2.5 !w-2.5 !rounded-full !border-2 transition-colors ${
+            isInvalidTarget 
+              ? '!border-red-300 !bg-red-100' 
+              : '!border-slate-400 !bg-slate-200 hover:!border-slate-600 hover:!bg-slate-300'
+          }`}
         />
         <Handle
           id="bottom"
           position={Position.Bottom}
           type="source"
           isConnectableStart={true}
-          isConnectableEnd={true}
-          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-200 transition-colors hover:!border-slate-600 hover:!bg-slate-300"
+          isConnectableEnd={!isInvalidTarget}
+          className={`!h-2.5 !w-2.5 !rounded-full !border-2 transition-colors ${
+            isInvalidTarget 
+              ? '!border-red-300 !bg-red-100' 
+              : '!border-slate-400 !bg-slate-200 hover:!border-slate-600 hover:!bg-slate-300'
+          }`}
         />
         <Handle
           id="left"
           position={Position.Left}
           type="source"
           isConnectableStart={true}
-          isConnectableEnd={true}
-          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-200 transition-colors hover:!border-slate-600 hover:!bg-slate-300"
+          isConnectableEnd={!isInvalidTarget}
+          className={`!h-2.5 !w-2.5 !rounded-full !border-2 transition-colors ${
+            isInvalidTarget 
+              ? '!border-red-300 !bg-red-100' 
+              : '!border-slate-400 !bg-slate-200 hover:!border-slate-600 hover:!bg-slate-300'
+          }`}
         />
         <Handle
           id="right"
           position={Position.Right}
           type="source"
           isConnectableStart={true}
-          isConnectableEnd={true}
-          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-slate-400 !bg-slate-200 transition-colors hover:!border-slate-600 hover:!bg-slate-300"
+          isConnectableEnd={!isInvalidTarget}
+          className={`!h-2.5 !w-2.5 !rounded-full !border-2 transition-colors ${
+            isInvalidTarget 
+              ? '!border-red-300 !bg-red-100' 
+              : '!border-slate-400 !bg-slate-200 hover:!border-slate-600 hover:!bg-slate-300'
+          }`}
         />
       </div>
     </div>
