@@ -210,6 +210,16 @@ export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge
                 </div>
               </div>
             </div>
+            
+            {/* Hint about dragging handles */}
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2">
+              <svg className="h-4 w-4 shrink-0 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-xs text-violet-700">
+                <span className="font-medium">Tip:</span> Drag the purple handles on the edge to reconnect to a different node.
+              </span>
+            </div>
           </div>
 
           <div className="space-y-3">

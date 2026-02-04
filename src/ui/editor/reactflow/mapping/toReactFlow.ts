@@ -1,7 +1,7 @@
 import type { Association, Framework } from '@/domain/framework/model/types'
 import type { ItemId } from '@/domain/shared/types'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
-import { getEdgeMarkers, formatAssociationType } from '@/ui/editor/state/editorFactories'
+import { getEdgeMarkers, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
 import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
 import type { CFAssociation, CFDocument, CFItem } from '@/domain/case/types'
 import type { LayoutState } from './types'
@@ -158,6 +158,7 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
   }
 
   const defaultLabelStyle = { fill: '#94a3b8', fontSize: 11, fontWeight: 500 }
+  
 
   // Hierarchy edges: source=child, target=parent
   // This matches CASE semantics: "child isChildOf parent"
@@ -168,6 +169,7 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
     const cfAssociation = association ? mapDomainAssociationToCfAssociation(framework, association) : undefined
     const md = (association?.metadata ?? {}) as Record<string, unknown>
     const assocType = association?.associationType ?? 'isChildOf'
+    const seqNum = typeof md.sequenceNumber === 'number' ? md.sequenceNumber : undefined
     const markers = getEdgeMarkers(assocType)
     
     edges.push({
@@ -175,14 +177,14 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
       source: itemId,        // child (origin)
       target: parentId,      // parent (destination)
       // No explicit handles - let React Flow route naturally
-      label: formatAssociationType(assocType),
+      label: makeEdgeLabel(assocType, seqNum),
       labelStyle: defaultLabelStyle,
       ...markers,
       data: {
         cfAssociation,
         isHierarchical: true,
         associationType: assocType,
-        sequenceNumber: typeof md.sequenceNumber === 'number' ? md.sequenceNumber : undefined,
+        sequenceNumber: seqNum,
       },
     })
   }
@@ -196,20 +198,21 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
     
     const cfAssociation = mapDomainAssociationToCfAssociation(framework, a)
     const md = (a.metadata ?? {}) as Record<string, unknown>
+    const seqNum = typeof md.sequenceNumber === 'number' ? md.sequenceNumber : undefined
     const markers = getEdgeMarkers(a.associationType)
     
     edges.push({
       id: a.id as unknown as string,
       source: fromId,
       target: toId,
-      label: formatAssociationType(a.associationType),
+      label: makeEdgeLabel(a.associationType, seqNum),
       labelStyle: defaultLabelStyle,
       ...markers,
       data: {
         cfAssociation,
         isHierarchical: false,
         associationType: a.associationType,
-        sequenceNumber: typeof md.sequenceNumber === 'number' ? md.sequenceNumber : undefined,
+        sequenceNumber: seqNum,
       },
     })
   }

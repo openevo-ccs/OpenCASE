@@ -16,7 +16,7 @@ import type { CFDocument, CFItem } from '@/domain/case/types'
 import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
 import type { EdgeType, EditorSettings } from '@/ui/editor/components/SettingsModal'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
-import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, formatAssociationType, makeCfItem } from '@/ui/editor/state/editorFactories'
+import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, formatAssociationType, makeCfItem, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
 
 const DEFAULT_NODE_WIDTH = 360
 const DEFAULT_NODE_HEIGHT = 220
@@ -144,7 +144,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         // Only use handles if user explicitly dragged from a specific handle
         sourceHandle: sourceHandle ?? undefined,
         targetHandle: targetHandle ?? undefined,
-        label: formatAssociationType(defaultAssocType),
+        label: makeEdgeLabel(defaultAssocType),
         labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
         data: {
           isHierarchical: true,
@@ -196,16 +196,15 @@ function reducer(state: EditorState, action: Action): EditorState {
           }
         }
         
-        // Update markers and label if association type changed
+        // Update markers and label if association type or sequence number changed
         const finalAssocType = newData.associationType ?? currentData.associationType ?? 'isChildOf'
+        const finalSeqNum = newData.sequenceNumber
         const markers = getEdgeMarkers(finalAssocType)
-        const label = formatAssociationType(finalAssocType)
         
         return { 
           ...e, 
           ...markers, 
-          label,
-          labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
+          label: makeEdgeLabel(finalAssocType, finalSeqNum),
           data: newData 
         }
       })
@@ -317,7 +316,7 @@ function reducer(state: EditorState, action: Action): EditorState {
           id: `e_${childId}_${action.parentId}`,
           source: childId,
           target: action.parentId,
-          label: formatAssociationType('isChildOf'),
+          label: makeEdgeLabel('isChildOf'),
           labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
           ...getEdgeMarkers('isChildOf'),
           data: { isHierarchical: true, associationType: 'isChildOf' },

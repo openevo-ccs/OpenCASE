@@ -4,6 +4,7 @@ import type { OnBeforeDelete } from '@xyflow/react'
 import type { OnSelectionChangeFunc } from '@xyflow/react'
 import { Background, BackgroundVariant, ConnectionMode, Controls, MiniMap, ReactFlow } from '@xyflow/react'
 import { nodeTypes } from '@/ui/editor/reactflow/nodeTypes'
+import { edgeTypes } from '@/ui/editor/reactflow/edgeTypes'
 import CanvasHeader from '@/ui/editor/components/CanvasHeader'
 import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
 import EdgePropertiesPanel from '@/ui/editor/components/EdgePropertiesPanel'
@@ -59,9 +60,13 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
   // Track the edge being reconnected
   const edgeReconnectSuccessful = useRef(true)
 
-  // Apply the edge type setting to all edges
+  // Apply the custom labeled edge type to all edges, passing the path style in data
   const edgesWithType = useMemo<CaseEditorEdge[]>(
-    () => editorEdges.map((edge) => ({ ...edge, type: settings.edgeType })),
+    () => editorEdges.map((edge) => ({ 
+      ...edge, 
+      type: 'labeled',
+      data: { ...edge.data, edgeType: settings.edgeType }
+    })),
     [editorEdges, settings.edgeType],
   )
   
@@ -393,6 +398,7 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
           onSelectionChange={onSelectionChangeWithPan}
           onBeforeDelete={onBeforeDelete}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           edgesFocusable
           elevateEdgesOnSelect
           edgesReconnectable

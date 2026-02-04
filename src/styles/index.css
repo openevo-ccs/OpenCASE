@@ -217,13 +217,28 @@
   r: 8;
 }
 
-/* Prominent handles when edge is SELECTED - always visible */
+/* Prominent handles when edge is SELECTED - always visible with pulse animation */
 .react-flow__edge.selected .react-flow__edgeupdater circle {
   opacity: 1;
   fill: #7c3aed; /* violet-600 - filled purple */
   stroke: #5b21b6; /* violet-700 */
   stroke-width: 3;
   r: 10;
+  animation: handle-pulse 1.5s ease-in-out infinite;
+}
+
+/* Pulsing animation for draggable handles */
+@keyframes handle-pulse {
+  0%, 100% {
+    r: 10;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    r: 12;
+    stroke-width: 4;
+    filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.6));
+  }
 }
 
 /* Handle hover state */

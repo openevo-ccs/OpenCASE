@@ -57,6 +57,19 @@ export function formatAssociationType(associationType: string): string {
   }
 }
 
+/** Create edge label string - with optional sequence number */
+export function makeEdgeLabel(associationType: string, sequenceNumber?: number): string {
+  const typeLabel = formatAssociationType(associationType)
+  
+  // If no sequence number, just return the simple string label
+  if (sequenceNumber === undefined || sequenceNumber === null) {
+    return typeLabel
+  }
+  
+  // With sequence number, format as "# · type"
+  return `${sequenceNumber} · ${typeLabel}`
+}
+
 const DEFAULT_NODE_WIDTH = 360
 const DEFAULT_NODE_HEIGHT = 220
 const HEADER_SAFE_Y = 96
@@ -185,14 +198,13 @@ export function createSampleGraph(): EditorGraph {
     },
   ]
 
-  const defaultLabelStyle = { fill: '#94a3b8', fontSize: 11, fontWeight: 500 }
-  
   // Edge goes child → parent, arrow at parent shows "child is child OF parent"
   // No explicit handles - let React Flow route naturally
+  const defaultLabelStyle = { fill: '#94a3b8', fontSize: 11, fontWeight: 500 }
   const edges: CaseEditorEdge[] = [
-    { id: 'n1-fw1', source: 'n1', target: 'fw1', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
-    { id: 'n2-n1', source: 'n2', target: 'n1', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
-    { id: 'n3-n2', source: 'n3', target: 'n2', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n1-fw1', source: 'n1', target: 'fw1', markerEnd: DEFAULT_EDGE_MARKER, label: makeEdgeLabel('isChildOf'), labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n2-n1', source: 'n2', target: 'n1', markerEnd: DEFAULT_EDGE_MARKER, label: makeEdgeLabel('isChildOf'), labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n3-n2', source: 'n3', target: 'n2', markerEnd: DEFAULT_EDGE_MARKER, label: makeEdgeLabel('isChildOf'), labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
   ]
 
   return { nodes, edges }
