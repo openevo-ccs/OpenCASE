@@ -26,8 +26,25 @@ export function getEdgeMarkers(associationType: string) {
   }
 
   // All other types: single arrow at the end (pointing to destination/child)
+  // Explicitly set markerStart to undefined to clear it when switching from bidirectional
   return {
+    markerStart: undefined,
     markerEnd: DEFAULT_EDGE_MARKER,
+  }
+}
+
+/** Format association type for display as edge label */
+export function formatAssociationType(associationType: string): string {
+  // Convert camelCase to readable format
+  switch (associationType) {
+    case 'isChildOf': return 'child of'
+    case 'isPartOf': return 'part of'
+    case 'isRelatedTo': return 'related to'
+    case 'isPeerOf': return 'peer of'
+    case 'precedes': return 'precedes'
+    case 'exactMatchOf': return 'exact match'
+    case 'isTranslationOf': return 'translation of'
+    default: return associationType
   }
 }
 
@@ -159,10 +176,12 @@ export function createSampleGraph(): EditorGraph {
     },
   ]
 
+  const defaultLabelStyle = { fill: '#94a3b8', fontSize: 11, fontWeight: 500 }
+  
   const edges: CaseEditorEdge[] = [
-    { id: 'fw1-n1', source: 'fw1', target: 'n1', markerEnd: DEFAULT_EDGE_MARKER, data: { isHierarchical: true, associationType: 'isChildOf' } },
-    { id: 'n1-n2', source: 'n1', target: 'n2', markerEnd: DEFAULT_EDGE_MARKER, data: { isHierarchical: true, associationType: 'isChildOf' } },
-    { id: 'n2-n3', source: 'n2', target: 'n3', markerEnd: DEFAULT_EDGE_MARKER, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'fw1-n1', source: 'fw1', target: 'n1', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n1-n2', source: 'n1', target: 'n2', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
+    { id: 'n2-n3', source: 'n2', target: 'n3', markerEnd: DEFAULT_EDGE_MARKER, label: 'child of', labelStyle: defaultLabelStyle, data: { isHierarchical: true, associationType: 'isChildOf' } },
   ]
 
   return { nodes, edges }

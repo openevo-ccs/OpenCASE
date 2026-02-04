@@ -13,7 +13,7 @@ import type {
 import type { CFDocument, CFItem } from '@/domain/case/types'
 import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
-import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, makeCfItem } from '@/ui/editor/state/editorFactories'
+import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, formatAssociationType, makeCfItem } from '@/ui/editor/state/editorFactories'
 
 const DEFAULT_NODE_WIDTH = 360
 const DEFAULT_NODE_HEIGHT = 220
@@ -127,18 +127,21 @@ function reducer(state: EditorState, action: Action): EditorState {
     case 'edges/connect': {
       const { source, target, sourceHandle, targetHandle } = action.connection
       if (!source || !target) return state
-      // Create a properly formatted edge with data and markers
+      const defaultAssocType = 'isRelatedTo'
+      // Create a properly formatted edge with data, markers, and label
       const newEdge: CaseEditorEdge = {
         id: `e_${source}_${target}_${Date.now()}`,
         source,
         target,
         sourceHandle: sourceHandle ?? undefined,
         targetHandle: targetHandle ?? undefined,
+        label: formatAssociationType(defaultAssocType),
+        labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
         data: {
           isHierarchical: false,
-          associationType: 'isRelatedTo', // Default for user-created connections
+          associationType: defaultAssocType,
         },
-        ...getEdgeMarkers('isRelatedTo'),
+        ...getEdgeMarkers(defaultAssocType),
       }
       return { ...state, edges: [...state.edges, newEdge], dirty: true }
     }
@@ -184,11 +187,18 @@ function reducer(state: EditorState, action: Action): EditorState {
           }
         }
         
-        // Update markers if association type changed
+        // Update markers and label if association type changed
         const finalAssocType = newData.associationType ?? currentData.associationType ?? 'isChildOf'
         const markers = getEdgeMarkers(finalAssocType)
+        const label = formatAssociationType(finalAssocType)
         
-        return { ...e, ...markers, data: newData }
+        return { 
+          ...e, 
+          ...markers, 
+          label,
+          labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
+          data: newData 
+        }
       })
       return { ...state, edges, dirty: true }
     }
@@ -225,6 +235,8 @@ function reducer(state: EditorState, action: Action): EditorState {
           id: `e_${action.parentId}_${childId}`,
           source: action.parentId,
           target: childId,
+          label: formatAssociationType('isChildOf'),
+          labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
           markerEnd: DEFAULT_EDGE_MARKER,
           data: { isHierarchical: true, associationType: 'isChildOf' },
         },

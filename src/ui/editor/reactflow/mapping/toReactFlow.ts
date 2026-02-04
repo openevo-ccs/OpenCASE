@@ -1,7 +1,7 @@
 import type { Association, Framework } from '@/domain/framework/model/types'
 import type { ItemId } from '@/domain/shared/types'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
-import { getEdgeMarkers } from '@/ui/editor/state/editorFactories'
+import { getEdgeMarkers, formatAssociationType } from '@/ui/editor/state/editorFactories'
 import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
 import type { CFAssociation, CFDocument, CFItem } from '@/domain/case/types'
 import type { LayoutState } from './types'
@@ -157,6 +157,8 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
     y += DEFAULT_NODE_HEIGHT + 100
   }
 
+  const defaultLabelStyle = { fill: '#94a3b8', fontSize: 11, fontWeight: 500 }
+
   // Hierarchy edges used by layout (source=parent, target=child).
   for (const itemId of itemIds) {
     const parentId = parentByChild.get(itemId) ?? fwId
@@ -170,6 +172,8 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
       id: `e_${parentId}_${itemId}`,
       source: parentId,
       target: itemId,
+      label: formatAssociationType(assocType),
+      labelStyle: defaultLabelStyle,
       ...markers,
       data: {
         cfAssociation,
@@ -195,6 +199,8 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
       id: a.id as unknown as string,
       source: fromId,
       target: toId,
+      label: formatAssociationType(a.associationType),
+      labelStyle: defaultLabelStyle,
       ...markers,
       data: {
         cfAssociation,
