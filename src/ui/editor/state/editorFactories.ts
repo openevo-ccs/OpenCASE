@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { MarkerType } from '@xyflow/react'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
@@ -7,7 +8,7 @@ export type EditorGraph = {
   edges: CaseEditorEdge[]
 }
 
-/** Default arrow marker for edges */
+/** Default arrow marker for edges - solid filled arrow */
 export const DEFAULT_EDGE_MARKER = {
   type: MarkerType.ArrowClosed,
   width: 16,
@@ -15,16 +16,24 @@ export const DEFAULT_EDGE_MARKER = {
   color: '#94a3b8', // slate-400
 }
 
+/** Small outline arrow marker for isPartOf relationships */
+export const PART_OF_EDGE_MARKER = {
+  type: MarkerType.Arrow, // Open/outline arrow
+  width: 12,
+  height: 12,
+  color: '#94a3b8', // slate-400
+}
+
 /** Get edge markers based on association type
  * 
  * CASE association semantics:
  * - isChildOf: origin IS CHILD OF destination (arrow points to destination/parent)
- * - isPartOf: origin IS PART OF destination (arrow points to destination/whole)
+ * - isPartOf: destination IS PART OF origin (arrow points to origin - reversed!)
  * - precedes: origin PRECEDES destination (arrow points to destination)
  * - isRelatedTo: bidirectional relationship (arrows both ways)
  * 
- * Edges are created with source=origin, target=destination (semantic direction).
- * Arrow at markerEnd points to the destination, showing the "of" relationship.
+ * For isPartOf, the visual reads: "X is part of Y" where arrow points FROM X TO Y,
+ * meaning markerStart shows the "part" pointing back to its "whole".
  */
 export function getEdgeMarkers(associationType: string) {
   // isRelatedTo is bidirectional - arrows on both ends
@@ -35,10 +44,35 @@ export function getEdgeMarkers(associationType: string) {
     }
   }
 
-  // All directional types: arrow at END pointing to destination
+  // isPartOf: arrow points to origin (the whole that the part belongs to)
+  // Uses small outline arrow style
+  if (associationType === 'isPartOf') {
+    return {
+      markerStart: PART_OF_EDGE_MARKER, // Arrow at start, pointing back to origin
+      markerEnd: undefined,
+    }
+  }
+
+  // All other directional types: arrow at END pointing to destination
   return {
     markerStart: undefined,
     markerEnd: DEFAULT_EDGE_MARKER,
+  }
+}
+
+/** Get edge style based on association type */
+export function getEdgeStyle(associationType: string): CSSProperties {
+  // isPartOf uses dashed line style
+  if (associationType === 'isPartOf') {
+    return {
+      strokeDasharray: '5,5',
+      strokeWidth: 1.5,
+    }
+  }
+  
+  // Default solid line
+  return {
+    strokeWidth: 1.5,
   }
 }
 

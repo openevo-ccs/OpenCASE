@@ -1,7 +1,7 @@
 import type { Association, Framework } from '@/domain/framework/model/types'
 import type { ItemId } from '@/domain/shared/types'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
-import { getEdgeMarkers, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
+import { getEdgeMarkers, getEdgeStyle, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
 import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
 import type { CFAssociation, CFDocument, CFItem } from '@/domain/case/types'
 import type { LayoutState } from './types'
@@ -239,6 +239,7 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
       targetHandle: handles.targetHandle,
       label: makeEdgeLabel(assocType, seqNum),
       labelStyle: defaultLabelStyle,
+      style: getEdgeStyle(assocType),
       ...markers,
       data: {
         cfAssociation,
@@ -284,6 +285,7 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
       targetHandle: handles.targetHandle,
       label: makeEdgeLabel(a.associationType, seqNum),
       labelStyle: defaultLabelStyle,
+      style: getEdgeStyle(a.associationType),
       ...markers,
       data: {
         cfAssociation,

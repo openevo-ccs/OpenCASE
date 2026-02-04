@@ -16,7 +16,7 @@ import type { CFDocument, CFItem } from '@/domain/case/types'
 import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
 import type { EditorSettings } from '@/ui/editor/components/SettingsModal'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
-import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, makeCfItem, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
+import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, getEdgeStyle, makeCfItem, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
 
 const DEFAULT_NODE_WIDTH = 360
 const DEFAULT_NODE_HEIGHT = 220
@@ -206,6 +206,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         targetHandle: targetHandle ?? undefined,
         label: makeEdgeLabel(defaultAssocType),
         labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
+        style: getEdgeStyle(defaultAssocType),
         data: {
           isHierarchical: true,
           associationType: defaultAssocType,
@@ -256,14 +257,16 @@ function reducer(state: EditorState, action: Action): EditorState {
           }
         }
         
-        // Update markers and label if association type or sequence number changed
+        // Update markers, style, and label if association type or sequence number changed
         const finalAssocType = newData.associationType ?? currentData.associationType ?? 'isChildOf'
         const finalSeqNum = newData.sequenceNumber
         const markers = getEdgeMarkers(finalAssocType)
+        const style = getEdgeStyle(finalAssocType)
         
         return { 
           ...e, 
           ...markers, 
+          style,
           label: makeEdgeLabel(finalAssocType, finalSeqNum),
           data: newData 
         }
@@ -446,6 +449,7 @@ function reducer(state: EditorState, action: Action): EditorState {
           targetHandle: handles.targetHandle,
           label: makeEdgeLabel(assocType),
           labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
+          style: getEdgeStyle(assocType),
           ...getEdgeMarkers(assocType),
           data: { 
             isHierarchical: true, 
