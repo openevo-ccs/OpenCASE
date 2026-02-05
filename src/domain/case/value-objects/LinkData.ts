@@ -1,3 +1,5 @@
+import { CaseVersion } from './Identifiers'
+
 /**
  * Link Data structure as defined in CASE v1p1 specification
  * Used for URI references that require title, identifier, and uri
@@ -60,6 +62,87 @@ export class LinkDataHelper {
    */
   static forItem(uri: string, identifier: string, title?: string): LinkData {
     return { title: title || identifier, identifier, uri }
+  }
+}
+
+/**
+ * URN Case URI utilities for handling urn:case:* format URIs
+ */
+export class UrnCaseUriHelper {
+  /**
+   * Checks if a URI is a URN Case URI (starts with urn:case:)
+   */
+  static isUrnCaseUri(uri: string): boolean {
+    return typeof uri === 'string' && uri.startsWith('urn:case:')
+  }
+
+  /**
+   * Parses a URN Case URI to extract type and identifier
+   * Format: urn:case:{type}:{identifier}
+   * Example: urn:case:item:tu_7d097707-1122-474b-9944-d3aace336b35
+   * Returns: { type: 'item', identifier: '7d097707-1122-474b-9944-d3aace336b35' }
+   */
+  static parseUrnCaseUri(uri: string): { type: 'item' | 'document' | 'association' | 'package', identifier: string } | null {
+    if (!this.isUrnCaseUri(uri)) {
+      return null
+    }
+
+    // Parse format: urn:case:{type}:{identifier}
+    const match = uri.match(/^urn:case:(item|document|association|package):(.+)$/i)
+    if (!match) {
+      return null
+    }
+
+    const [, typeStr, identifierWithPrefix] = match
+    const type = typeStr.toLowerCase() as 'item' | 'document' | 'association' | 'package'
+
+    // Extract identifier, stripping any prefixes like "tu_"
+    // Try to find UUID pattern first (8-4-4-4-12 hex format)
+    const uuidMatch = identifierWithPrefix.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+    if (uuidMatch) {
+      return { type, identifier: uuidMatch[0] }
+    }
+
+    // If no UUID found, use the identifier as-is (after any prefix)
+    // Remove common prefixes like "tu_", "id_", etc.
+    const cleanedIdentifier = identifierWithPrefix.replace(/^[a-z]+_/i, '')
+    return { type, identifier: cleanedIdentifier || identifierWithPrefix }
+  }
+
+  /**
+   * Converts a URN Case URI to a relative CASE path
+   * Example: urn:case:item:abc-123 → /ims/case/v1p1/CFItems/abc-123
+   */
+  static urnCaseToRelativePath(urn: string, caseVersion: CaseVersion): string {
+    const parsed = this.parseUrnCaseUri(urn)
+    if (!parsed) {
+      // If not a valid URN, return as-is
+      return urn
+    }
+
+    const basePath = caseVersion === '1.1' ? '/ims/case/v1p1' : '/ims/case/v1p0'
+    
+    // Map type to CASE entity path
+    const typeMap: Record<'item' | 'document' | 'association' | 'package', string> = {
+      item: 'CFItems',
+      document: 'CFDocuments',
+      association: 'CFAssociations',
+      package: 'CFPackages'
+    }
+
+    const entityPath = typeMap[parsed.type]
+    return `${basePath}/${entityPath}/${parsed.identifier}`
+  }
+
+  /**
+   * Transforms a URI if it's a URN Case URI, otherwise returns it unchanged
+   * This is a convenience method for use in fromRaw() methods
+   */
+  static transformUrnIfPresent(uri: string | undefined, caseVersion: CaseVersion): string | undefined {
+    if (!uri || !this.isUrnCaseUri(uri)) {
+      return uri
+    }
+    return this.urnCaseToRelativePath(uri, caseVersion)
   }
 }
 

@@ -32,7 +32,7 @@ export class CFSubjectsControllerV1p0 {
       if (wrapped.CFSubject && parsed.value.fields?.length) {
         wrapped.CFSubject = applyFieldSelectionToEntity(wrapped.CFSubject, parsed.value.fields)
       }
-      const body = absolutizeCaseUris(wrapped, baseUrl)
+      const body = absolutizeCaseUris(wrapped, baseUrl, '1.0')
       if (setEtagAndHandleNotModified(req, res, body)) return
       return res.status(200).json(body)
     } catch (error: any) {

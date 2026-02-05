@@ -26,7 +26,7 @@ export class GetAllCFDocumentsControllerV1p0 {
       })
 
       const baseUrl = getBaseUrl(req)
-      const body = absolutizeCaseUris(result, baseUrl)
+      const body = absolutizeCaseUris(result, baseUrl, '1.0')
       if (setEtagAndHandleNotModified(req, res, body)) return
       return res.status(200).json(body)
     } catch (error: any) {

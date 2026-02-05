@@ -2,6 +2,8 @@ import type { Request, Response } from 'express'
 import crypto from 'node:crypto'
 
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter'
+import { UrnCaseUriHelper } from '../../../../../domain/case/value-objects/LinkData'
+import { CaseVersion } from '../../../../../domain/case/value-objects/Identifiers'
 
 export type OrderBy = 'asc' | 'desc'
 
@@ -61,14 +63,28 @@ function isRelativeCasePath (uri: unknown): uri is string {
 /**
  * Normalize outgoing payloads so any CASE `uri` fields (and LinkData `.uri`) are absolute.
  * We only rewrite known relative CASE paths to avoid mangling external URLs.
+ * Also handles URN Case URIs as defense-in-depth (though they should be transformed on input).
  */
-export function absolutizeCaseUris<T> (payload: T, baseUrl: string): T {
+export function absolutizeCaseUris<T> (payload: T, baseUrl: string, caseVersion: CaseVersion = '1.1'): T {
   const seen = new WeakSet<object>()
 
   const walk = (value: any): any => {
     if (!value) return value
     if (typeof value === 'string') {
-      return isRelativeCasePath(value) ? `${baseUrl}${value}` : value
+      // Handle URN Case URIs (defense-in-depth - should already be transformed on input)
+      if (UrnCaseUriHelper.isUrnCaseUri(value)) {
+        const relativePath = UrnCaseUriHelper.urnCaseToRelativePath(value, caseVersion)
+        // If parsing failed, relativePath will be the original URN - don't absolutize it
+        if (UrnCaseUriHelper.isUrnCaseUri(relativePath)) {
+          return value // Return original URN as-is if we can't parse it
+        }
+        return `${baseUrl}${relativePath}`
+      }
+      // Handle relative CASE paths
+      if (isRelativeCasePath(value)) {
+        return `${baseUrl}${value}`
+      }
+      return value
     }
     if (typeof value !== 'object') return value
     if (seen.has(value)) return value
@@ -80,8 +96,28 @@ export function absolutizeCaseUris<T> (payload: T, baseUrl: string): T {
 
     const out: any = {}
     for (const [k, v] of Object.entries(value)) {
-      if (k === 'uri' && isRelativeCasePath(v)) out[k] = `${baseUrl}${v}`
-      else out[k] = walk(v)
+      if (k === 'uri') {
+        // Transform URN or relative path to absolute URL
+        if (typeof v === 'string') {
+          if (UrnCaseUriHelper.isUrnCaseUri(v)) {
+            const relativePath = UrnCaseUriHelper.urnCaseToRelativePath(v, caseVersion)
+            // If parsing failed, relativePath will be the original URN - don't absolutize it
+            if (UrnCaseUriHelper.isUrnCaseUri(relativePath)) {
+              out[k] = v // Return original URN as-is if we can't parse it
+            } else {
+              out[k] = `${baseUrl}${relativePath}`
+            }
+          } else if (isRelativeCasePath(v)) {
+            out[k] = `${baseUrl}${v}`
+          } else {
+            out[k] = v
+          }
+        } else {
+          out[k] = walk(v)
+        }
+      } else {
+        out[k] = walk(v)
+      }
     }
     return out
   }

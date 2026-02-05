@@ -46,7 +46,7 @@ export class CFItemAssociationsControllerV1p0 {
       }
 
       const baseUrl = getBaseUrl(req)
-      const body = absolutizeCaseUris(wrapped, baseUrl)
+      const body = absolutizeCaseUris(wrapped, baseUrl, '1.0')
       if (setEtagAndHandleNotModified(req, res, body)) return
       return res.status(200).json(body)
     } catch (error: any) {
