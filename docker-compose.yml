@@ -44,6 +44,9 @@ services:
       - KC_PROXY_HEADERS=xforwarded
       - KC_HTTP_RELATIVE_PATH=/
     command: ["start-dev", "--http-port=8080"]
+    volumes:
+      # Persist Keycloak data (H2 database, realm config)
+      - keycloak_data:/opt/keycloak/data
     networks:
       - casenet
     labels:
@@ -185,3 +188,6 @@ networks:
 
 volumes:
   editor_node_modules:
+  keycloak_data:
+  # OpenCASE data uses bind mount: ./apps/opencase/data:/app/data
+  # This keeps framework files visible on host for easy inspection/backup
