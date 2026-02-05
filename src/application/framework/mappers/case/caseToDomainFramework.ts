@@ -12,10 +12,25 @@ function mapItemType(rawType?: string): ItemType {
 }
 
 function mapAssociationType(rawType?: string): AssociationType {
+  // Preserve the original association type - CASE has many valid types
+  // Only normalize casing for known types, pass through others as-is
   const t = (rawType ?? '').toLowerCase()
-  if (t === 'ischildof') return 'isChildOf'
-  if (t === 'ispartof') return 'isPartOf'
-  return 'isRelatedTo'
+  
+  // Map known types to canonical casing
+  const knownTypes: Record<string, AssociationType> = {
+    'ischildof': 'isChildOf',
+    'ispartof': 'isPartOf',
+    'isrelatedto': 'isRelatedTo',
+    'precedes': 'precedes',
+    'ispeerof': 'isPeerOf',
+    'exactmatchof': 'exactMatchOf',
+    'replacedby': 'replacedBy',
+    'haspart': 'hasPart',
+    'exemplar': 'exemplar',
+    'hasskillevel': 'hasSkillLevel',
+  }
+  
+  return knownTypes[t] ?? (rawType as AssociationType) ?? 'isRelatedTo'
 }
 
 export function mapCaseSnapshotToDomainFramework(snapshot: CasePackageSnapshot): Framework {
@@ -65,6 +80,7 @@ export function mapCaseSnapshotToDomainFramework(snapshot: CasePackageSnapshot):
       metadata: {
         originUri: a.originUri,
         destinationUri: a.destinationUri,
+        sequenceNumber: a.sequenceNumber,
         ...a.extensions,
       },
     }

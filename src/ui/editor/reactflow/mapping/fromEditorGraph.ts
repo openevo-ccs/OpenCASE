@@ -16,7 +16,14 @@ function mapItemType(rawType?: string): ItemType {
   return 'Competency'
 }
 
-function edgeToAssociationType(edgeId: string): AssociationType {
+function edgeToAssociationType(edgeId: string, edgeData?: { associationType?: string; cfAssociation?: { associationType?: string } }): AssociationType {
+  // Use the stored association type if available (check both top-level and cfAssociation)
+  if (edgeData?.associationType) {
+    return edgeData.associationType as AssociationType
+  }
+  if (edgeData?.cfAssociation?.associationType) {
+    return edgeData.cfAssociation.associationType as AssociationType
+  }
   // Legacy graphs used `e_${parent}_${child}` for hierarchy edges.
   if (edgeId.startsWith('e_')) return 'isChildOf'
   return 'isRelatedTo'
@@ -82,13 +89,25 @@ export function fromEditorGraph(params: { graph: EditorGraph }): { framework: Fr
     if (!items.has(source as unknown as ItemId)) continue
     if (!items.has(target as unknown as ItemId)) continue
 
-    const associationType = edgeToAssociationType(e.id)
+    const edgeData = e.data as { associationType?: string; cfAssociation?: { sequenceNumber?: number; associationType?: string } } | undefined
+    
+    // Debug: log edge data to see what association types are being read
+    console.log('[fromEditorGraph] Edge:', e.id, 'data.associationType:', edgeData?.associationType, 'cfAssociation.associationType:', edgeData?.cfAssociation?.associationType)
+    
+    const associationType = edgeToAssociationType(e.id, edgeData)
+    
+    // For hierarchical types (isChildOf, isPartOf), the edge goes from child to parent visually
+    // but the association semantically means "child isChildOf parent"
+    const isHierarchical = associationType === 'isChildOf' || associationType === 'isPartOf'
+    
     const assoc: Association = {
       id: e.id as unknown as AssociationId,
-      fromItemId: (associationType === 'isChildOf' ? target : source) as unknown as ItemId,
-      toItemId: (associationType === 'isChildOf' ? source : target) as unknown as ItemId,
+      fromItemId: (isHierarchical ? target : source) as unknown as ItemId,
+      toItemId: (isHierarchical ? source : target) as unknown as ItemId,
       associationType,
-      metadata: {},
+      metadata: {
+        sequenceNumber: edgeData?.cfAssociation?.sequenceNumber,
+      },
     }
     associations.set(assoc.id, assoc)
   }
