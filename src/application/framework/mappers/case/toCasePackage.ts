@@ -63,6 +63,32 @@ function ensureUuid(id: string): string {
 }
 
 /**
+ * URI format specification for CASE entities.
+ * These URNs follow the pattern: urn:case:{type}:{uuid}
+ * 
+ * OpenCASE will map these to REST endpoints:
+ * - urn:case:document:{uuid} → /ims/case/v1p1/CFDocuments/{uuid}
+ * - urn:case:item:{uuid} → /ims/case/v1p1/CFItems/{uuid}
+ * - urn:case:association:{uuid} → /ims/case/v1p1/CFAssociations/{uuid}
+ * - urn:case:package:{uuid} → /ims/case/v1p1/CFPackages/{uuid}
+ */
+function makeDocumentUri(uuid: string): string {
+  return `urn:case:document:${uuid}`
+}
+
+function makeItemUri(uuid: string): string {
+  return `urn:case:item:${uuid}`
+}
+
+function makeAssociationUri(uuid: string): string {
+  return `urn:case:association:${uuid}`
+}
+
+function makePackageUri(uuid: string): string {
+  return `urn:case:package:${uuid}`
+}
+
+/**
  * Increment the build number of a version string (format: major.minor.build).
  * If the version doesn't match the expected format, returns the default version.
  */
@@ -421,11 +447,21 @@ export type OpenCaseCFPackage = {
 export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
   const doc = cfPackage.CFDocument as CFDocument & { sourcedId?: string }
   const docId = ensureUuid(doc.sourcedId ?? doc.identifier)
+  const docTitle = doc.title
+  
+  // Build a mapping from internal item IDs to normalized UUIDs
+  // This ensures consistent URIs across items and associations
+  const itemIdMap = new Map<string, string>()
+  for (const item of cfPackage.CFItems ?? []) {
+    const it = item as CFItem & { sourcedId?: string }
+    const internalId = it.sourcedId ?? it.identifier
+    itemIdMap.set(internalId, ensureUuid(internalId))
+  }
   
   const document: OpenCaseDocument = {
     sourcedId: docId,
-    uri: doc.uri,
-    title: doc.title,
+    uri: makeDocumentUri(docId),
+    title: docTitle,
     creator: doc.creator,
     lastChangeDateTime: doc.lastChangeDateTime,
     description: doc.description,
@@ -437,27 +473,27 @@ export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
     notes: doc.notes,
     statusStartDate: doc.statusStartDate,
     statusEndDate: doc.statusEndDate,
-    CFPackageURI: doc.CFPackageURI ? {
-      uri: doc.CFPackageURI.uri,
-      title: doc.CFPackageURI.title,
-      identifier: ensureUuid(doc.CFPackageURI.identifier ?? docId),
-    } : undefined,
+    CFPackageURI: {
+      uri: makePackageUri(docId),
+      title: docTitle,
+      identifier: docId,
+    },
     extensions: doc.extensions,
   }
 
   const items: OpenCaseItem[] | undefined = cfPackage.CFItems?.map((item) => {
     const it = item as CFItem & { sourcedId?: string }
-    const itemId = ensureUuid(it.sourcedId ?? it.identifier)
-    const docUri = it.CFDocumentURI!
+    const internalId = it.sourcedId ?? it.identifier
+    const itemId = itemIdMap.get(internalId) ?? ensureUuid(internalId)
     return {
       sourcedId: itemId,
-      uri: it.uri,
+      uri: makeItemUri(itemId),
       fullStatement: it.fullStatement,
       lastChangeDateTime: it.lastChangeDateTime,
       CFDocumentURI: {
-        title: docUri.title ?? 'Document',
-        identifier: ensureUuid(docUri.identifier ?? docId),
-        uri: docUri.uri,
+        title: docTitle,
+        identifier: docId,
+        uri: makeDocumentUri(docId),
       },
       humanCodingScheme: it.humanCodingScheme,
       listEnumeration: it.listEnumeration,
@@ -479,29 +515,36 @@ export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
   const associations: OpenCaseAssociation[] | undefined = cfPackage.CFAssociations?.map((assoc) => {
     const a = assoc as CFAssociation & { sourcedId?: string }
     const assocId = ensureUuid(a.sourcedId ?? a.identifier)
+    
+    // Get normalized UUIDs for origin and destination items
+    const originInternalId = a.originNodeURI.identifier ?? ''
+    const destInternalId = a.destinationNodeURI.identifier ?? ''
+    const originId = itemIdMap.get(originInternalId) ?? ensureUuid(originInternalId)
+    const destId = itemIdMap.get(destInternalId) ?? ensureUuid(destInternalId)
+    
     return {
       sourcedId: assocId,
-      uri: a.uri,
+      uri: makeAssociationUri(assocId),
       associationType: a.associationType,
       originNodeURI: {
         title: a.originNodeURI.title ?? 'Origin',
-        identifier: ensureUuid(a.originNodeURI.identifier ?? ''),
-        uri: a.originNodeURI.uri,
+        identifier: originId,
+        uri: makeItemUri(originId),
         targetType: a.originNodeURI.targetType,
       },
       destinationNodeURI: {
         title: a.destinationNodeURI.title ?? 'Destination',
-        identifier: ensureUuid(a.destinationNodeURI.identifier ?? ''),
-        uri: a.destinationNodeURI.uri,
+        identifier: destId,
+        uri: makeItemUri(destId),
         targetType: a.destinationNodeURI.targetType,
       },
       lastChangeDateTime: a.lastChangeDateTime,
       sequenceNumber: a.sequenceNumber,
-      CFDocumentURI: a.CFDocumentURI ? {
-        title: a.CFDocumentURI.title ?? 'Document',
-        identifier: ensureUuid(a.CFDocumentURI.identifier ?? docId),
-        uri: a.CFDocumentURI.uri,
-      } : undefined,
+      CFDocumentURI: {
+        title: docTitle,
+        identifier: docId,
+        uri: makeDocumentUri(docId),
+      },
       extensions: a.extensions,
     }
   })
