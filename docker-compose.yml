@@ -1,0 +1,183 @@
+version: "3.9"
+
+services:
+  # =============================================================================
+  # Traefik - Reverse Proxy
+  # =============================================================================
+  traefik:
+    image: traefik:v3.2
+    command:
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:3000"
+      - "--log.level=INFO"
+    ports:
+      - "3000:3000"   # Main entry point
+      - "8080:8080"   # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - casenet
+    labels:
+      - "traefik.enable=true"
+
+  # =============================================================================
+  # Keycloak - OIDC Identity Provider
+  # =============================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HTTP_ENABLED=true
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+      # Hostname configuration - tell Keycloak its external URL
+      - KC_HOSTNAME=localhost
+      - KC_HOSTNAME_PORT=3000
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      # Proxy settings for running behind Traefik
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HTTP_RELATIVE_PATH=/
+    command: ["start-dev", "--http-port=8080"]
+    networks:
+      - casenet
+    labels:
+      - "traefik.enable=true"
+      # Route /realms/* to Keycloak (OIDC endpoints)
+      - "traefik.http.routers.keycloak-realms.rule=PathPrefix(`/realms`)"
+      - "traefik.http.routers.keycloak-realms.entrypoints=web"
+      - "traefik.http.routers.keycloak-realms.priority=100"
+      - "traefik.http.routers.keycloak-realms.service=keycloak"
+      # Route /admin/* to Keycloak (Admin console)
+      - "traefik.http.routers.keycloak-admin.rule=PathPrefix(`/admin`)"
+      - "traefik.http.routers.keycloak-admin.entrypoints=web"
+      - "traefik.http.routers.keycloak-admin.priority=100"
+      - "traefik.http.routers.keycloak-admin.service=keycloak"
+      # Route /resources/* to Keycloak (static assets)
+      - "traefik.http.routers.keycloak-resources.rule=PathPrefix(`/resources`)"
+      - "traefik.http.routers.keycloak-resources.entrypoints=web"
+      - "traefik.http.routers.keycloak-resources.priority=100"
+      - "traefik.http.routers.keycloak-resources.service=keycloak"
+      # Route /js/* to Keycloak (JavaScript assets)
+      - "traefik.http.routers.keycloak-js.rule=PathPrefix(`/js`)"
+      - "traefik.http.routers.keycloak-js.entrypoints=web"
+      - "traefik.http.routers.keycloak-js.priority=100"
+      - "traefik.http.routers.keycloak-js.service=keycloak"
+      # Route /robots.txt to Keycloak
+      - "traefik.http.routers.keycloak-robots.rule=Path(`/robots.txt`)"
+      - "traefik.http.routers.keycloak-robots.entrypoints=web"
+      - "traefik.http.routers.keycloak-robots.priority=100"
+      - "traefik.http.routers.keycloak-robots.service=keycloak"
+      # Service definition
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+
+  # =============================================================================
+  # OpenCASE - CASE API Backend
+  # =============================================================================
+  opencase:
+    build: ./apps/opencase
+    environment:
+      - CASE_DATA_DIR=/app/data
+      - PORT=8080
+      # Keycloak / OIDC configuration
+      # Note: Internal URL for server-to-server communication
+      - OIDC_ISSUER_URL=http://localhost:3000/realms/opencase
+      - OIDC_CLIENT_ID_PREFIX=tenant-
+      # Keycloak Admin API (internal Docker network)
+      - KEYCLOAK_BASE_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=opencase
+      - KEYCLOAK_ADMIN_REALM=master
+      - KEYCLOAK_ADMIN_CLIENT_ID=admin-cli
+      - KEYCLOAK_ADMIN_USERNAME=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      # SPA redirect URIs (through Traefik)
+      - KEYCLOAK_SPA_REDIRECT_URIS=http://localhost:3000/*
+      - KEYCLOAK_SPA_WEB_ORIGINS=http://localhost:3000
+      # Bootstrap system admin
+      - KEYCLOAK_BOOTSTRAP_SYSTEM_ADMIN=true
+      - KEYCLOAK_SYSTEM_ADMIN_EMAIL=system-admin@local
+      - KEYCLOAK_SYSTEM_ADMIN_PASSWORD=admin
+    volumes:
+      - ./apps/opencase/data:/app/data
+    networks:
+      - casenet
+    depends_on:
+      - keycloak
+    labels:
+      - "traefik.enable=true"
+      # Route /ims/* to OpenCASE (CASE API)
+      - "traefik.http.routers.opencase-ims.rule=PathPrefix(`/ims`)"
+      - "traefik.http.routers.opencase-ims.entrypoints=web"
+      - "traefik.http.routers.opencase-ims.priority=100"
+      - "traefik.http.routers.opencase-ims.service=opencase"
+      # Route /management/* to OpenCASE
+      - "traefik.http.routers.opencase-management.rule=PathPrefix(`/management`)"
+      - "traefik.http.routers.opencase-management.entrypoints=web"
+      - "traefik.http.routers.opencase-management.priority=100"
+      - "traefik.http.routers.opencase-management.service=opencase"
+      # Route /oauth/* to OpenCASE
+      - "traefik.http.routers.opencase-oauth.rule=PathPrefix(`/oauth`)"
+      - "traefik.http.routers.opencase-oauth.entrypoints=web"
+      - "traefik.http.routers.opencase-oauth.priority=100"
+      - "traefik.http.routers.opencase-oauth.service=opencase"
+      # Route /public/* to OpenCASE (tenant lookup, etc.)
+      - "traefik.http.routers.opencase-public.rule=PathPrefix(`/public`)"
+      - "traefik.http.routers.opencase-public.entrypoints=web"
+      - "traefik.http.routers.opencase-public.priority=100"
+      - "traefik.http.routers.opencase-public.service=opencase"
+      # Route /health to OpenCASE
+      - "traefik.http.routers.opencase-health.rule=Path(`/health`)"
+      - "traefik.http.routers.opencase-health.entrypoints=web"
+      - "traefik.http.routers.opencase-health.priority=100"
+      - "traefik.http.routers.opencase-health.service=opencase"
+      # Route /.well-known/* to OpenCASE (OAuth discovery)
+      - "traefik.http.routers.opencase-wellknown.rule=PathPrefix(`/.well-known`)"
+      - "traefik.http.routers.opencase-wellknown.entrypoints=web"
+      - "traefik.http.routers.opencase-wellknown.priority=100"
+      - "traefik.http.routers.opencase-wellknown.service=opencase"
+      # Service definition
+      - "traefik.http.services.opencase.loadbalancer.server.port=8080"
+
+  # =============================================================================
+  # Editor - React Frontend (Vite Dev Server)
+  # =============================================================================
+  editor:
+    build:
+      context: ./apps/editor
+      dockerfile: Dockerfile
+    environment:
+      # All URLs point to Traefik entry point
+      - VITE_OPENCASE_BASE_URL=http://localhost:3000
+      - VITE_OIDC_AUTHORITY=http://localhost:3000/realms/opencase
+      - VITE_OIDC_CLIENT_ID_PREFIX=tenant-
+    volumes:
+      # Mount source for hot-reload
+      - ./apps/editor/src:/app/src
+      - ./apps/editor/public:/app/public
+      - ./apps/editor/index.html:/app/index.html
+      # Exclude node_modules from mount
+      - editor_node_modules:/app/node_modules
+    networks:
+      - casenet
+    depends_on:
+      - opencase
+    labels:
+      - "traefik.enable=true"
+      # Catch-all route for editor (lowest priority)
+      - "traefik.http.routers.editor.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.editor.entrypoints=web"
+      - "traefik.http.routers.editor.priority=1"
+      - "traefik.http.routers.editor.service=editor"
+      # Service definition
+      - "traefik.http.services.editor.loadbalancer.server.port=5173"
+
+networks:
+  casenet:
+    driver: bridge
+
+volumes:
+  editor_node_modules:
