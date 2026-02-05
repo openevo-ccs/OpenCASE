@@ -90,10 +90,6 @@ export function fromEditorGraph(params: { graph: EditorGraph }): { framework: Fr
     if (!items.has(target as unknown as ItemId)) continue
 
     const edgeData = e.data as { associationType?: string; cfAssociation?: { sequenceNumber?: number; associationType?: string } } | undefined
-    
-    // Debug: log edge data to see what association types are being read
-    console.log('[fromEditorGraph] Edge:', e.id, 'data.associationType:', edgeData?.associationType, 'cfAssociation.associationType:', edgeData?.cfAssociation?.associationType)
-    
     const associationType = edgeToAssociationType(e.id, edgeData)
     
     // For hierarchical types (isChildOf, isPartOf), the edge goes from child to parent visually

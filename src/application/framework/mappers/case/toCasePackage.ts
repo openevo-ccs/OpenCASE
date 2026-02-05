@@ -64,28 +64,22 @@ function ensureUuid(id: string): string {
 
 /**
  * URI format specification for CASE entities.
- * These URNs follow the pattern: urn:case:{type}:{uuid}
- * 
- * OpenCASE will map these to REST endpoints:
- * - urn:case:document:{uuid} → /ims/case/v1p1/CFDocuments/{uuid}
- * - urn:case:item:{uuid} → /ims/case/v1p1/CFItems/{uuid}
- * - urn:case:association:{uuid} → /ims/case/v1p1/CFAssociations/{uuid}
- * - urn:case:package:{uuid} → /ims/case/v1p1/CFPackages/{uuid}
+ * Uses the official CASE v1p1 REST endpoint format.
  */
 function makeDocumentUri(uuid: string): string {
-  return `urn:case:document:${uuid}`
+  return `/ims/case/v1p1/CFDocuments/${uuid}`
 }
 
 function makeItemUri(uuid: string): string {
-  return `urn:case:item:${uuid}`
+  return `/ims/case/v1p1/CFItems/${uuid}`
 }
 
 function makeAssociationUri(uuid: string): string {
-  return `urn:case:association:${uuid}`
+  return `/ims/case/v1p1/CFAssociations/${uuid}`
 }
 
 function makePackageUri(uuid: string): string {
-  return `urn:case:package:${uuid}`
+  return `/ims/case/v1p1/CFPackages/${uuid}`
 }
 
 /**
@@ -364,11 +358,20 @@ export function frameworkToCfPackage(params: {
 }
 
 /**
- * OpenCASE REST API document format.
- * Uses sourcedId (not identifier) per the OpenCASE schema.
+ * Link URI reference format (LinkGenURI) per CASE v1p1 spec.
  */
-export type OpenCaseDocument = {
-  sourcedId: string
+export type CaseLinkURI = {
+  title: string
+  identifier: string
+  uri: string
+}
+
+/**
+ * CASE v1p1 CFDocument format.
+ * Uses identifier (not sourcedId) per the official CASE v1p1 spec.
+ */
+export type CaseV1p1Document = {
+  identifier: string
   uri: string
   title: string
   creator: string
@@ -383,19 +386,19 @@ export type OpenCaseDocument = {
   notes?: string
   statusStartDate?: string
   statusEndDate?: string
-  CFPackageURI?: { uri: string; title?: string; identifier?: string }
+  CFPackageURI?: CaseLinkURI
   extensions?: Record<string, unknown>
 }
 
 /**
- * OpenCASE REST API item format.
+ * CASE v1p1 CFItem format.
  */
-export type OpenCaseItem = {
-  sourcedId: string
+export type CaseV1p1Item = {
+  identifier: string
   uri: string
   fullStatement: string
   lastChangeDateTime: string
-  CFDocumentURI: { title: string; identifier: string; uri: string }
+  CFDocumentURI: CaseLinkURI
   humanCodingScheme?: string
   listEnumeration?: string
   alternativeLabel?: string
@@ -413,38 +416,44 @@ export type OpenCaseItem = {
 }
 
 /**
- * OpenCASE REST API association format.
+ * CASE v1p1 CFAssociation format.
  */
-export type OpenCaseAssociation = {
-  sourcedId: string
+export type CaseV1p1Association = {
+  identifier: string
   uri: string
   associationType: string
-  originNodeURI: { title: string; identifier: string; uri: string; targetType?: string }
-  destinationNodeURI: { title: string; identifier: string; uri: string; targetType?: string }
+  originNodeURI: CaseLinkURI
+  destinationNodeURI: CaseLinkURI
   lastChangeDateTime: string
   sequenceNumber?: number
-  CFDocumentURI?: { title: string; identifier: string; uri: string }
+  CFDocumentURI?: CaseLinkURI
   extensions?: Record<string, unknown>
 }
 
 /**
- * OpenCASE REST API package format.
- * This matches the OpenCASE v1p1 CFPackage schema.
+ * Official CASE v1p1 CFPackage format for POST requests.
+ * Uses CFDocument, CFItems, CFAssociations (not lowercase).
  */
-export type OpenCaseCFPackage = {
-  document: OpenCaseDocument
-  items?: OpenCaseItem[]
-  associations?: OpenCaseAssociation[]
-  definitions?: unknown
-  rubrics?: unknown
+export type CaseV1p1Package = {
+  CFDocument: CaseV1p1Document
+  CFItems?: CaseV1p1Item[]
+  CFAssociations?: CaseV1p1Association[]
+  CFDefinitions?: unknown
+  CFRubrics?: unknown
 }
 
+// Legacy type aliases for backward compatibility
+export type OpenCaseDocument = CaseV1p1Document
+export type OpenCaseItem = CaseV1p1Item
+export type OpenCaseAssociation = CaseV1p1Association
+export type OpenCaseCFPackage = CaseV1p1Package
+
 /**
- * Convert internal CFPackage to OpenCASE REST API format.
- * The OpenCASE API expects lowercase property names and uses sourcedId instead of identifier.
+ * Convert internal CFPackage to official CASE v1p1 format for POST requests.
+ * Uses identifier (not sourcedId) and official property names (CFDocument, CFItems, CFAssociations).
  * All IDs are converted to valid UUIDs.
  */
-export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
+export function toOpenCaseFormat(cfPackage: CFPackage): CaseV1p1Package {
   const doc = cfPackage.CFDocument as CFDocument & { sourcedId?: string }
   const docId = ensureUuid(doc.sourcedId ?? doc.identifier)
   const docTitle = doc.title
@@ -458,8 +467,8 @@ export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
     itemIdMap.set(internalId, ensureUuid(internalId))
   }
   
-  const document: OpenCaseDocument = {
-    sourcedId: docId,
+  const document: CaseV1p1Document = {
+    identifier: docId,
     uri: makeDocumentUri(docId),
     title: docTitle,
     creator: doc.creator,
@@ -481,12 +490,12 @@ export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
     extensions: doc.extensions,
   }
 
-  const items: OpenCaseItem[] | undefined = cfPackage.CFItems?.map((item) => {
+  const items: CaseV1p1Item[] | undefined = cfPackage.CFItems?.map((item) => {
     const it = item as CFItem & { sourcedId?: string }
     const internalId = it.sourcedId ?? it.identifier
     const itemId = itemIdMap.get(internalId) ?? ensureUuid(internalId)
     return {
-      sourcedId: itemId,
+      identifier: itemId,
       uri: makeItemUri(itemId),
       fullStatement: it.fullStatement,
       lastChangeDateTime: it.lastChangeDateTime,
@@ -512,7 +521,7 @@ export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
     }
   })
 
-  const associations: OpenCaseAssociation[] | undefined = cfPackage.CFAssociations?.map((assoc) => {
+  const associations: CaseV1p1Association[] | undefined = cfPackage.CFAssociations?.map((assoc) => {
     const a = assoc as CFAssociation & { sourcedId?: string }
     const assocId = ensureUuid(a.sourcedId ?? a.identifier)
     
@@ -523,20 +532,18 @@ export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
     const destId = itemIdMap.get(destInternalId) ?? ensureUuid(destInternalId)
     
     return {
-      sourcedId: assocId,
+      identifier: assocId,
       uri: makeAssociationUri(assocId),
       associationType: a.associationType,
       originNodeURI: {
         title: a.originNodeURI.title ?? 'Origin',
         identifier: originId,
         uri: makeItemUri(originId),
-        targetType: a.originNodeURI.targetType,
       },
       destinationNodeURI: {
         title: a.destinationNodeURI.title ?? 'Destination',
         identifier: destId,
         uri: makeItemUri(destId),
-        targetType: a.destinationNodeURI.targetType,
       },
       lastChangeDateTime: a.lastChangeDateTime,
       sequenceNumber: a.sequenceNumber,
@@ -550,9 +557,9 @@ export function toOpenCaseFormat(cfPackage: CFPackage): OpenCaseCFPackage {
   })
 
   return {
-    document,
-    items: items?.length ? items : undefined,
-    associations: associations?.length ? associations : undefined,
+    CFDocument: document,
+    CFItems: items?.length ? items : undefined,
+    CFAssociations: associations?.length ? associations : undefined,
   }
 }
 
