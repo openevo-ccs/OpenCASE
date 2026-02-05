@@ -167,6 +167,8 @@ function AvatarMenu({
   )
 }
 
+export type SaveStatus = 'idle' | 'saving' | 'success' | 'error'
+
 export default function CanvasHeader({
   frameworkTitle,
   frameworkSubtitle,
@@ -175,6 +177,8 @@ export default function CanvasHeader({
   reserveRightForPanel,
   showSettings,
   isDirty,
+  saveStatus = 'idle',
+  saveError,
   onSave,
   onBack,
   onSignIn,
@@ -189,6 +193,10 @@ export default function CanvasHeader({
   showSettings?: boolean
   /** Whether the editor has unsaved changes */
   isDirty?: boolean
+  /** Current save status */
+  saveStatus?: SaveStatus
+  /** Error message if save failed */
+  saveError?: string | null
   /** Called when the user clicks the Save button */
   onSave?: () => void
   onBack?: () => void
@@ -248,17 +256,41 @@ export default function CanvasHeader({
             {frameworkSubtitle ? <div className="truncate text-xs text-slate-600">{frameworkSubtitle}</div> : null}
           </div>
 
-          {/* Save button - always visible, disabled when no changes */}
+          {/* Save button - shows status during save operations */}
           {onSave ? (
-            <Button
-              variant={isDirty ? 'default' : 'secondary'}
-              size="sm"
-              onClick={onSave}
-              disabled={!isDirty}
-              className={isDirty ? '' : 'opacity-50'}
-            >
-              {isDirty ? 'Save' : 'Saved'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={isDirty ? 'default' : 'secondary'}
+                size="sm"
+                onClick={onSave}
+                disabled={!isDirty || saveStatus === 'saving'}
+                className={isDirty ? '' : 'opacity-50'}
+                title={saveError ?? undefined}
+              >
+                {saveStatus === 'saving' ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Saving…
+                  </>
+                ) : saveStatus === 'success' ? (
+                  '✓ Saved!'
+                ) : saveStatus === 'error' ? (
+                  '✗ Error'
+                ) : isDirty ? (
+                  'Save'
+                ) : (
+                  'Saved'
+                )}
+              </Button>
+              {saveStatus === 'error' && saveError ? (
+                <span className="text-xs text-red-600" title={saveError}>
+                  {saveError.length > 30 ? `${saveError.slice(0, 30)}…` : saveError}
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
 

@@ -66,6 +66,38 @@ export class CaseApiClient {
   }
 
   /**
+   * Save (publish) a CFPackage to the server.
+   * 
+   * Uses the management endpoint: POST /management/tenants/{tenantId}/ims/case/{version}/CFPackages
+   * This creates a new version of the framework on the server.
+   * 
+   * @param params.tenantId - The tenant ID
+   * @param params.cfPackage - The CFPackage in OpenCASE format (lowercase property names)
+   * @param params.caseVersion - The CASE version (v1p0 or v1p1), defaults to v1p1
+   * @returns The document ID and version from the server
+   */
+  async saveCfPackage(params: {
+    tenantId: string
+    cfPackage: unknown // OpenCaseCFPackage format
+    caseVersion?: 'v1p0' | 'v1p1'
+  }): Promise<{ docId: string; version: string }> {
+    const v = params.caseVersion ?? 'v1p1'
+    const url = `/management/tenants/${encodeURIComponent(params.tenantId)}/ims/case/${v}/CFPackages`
+    
+    const res = (await this._http.post(url, params.cfPackage)) as unknown
+    
+    if (res && typeof res === 'object') {
+      const obj = res as { docId?: string; version?: string; identifier?: string }
+      return {
+        docId: obj.docId ?? obj.identifier ?? '',
+        version: obj.version ?? '',
+      }
+    }
+    
+    throw new Error('Unexpected save response shape')
+  }
+
+  /**
    * List all CFDocuments from the CASE API.
    *
    * Uses the standard CASE endpoint: GET /ims/case/{version}/CFDocuments

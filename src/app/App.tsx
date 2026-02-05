@@ -11,6 +11,7 @@ import { createFetchHttpClient } from '@/infrastructure/caseApi/http'
 import { loadFrameworkFromCfPackage } from '@/application/framework/services/FrameworkLoader'
 import { toReactFlowGraph, extractLayoutFromCfPackage } from '@/ui/editor/reactflow/mapping'
 import type { LayoutState } from '@/ui/editor/reactflow/mapping'
+import type { CaseVersion } from '@/application/framework/mappers/case/CasePackageSnapshot'
 import LoginScreen from '@/ui/auth/LoginScreen'
 
 export default function App() {
@@ -22,7 +23,7 @@ export default function App() {
 }
 
 function AppInner() {
-  const { completeSignIn, getAccessToken, status: authStatus } = useAuth()
+  const { completeSignIn, getAccessToken, status: authStatus, tenantId } = useAuth()
   const cfg = getAppConfig()
   const api = useMemo(() => new CaseApiClient(createFetchHttpClient(cfg.opencaseBaseUrl, { getAccessToken })), [cfg.opencaseBaseUrl, getAccessToken])
 
@@ -169,6 +170,38 @@ function AppInner() {
     return toReactFlowGraph({ framework: activeFramework.framework, layout })
   }, [activeFramework, frameworkLayouts])
 
+  // Determine CASE version from framework metadata or CFDocument
+  // (computed early so useCallback has stable deps - must be before all early returns)
+  const activeCaseVersion: CaseVersion = activeFramework
+    ? ((activeFramework.framework.metadata.caseVersion 
+        ?? activeFramework.cfDocument.caseVersion 
+        ?? '1.1') as CaseVersion)
+    : '1.1'
+  
+  // Determine CASE API version for requests
+  const caseApiVersion: 'v1p0' | 'v1p1' = activeCaseVersion === '1.0' ? 'v1p0' : 'v1p1'
+
+  // Handler to save the CFPackage to the server
+  // Must be defined before early returns (React hooks rules)
+  const handleSaveToServer = useCallback(
+    async (openCasePackage: unknown) => {
+      if (!tenantId) {
+        throw new Error('Not signed in to a tenant. Please sign in to save.')
+      }
+      
+      console.log('[App] Saving to server:', { tenantId, caseApiVersion })
+      
+      await api.saveCfPackage({
+        tenantId,
+        cfPackage: openCasePackage,
+        caseVersion: caseApiVersion,
+      })
+      
+      console.log('[App] Saved successfully')
+    },
+    [api, tenantId, caseApiVersion],
+  )
+
   if (authCallbackState === 'processing') {
     return (
       <div className="min-h-screen w-full bg-slate-50">
@@ -224,17 +257,18 @@ function AppInner() {
     )
   }
 
-  // Determine CASE version from framework metadata or CFDocument
-  const caseVersion = activeFramework.framework.metadata.caseVersion 
-    ?? activeFramework.cfDocument.caseVersion 
-    ?? '1.1' // Default to 1.1 for new frameworks
-
   return (
-    <EditorProvider initialGraph={activeGraph} graphKey={activeFramework.id} caseVersion={caseVersion}>
+    <EditorProvider 
+      initialGraph={activeGraph} 
+      graphKey={activeFramework.id} 
+      caseVersion={activeCaseVersion}
+      skipAutoLayout={Boolean(frameworkLayouts[activeFramework.id])}
+    >
       <EditorCanvas
         onBack={() => {
           setScreen('home')
         }}
+        onSaveToServer={tenantId ? handleSaveToServer : undefined}
       />
     </EditorProvider>
   )

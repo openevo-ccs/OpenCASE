@@ -165,6 +165,7 @@ type Action =
   | { type: 'graph/delete'; nodeIds: string[]; edgeIds: string[]; reattachChildren: boolean }
   | { type: 'layout/apply'; positions: Record<string, { x: number; y: number }> }
   | { type: 'graph/load'; graph: EditorGraph }
+  | { type: 'dirty/clear' }
 
 function reducer(state: EditorState, action: Action): EditorState {
   switch (action.type) {
@@ -741,6 +742,9 @@ function reducer(state: EditorState, action: Action): EditorState {
         dirty: false,
       }
     }
+    case 'dirty/clear': {
+      return { ...state, dirty: false }
+    }
     default:
       return state
   }
@@ -757,6 +761,8 @@ type EditorContextValue = {
   frameworkInfo: { title: string; subtitle?: string; creator?: string }
   layoutVersion: number
   isDirty: boolean
+  /** Clear the dirty flag (e.g., after successful save) */
+  clearDirty: () => void
   /** CASE version for serialization (1.0 or 1.1). Default is 1.1 for new frameworks. */
   caseVersion: CaseVersion
   settings: EditorSettings
@@ -793,7 +799,15 @@ export function EditorProvider({
   initialGraph,
   graphKey,
   caseVersion: initialCaseVersion = '1.1',
-}: Readonly<{ children: ReactNode; initialGraph?: EditorGraph; graphKey?: string; caseVersion?: CaseVersion }>) {
+  skipAutoLayout = false,
+}: Readonly<{ 
+  children: ReactNode
+  initialGraph?: EditorGraph
+  graphKey?: string
+  caseVersion?: CaseVersion
+  /** Skip auto-layout when the graph already has saved positions (e.g., from CASE extensions) */
+  skipAutoLayout?: boolean 
+}>) {
   // Track CASE version for serialization - default to 1.1 for new frameworks
   const [caseVersion, setCaseVersion] = useState<CaseVersion>(initialCaseVersion)
   
@@ -839,8 +853,9 @@ export function EditorProvider({
   useEffect(() => {
     if (!graphKey) return
     dispatch({ type: 'graph/load', graph: seed })
-    didInitialLayout.current = false
-  }, [graphKey, seed])
+    // Skip auto-layout if the graph already has saved positions from CASE extensions
+    didInitialLayout.current = skipAutoLayout
+  }, [graphKey, seed, skipAutoLayout])
 
   const selectedNode = useMemo(
     () => (state.selectedNodeId ? state.nodes.find((n) => n.id === state.selectedNodeId) ?? null : null),
@@ -1095,6 +1110,7 @@ export function EditorProvider({
   }, [])
 
   const clearSelection = useCallback(() => dispatch({ type: 'selection/clear' }), [])
+  const clearDirty = useCallback(() => dispatch({ type: 'dirty/clear' }), [])
 
   const value: EditorContextValue = useMemo(
     () => ({
@@ -1108,6 +1124,7 @@ export function EditorProvider({
       frameworkInfo,
       layoutVersion: state.layoutVersion,
       isDirty: state.dirty,
+      clearDirty,
       caseVersion,
       settings,
       updateSettings,
@@ -1141,6 +1158,7 @@ export function EditorProvider({
       frameworkInfo,
       state.layoutVersion,
       state.dirty,
+      clearDirty,
       caseVersion,
       settings,
       updateSettings,

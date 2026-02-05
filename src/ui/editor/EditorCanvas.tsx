@@ -22,7 +22,12 @@ import { useAuth } from '@/app/providers/AuthProvider'
 import { fromEditorGraph } from '@/ui/editor/reactflow/mapping/fromEditorGraph'
 import { frameworkToCfPackage, toOpenCaseFormat } from '@/application/framework/mappers/case/toCasePackage'
 
-export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void }>) {
+type EditorCanvasProps = {
+  onBack?: () => void
+  onSaveToServer?: (cfPackage: ReturnType<typeof toOpenCaseFormat>) => Promise<void>
+}
+
+export default function EditorCanvas({ onBack, onSaveToServer }: Readonly<EditorCanvasProps>) {
   const { status: authStatus, userName, tenantId, signOut } = useAuth()
   const {
     nodes,
@@ -47,6 +52,7 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
     confirmAddItem,
     deleteElements,
     isDirty,
+    clearDirty,
     caseVersion,
     settings,
     updateSettings,
@@ -64,6 +70,8 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
   const [externalFwViewportCenter, setExternalFwViewportCenter] = useState<{ x: number; y: number } | undefined>(undefined)
   const [cfPackageDialogOpen, setCfPackageDialogOpen] = useState(false)
   const [generatedCfPackage, setGeneratedCfPackage] = useState<CFPackage | null>(null)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
   
   // Track the edge being reconnected
   const edgeReconnectSuccessful = useRef(true)
@@ -85,9 +93,8 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
     setCfPackageDialogOpen(true)
   }, [nodes, editorEdges, caseVersion])
 
-  // Save: Generate CFPackage with version increment and show for validation
-  // (Network POST to OpenCASE not yet implemented)
-  const handleSave = useCallback(() => {
+  // Save: Generate CFPackage with version increment and POST to server
+  const handleSave = useCallback(async () => {
     // Convert editor graph to domain Framework + layout
     const { framework, layout } = fromEditorGraph({ graph: { nodes, edges: editorEdges } })
     
@@ -100,14 +107,37 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
       incrementVersion: true,
     })
     
-    // Show the generated CFPackage for validation
-    // TODO: POST to OpenCASE server and clear dirty state on success
-    setGeneratedCfPackage(cfPackage)
-    setCfPackageDialogOpen(true)
+    // Convert to OpenCASE REST API format
+    const openCasePackage = toOpenCaseFormat(cfPackage)
     
     // Log to console for debugging
-    console.log('[Save] Generated CFPackage:', cfPackage)
-  }, [nodes, editorEdges, caseVersion])
+    console.log('[Save] Generated OpenCASE package:', openCasePackage)
+    
+    // Store for viewing
+    setGeneratedCfPackage(cfPackage)
+    
+    // If server save callback is provided, save to server
+    if (onSaveToServer) {
+      setSaveStatus('saving')
+      setSaveError(null)
+      try {
+        await onSaveToServer(openCasePackage)
+        setSaveStatus('success')
+        clearDirty()
+        // Reset status after a brief delay
+        setTimeout(() => setSaveStatus('idle'), 2000)
+      } catch (err) {
+        console.error('[Save] Failed to save to server:', err)
+        setSaveStatus('error')
+        setSaveError(err instanceof Error ? err.message : 'Failed to save')
+        // Show the generated CFPackage for manual copy/paste as fallback
+        setCfPackageDialogOpen(true)
+      }
+    } else {
+      // No server callback - just show the dialog for manual validation
+      setCfPackageDialogOpen(true)
+    }
+  }, [nodes, editorEdges, caseVersion, onSaveToServer, clearDirty])
 
   // Apply the custom labeled edge type to all edges, passing the path style in data
   const edgesWithType = useMemo<CaseEditorEdge[]>(
@@ -494,6 +524,8 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
         reserveRightForPanel={Boolean(selectedNode || selectedEdge)}
         showSettings
         isDirty={isDirty}
+        saveStatus={saveStatus}
+        saveError={saveError}
         onSave={handleSave}
         onSignIn={undefined}
         onSignOut={
