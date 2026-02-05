@@ -2,10 +2,16 @@ export interface AppConfig {
   httpPort: number;
   caseDataDir: string;
   /**
-   * OIDC issuer URL (Keycloak realm issuer), e.g. http://localhost:8081/realms/opencase
-   * Note: in docker-compose we use http://keycloak:8080/realms/opencase for in-network calls.
+   * OIDC issuer URL (Keycloak realm issuer), e.g. http://localhost:3000/realms/opencase
+   * This is the external URL that appears in JWT tokens (iss claim).
    */
   oidcIssuerUrl: string;
+  /**
+   * Optional internal URL for fetching JWKS (when running behind a reverse proxy).
+   * e.g. http://keycloak:8080/realms/opencase for internal Docker network access.
+   * If not set, uses oidcIssuerUrl.
+   */
+  oidcJwksFetchUrl?: string;
   /**
    * Client-per-tenant convention: client_id (and typically token azp) is `${oidcClientIdPrefix}${tenantId}`
    */
@@ -43,6 +49,7 @@ export function loadConfig(): AppConfig {
     httpPort: Number(process.env.PORT ?? 8080),
     caseDataDir: process.env.CASE_DATA_DIR ?? 'data',
     oidcIssuerUrl: process.env.OIDC_ISSUER_URL ?? 'http://localhost:8081/realms/opencase',
+    oidcJwksFetchUrl: process.env.OIDC_JWKS_FETCH_URL,
     oidcClientIdPrefix: process.env.OIDC_CLIENT_ID_PREFIX ?? 'tenant-',
 
     keycloakBaseUrl: process.env.KEYCLOAK_BASE_URL ?? 'http://localhost:8081',

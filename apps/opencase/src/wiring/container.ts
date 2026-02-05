@@ -120,7 +120,8 @@ export async function buildContainer(): Promise<Container> {
 
   const jwtVerifier = new OidcJwtVerifier({
     issuerUrl: config.oidcIssuerUrl,
-    clientIdPrefix: config.oidcClientIdPrefix
+    clientIdPrefix: config.oidcClientIdPrefix,
+    jwksFetchUrl: config.oidcJwksFetchUrl
   })
 
   // Initialize CASE services
@@ -323,13 +324,26 @@ export async function buildContainer(): Promise<Container> {
     systemAdminPassword: config.keycloakSystemAdminPassword
   })
 
-  // Best-effort Keycloak bootstrap (do not fail server startup if Keycloak isn't reachable yet)
-  await keycloakAdmin.ensureRealmExists().catch((error: any) => {
-    logger.warn({ error: error?.message }, 'Keycloak realm ensure failed (continuing)')
-  })
-  await keycloakTenantProvisioner.bootstrapSystemAdmin().catch((error: any) => {
-    logger.warn({ error: error?.message }, 'Keycloak system-admin bootstrap failed (continuing)')
-  })
+  // Keycloak bootstrap with retry logic (wait for Keycloak to be ready)
+  const maxRetries = 30
+  const retryDelayMs = 2000
+  let keycloakReady = false
+  
+  for (let attempt = 1; attempt <= maxRetries && !keycloakReady; attempt++) {
+    try {
+      await keycloakAdmin.ensureRealmExists()
+      await keycloakTenantProvisioner.bootstrapSystemAdmin()
+      keycloakReady = true
+      logger.info('Keycloak bootstrap completed successfully')
+    } catch (error: any) {
+      if (attempt < maxRetries) {
+        logger.info({ attempt, maxRetries, error: error?.message }, `Waiting for Keycloak to be ready (attempt ${attempt}/${maxRetries})...`)
+        await new Promise(resolve => setTimeout(resolve, retryDelayMs))
+      } else {
+        logger.warn({ error: error?.message }, 'Keycloak bootstrap failed after max retries (continuing without bootstrap)')
+      }
+    }
+  }
   const createTenant = new CreateTenant(keycloakTenantProvisioner)
 
   // Initialize management controllers

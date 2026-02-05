@@ -11,6 +11,11 @@ export interface OidcJwtVerifierConfig {
    * JWKS cache TTL in milliseconds
    */
   jwksCacheTtlMs?: number
+  /**
+   * Optional internal URL for fetching JWKS (e.g., when running behind a reverse proxy).
+   * If not provided, uses issuerUrl for JWKS fetching.
+   */
+  jwksFetchUrl?: string
 }
 
 type Jwk = {
@@ -124,6 +129,16 @@ export class OidcJwtVerifier {
       return this.oidcConfigCache.jwksUri
     }
 
+    // If internal fetch URL is provided, construct JWKS URL directly
+    // (bypasses OIDC discovery which may return wrong URLs behind a proxy)
+    if (this.cfg.jwksFetchUrl) {
+      const baseUrl = this.cfg.jwksFetchUrl.endsWith('/') ? this.cfg.jwksFetchUrl.slice(0, -1) : this.cfg.jwksFetchUrl
+      const jwksUri = `${baseUrl}/protocol/openid-connect/certs`
+      this.oidcConfigCache = { jwksUri, fetchedAtMs: now }
+      return jwksUri
+    }
+
+    // Standard OIDC discovery flow
     const url = new URL('.well-known/openid-configuration', this.cfg.issuerUrl.endsWith('/') ? this.cfg.issuerUrl : `${this.cfg.issuerUrl}/`)
     const res = await fetch(url.toString(), { method: 'GET', headers: { Accept: 'application/json' } })
     if (!res.ok) {

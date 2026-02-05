@@ -11,8 +11,9 @@ services:
       - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=monorepo_casenet"
       - "--entrypoints.web.address=:3000"
-      - "--log.level=INFO"
+      - "--log.level=DEBUG"
     ports:
       - "3000:3000"   # Main entry point
       - "8080:8080"   # Traefik dashboard
@@ -84,8 +85,10 @@ services:
       - CASE_DATA_DIR=/app/data
       - PORT=8080
       # Keycloak / OIDC configuration
-      # Note: Internal URL for server-to-server communication
+      # External issuer URL (matches iss claim in tokens from browser)
       - OIDC_ISSUER_URL=http://localhost:3000/realms/opencase
+      # Internal URL for fetching JWKS (Docker network access to Keycloak)
+      - OIDC_JWKS_FETCH_URL=http://keycloak:8080/realms/opencase
       - OIDC_CLIENT_ID_PREFIX=tenant-
       # Keycloak Admin API (internal Docker network)
       - KEYCLOAK_BASE_URL=http://keycloak:8080
@@ -101,6 +104,7 @@ services:
       - KEYCLOAK_BOOTSTRAP_SYSTEM_ADMIN=true
       - KEYCLOAK_SYSTEM_ADMIN_EMAIL=system-admin@local
       - KEYCLOAK_SYSTEM_ADMIN_PASSWORD=admin
+    restart: on-failure
     volumes:
       - ./apps/opencase/data:/app/data
     networks:
