@@ -104,9 +104,11 @@ export function makeEdgeLabel(associationType: string, sequenceNumber?: number):
   return `${sequenceNumber} · ${typeLabel}`
 }
 
-const DEFAULT_NODE_WIDTH = 360
-const DEFAULT_NODE_HEIGHT = 220
+const DEFAULT_NODE_WIDTH = 280
+const DEFAULT_NODE_HEIGHT = 140
 const HEADER_SAFE_Y = 96
+const FRAMEWORK_HEIGHT = 160
+const NODE_VERTICAL_GAP = 120
 
 const nowIso = () => new Date().toISOString()
 
@@ -150,7 +152,7 @@ export function createEmptyFrameworkGraph(params: {
     id: params.id,
     type: 'caseFrameworkNode',
     position: { x: 0, y: HEADER_SAFE_Y },
-    style: { width: 520, height: 210 },
+    style: { width: 400, height: FRAMEWORK_HEIGHT },
     data: { cfDocument },
     className: wrapperNodeClassName,
   }
@@ -161,13 +163,18 @@ export function createEmptyFrameworkGraph(params: {
 export function createSampleGraph(): EditorGraph {
   const fwId = 'fw1'
 
+  // Calculate node Y positions with consistent spacing
+  const node1Y = HEADER_SAFE_Y + FRAMEWORK_HEIGHT + NODE_VERTICAL_GAP
+  const node2Y = node1Y + DEFAULT_NODE_HEIGHT + NODE_VERTICAL_GAP
+  const node3Y = node2Y + DEFAULT_NODE_HEIGHT + NODE_VERTICAL_GAP
+
   const nodes: CaseEditorNodeType[] = [
     {
       id: fwId,
       type: 'caseFrameworkNode',
       // Start below the floating header so it is visible on first load.
       position: { x: 0, y: HEADER_SAFE_Y },
-      style: { width: 520, height: 210 },
+      style: { width: 400, height: FRAMEWORK_HEIGHT },
       data: {
         cfDocument: makeCfDocument('fw1', 'Grade 3–5 Mathematics (Draft)', {
           frameworkType: 'K-12',
@@ -180,8 +187,8 @@ export function createSampleGraph(): EditorGraph {
     {
       id: 'n1',
       type: 'caseItemNode',
-      // Leave enough room between nodes so edges are visible (node height ~220).
-      position: { x: 0, y: HEADER_SAFE_Y + 210 + 140 },
+      // Leave enough room between nodes so edges are visible.
+      position: { x: 0, y: node1Y },
       style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
       data: {
         cfItem: makeCfItem('n1', 'Understand and use place value to round whole numbers to any place.', {
@@ -199,7 +206,7 @@ export function createSampleGraph(): EditorGraph {
     {
       id: 'n2',
       type: 'caseItemNode',
-      position: { x: 0, y: HEADER_SAFE_Y + 210 + 140 + 320 },
+      position: { x: 0, y: node2Y },
       style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
       data: {
         cfItem: makeCfItem('n2', 'Explain patterns in the number of zeros of the product when multiplying by powers of 10.', {
@@ -216,7 +223,7 @@ export function createSampleGraph(): EditorGraph {
     {
       id: 'n3',
       type: 'caseItemNode',
-      position: { x: 0, y: HEADER_SAFE_Y + 210 + 140 + 320 + 320 },
+      position: { x: 0, y: node3Y },
       style: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
       data: {
         cfItem: makeCfItem('n3', 'Use place value understanding to round decimals to a specified place.', {

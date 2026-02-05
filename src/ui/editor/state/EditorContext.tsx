@@ -18,13 +18,13 @@ import type { EditorSettings } from '@/ui/editor/components/SettingsModal'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
 import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, getEdgeStyle, makeCfItem, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
 
-const DEFAULT_NODE_WIDTH = 360
-const DEFAULT_NODE_HEIGHT = 220
+const DEFAULT_NODE_WIDTH = 280
+const DEFAULT_NODE_HEIGHT = 140
 const NODE_GAP_X = 36
-const NODE_GAP_Y = 28
+const NODE_GAP_Y = 100  // Vertical gap for non-overlapping positioning
 // Layout tuning: keep edges readable without large "wasted" whitespace.
 const TREE_GAP_X = 40
-const TREE_GAP_Y = 28
+const TREE_GAP_Y = 100  // Vertical gap between parent/child for edge visibility
 const HEADER_SAFE_Y = 96
 
 const isFrameworkNode = (n: CaseEditorNodeType): n is CaseFrameworkNodeType => n.type === 'caseFrameworkNode'
@@ -517,15 +517,15 @@ function reducer(state: EditorState, action: Action): EditorState {
       const maxX = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.x)) : 0
       const maxY = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.y)) : HEADER_SAFE_Y
 
-      const desiredPosition = { x: maxX + 320 + 60, y: maxY }
-      const nodeSize = { w: 320, h: 160 }
+      const desiredPosition = { x: maxX + 280 + 60, y: maxY }
+      const nodeSize = { w: 280, h: 120 }
       const nextPosition = findNonOverlappingPosition(desiredPosition, nodeSize, state.nodes)
 
       const newNode: ExternalFrameworkNodeType = {
         id: action.nodeId,
         type: 'externalFrameworkNode',
         position: nextPosition,
-        style: { width: 320, height: 160 },
+        style: { width: 280, height: 120 },
         data: action.data,
         className: wrapperNodeClassName,
       }

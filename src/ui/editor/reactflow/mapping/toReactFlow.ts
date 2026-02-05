@@ -6,9 +6,10 @@ import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseIte
 import type { CFAssociation, CFDocument, CFItem } from '@/domain/case/types'
 import type { LayoutState } from './types'
 
-const DEFAULT_NODE_WIDTH = 360
-const DEFAULT_NODE_HEIGHT = 220
+const DEFAULT_NODE_WIDTH = 280
+const DEFAULT_NODE_HEIGHT = 140
 const HEADER_SAFE_Y = 96
+const NODE_VERTICAL_GAP = 120  // Gap between nodes for edge visibility
 
 /**
  * Calculate the best handles for connecting two nodes based on their positions.
@@ -141,7 +142,7 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
 
   const cfDocument = mapDomainFrameworkToCfDocument(framework)
 
-  const rootLayout = getLayout(layout, fwId, { x: 0, y: HEADER_SAFE_Y, w: 520, h: 210 })
+  const rootLayout = getLayout(layout, fwId, { x: 0, y: HEADER_SAFE_Y, w: 400, h: 160 })
   const fwNode: CaseFrameworkNodeType = {
     id: fwId,
     type: 'caseFrameworkNode',
@@ -172,7 +173,8 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
   }
 
   const itemIds = Array.from(framework.items.keys()).map((x) => x as unknown as string).sort((a, b) => a.localeCompare(b))
-  let y = HEADER_SAFE_Y + 210 + 140
+  // Start items below the framework node with adequate gap for edge visibility
+  let y = HEADER_SAFE_Y + 160 + NODE_VERTICAL_GAP
 
   for (const itemId of itemIds) {
     const parentId = parentByChild.get(itemId) ?? fwId
@@ -188,7 +190,7 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
       className: wrapperNodeClassName,
     }
     nodes.push(node)
-    y += DEFAULT_NODE_HEIGHT + 100
+    y += DEFAULT_NODE_HEIGHT + NODE_VERTICAL_GAP
   }
 
   const defaultLabelStyle = { fill: '#94a3b8', fontSize: 11, fontWeight: 500 }
