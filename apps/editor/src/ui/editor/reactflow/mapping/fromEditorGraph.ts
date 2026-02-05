@@ -1,0 +1,132 @@
+import type { EditorGraph } from '@/ui/editor/state/editorFactories'
+import type { Framework, FrameworkMetadata, Item, Association, AssociationType, ItemType } from '@/domain/framework/model/types'
+import type { AssociationId, FrameworkId, ItemId } from '@/domain/shared/types'
+import type { LayoutState } from './types'
+import type { CFDocument, CFItem } from '@/domain/case/types'
+
+const isFrameworkNode = (n: EditorGraph['nodes'][number]) => n.type === 'caseFrameworkNode'
+const isItemNode = (n: EditorGraph['nodes'][number]) => n.type === 'caseItemNode'
+
+function mapItemType(rawType?: string): ItemType {
+  const raw = (rawType ?? '').toLowerCase()
+  if (raw.includes('skill')) return 'Skill'
+  if (raw.includes('learning') || raw.includes('outcome')) return 'LearningOutcome'
+  if (raw.includes('standard')) return 'Standard'
+  if (raw.includes('compet')) return 'Competency'
+  return 'Competency'
+}
+
+function edgeToAssociationType(edgeId: string, edgeData?: { associationType?: string; cfAssociation?: { associationType?: string } }): AssociationType {
+  // Use the stored association type if available (check both top-level and cfAssociation)
+  if (edgeData?.associationType) {
+    return edgeData.associationType as AssociationType
+  }
+  if (edgeData?.cfAssociation?.associationType) {
+    return edgeData.cfAssociation.associationType as AssociationType
+  }
+  // Legacy graphs used `e_${parent}_${child}` for hierarchy edges.
+  if (edgeId.startsWith('e_')) return 'isChildOf'
+  return 'isRelatedTo'
+}
+
+function readCfDocument(node: EditorGraph['nodes'][number]): CFDocument | null {
+  const any = node.data as unknown as { cfDocument?: CFDocument }
+  return any?.cfDocument ?? null
+}
+
+function readCfItem(node: EditorGraph['nodes'][number]): CFItem | null {
+  const any = node.data as unknown as { cfItem?: CFItem }
+  return any?.cfItem ?? null
+}
+
+export function fromEditorGraph(params: { graph: EditorGraph }): { framework: Framework; layout: LayoutState } {
+  const { graph } = params
+  const fwNode = graph.nodes.find(isFrameworkNode)
+  const fwId = (fwNode?.id ?? 'fw') as unknown as FrameworkId
+  const doc = fwNode ? readCfDocument(fwNode) : null
+
+  const metadata: FrameworkMetadata = {
+    title: doc?.title,
+    description: doc?.description,
+    creator: doc?.creator,
+    frameworkType: doc?.frameworkType,
+    adoptionStatus: doc?.adoptionStatus,
+    caseVersion: doc?.caseVersion,
+    version: doc?.version,
+    lastChangeDateTime: doc?.lastChangeDateTime,
+  }
+
+  const items: Framework['items'] = new Map()
+  for (const n of graph.nodes.filter(isItemNode)) {
+    const cf = readCfItem(n)
+    const item: Item = {
+      id: n.id as unknown as ItemId,
+      statement: cf?.fullStatement ?? '',
+      type: mapItemType(cf?.CFItemType),
+      metadata: {
+        abbreviatedStatement: cf?.abbreviatedStatement,
+        alternativeLabel: cf?.alternativeLabel,
+        humanCodingScheme: cf?.humanCodingScheme,
+        CFItemType: cf?.CFItemType,
+        subject: cf?.subject,
+        educationLevel: cf?.educationLevel,
+        conceptKeywords: cf?.conceptKeywords,
+        notes: cf?.notes,
+        lastChangeDateTime: cf?.lastChangeDateTime,
+        caseUri: cf?.uri,
+        extensions: cf?.extensions,
+      },
+    }
+    items.set(item.id, item)
+  }
+
+  const associations: Framework['associations'] = new Map()
+  for (const e of graph.edges) {
+    const source = e.source
+    const target = e.target
+    // Skip framework->item edges: those just represent "top-level" items.
+    if (source === (fwNode?.id ?? (fwId as unknown as string))) continue
+    if (!items.has(source as unknown as ItemId)) continue
+    if (!items.has(target as unknown as ItemId)) continue
+
+    const edgeData = e.data as { associationType?: string; cfAssociation?: { sequenceNumber?: number; associationType?: string } } | undefined
+    const associationType = edgeToAssociationType(e.id, edgeData)
+    
+    // For hierarchical types (isChildOf, isPartOf), the edge goes from child to parent visually
+    // but the association semantically means "child isChildOf parent"
+    const isHierarchical = associationType === 'isChildOf' || associationType === 'isPartOf'
+    
+    const assoc: Association = {
+      id: e.id as unknown as AssociationId,
+      fromItemId: (isHierarchical ? target : source) as unknown as ItemId,
+      toItemId: (isHierarchical ? source : target) as unknown as ItemId,
+      associationType,
+      metadata: {
+        sequenceNumber: edgeData?.cfAssociation?.sequenceNumber,
+      },
+    }
+    associations.set(assoc.id, assoc)
+  }
+
+  const framework: Framework = {
+    id: fwId,
+    metadata,
+    items,
+    associations,
+    status: 'Draft',
+  }
+
+  const byNodeId: LayoutState['byNodeId'] = {}
+  for (const n of graph.nodes) {
+    const styleAny = n.style as unknown as { width?: number; height?: number } | undefined
+    byNodeId[n.id] = {
+      x: n.position.x,
+      y: n.position.y,
+      w: typeof styleAny?.width === 'number' ? styleAny.width : undefined,
+      h: typeof styleAny?.height === 'number' ? styleAny.height : undefined,
+    }
+  }
+
+  return { framework, layout: { byNodeId } }
+}
+
