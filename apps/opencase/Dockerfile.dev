@@ -1,0 +1,22 @@
+# Development Dockerfile for OpenCASE
+# Runs ts-node-dev for hot-reload during development
+
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Install dependencies first (better layer caching)
+COPY package.json package-lock.json* ./
+
+RUN npm install
+
+# Copy schemas (needed at runtime for validation)
+COPY schemas ./schemas
+
+# Source code will be mounted as a volume for hot-reload
+# No COPY of src/ or build step needed
+
+EXPOSE 8080
+
+# Run in dev mode with ts-node-dev (auto-restart on file changes)
+CMD ["npm", "run", "dev"]

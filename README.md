@@ -68,9 +68,30 @@ Access the application at: **http://localhost:3000**
 
 ## Development
 
-### Hot Reload
+### Dev Mode (Hot Reload for All Apps)
 
-The Editor source code is mounted as a volume, so changes to files in `apps/editor/src/` will trigger hot-reload automatically.
+For active development with hot-reload on both Editor and OpenCASE:
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+```
+
+This enables:
+- **Editor**: Vite HMR - edit `apps/editor/src/*` → instant reload
+- **OpenCASE**: ts-node-dev - edit `apps/opencase/src/*` → auto-restart
+
+First time or after changing dependencies:
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+### Production Mode
+
+For production-like builds (no hot-reload):
+
+```bash
+docker-compose up --build
+```
 
 ### Viewing Logs
 
@@ -129,16 +150,18 @@ See `env.example` for available environment variables. Copy it to `.env` to cust
 
 ```
 monorepo/
-├── docker-compose.yml      # Unified dev environment
+├── docker-compose.yml      # Production-like environment
+├── docker-compose.dev.yml  # Dev overrides (hot-reload)
 ├── env.example             # Environment variable template
 ├── README.md               # This file
 └── apps/
     ├── editor/             # React frontend
-    │   ├── Dockerfile      # Dev server container
+    │   ├── Dockerfile      # Vite dev server container
     │   ├── src/            # Source code (mounted for hot-reload)
     │   └── ...
     └── opencase/           # Node.js backend
-        ├── Dockerfile      # API server container
+        ├── Dockerfile      # Production build container
+        ├── Dockerfile.dev  # Dev container (ts-node-dev)
         ├── data/           # Persisted framework data
         └── ...
 ```
