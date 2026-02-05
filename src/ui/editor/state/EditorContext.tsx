@@ -18,6 +18,7 @@ import type { EditorSettings } from '@/ui/editor/components/SettingsModal'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
 import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, getEdgeStyle, makeCfItem, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
 import { FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '@/ui/editor/reactflow/types'
+import type { CaseVersion } from '@/application/framework/mappers/case/CasePackageSnapshot'
 
 const DEFAULT_NODE_WIDTH = 280
 const DEFAULT_NODE_HEIGHT = 140
@@ -179,10 +180,30 @@ function reducer(state: EditorState, action: Action): EditorState {
         nodes: state.nodes.map((n) => ({ ...n, selected: false })),
         edges: state.edges.map((e) => ({ ...e, selected: false })),
       }
-    case 'nodes/applyChanges':
-      return { ...state, nodes: applyNodeChanges<CaseEditorNodeType>(action.changes, state.nodes), dirty: true }
-    case 'edges/applyChanges':
-      return { ...state, edges: applyEdgeChanges(action.changes, state.edges) as CaseEditorEdge[], dirty: true }
+    case 'nodes/applyChanges': {
+      // Only mark dirty for user-initiated changes (position, remove, add)
+      // Ignore dimension changes (React Flow measuring) and select changes
+      const hasDirtyChanges = action.changes.some(
+        (c) => c.type === 'position' || c.type === 'remove' || c.type === 'add'
+      )
+      return {
+        ...state,
+        nodes: applyNodeChanges<CaseEditorNodeType>(action.changes, state.nodes),
+        dirty: state.dirty || hasDirtyChanges,
+      }
+    }
+    case 'edges/applyChanges': {
+      // Only mark dirty for user-initiated changes (remove, add)
+      // Ignore select changes
+      const hasDirtyChanges = action.changes.some(
+        (c) => c.type === 'remove' || c.type === 'add'
+      )
+      return {
+        ...state,
+        edges: applyEdgeChanges(action.changes, state.edges) as CaseEditorEdge[],
+        dirty: state.dirty || hasDirtyChanges,
+      }
+    }
     case 'edges/connect': {
       const { source, target, sourceHandle, targetHandle } = action.connection
       if (!source || !target) return state
@@ -736,6 +757,8 @@ type EditorContextValue = {
   frameworkInfo: { title: string; subtitle?: string; creator?: string }
   layoutVersion: number
   isDirty: boolean
+  /** CASE version for serialization (1.0 or 1.1). Default is 1.1 for new frameworks. */
+  caseVersion: CaseVersion
   settings: EditorSettings
   updateSettings: (_settings: EditorSettings) => void
   onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType>
@@ -769,7 +792,15 @@ export function EditorProvider({
   children,
   initialGraph,
   graphKey,
-}: Readonly<{ children: ReactNode; initialGraph?: EditorGraph; graphKey?: string }>) {
+  caseVersion: initialCaseVersion = '1.1',
+}: Readonly<{ children: ReactNode; initialGraph?: EditorGraph; graphKey?: string; caseVersion?: CaseVersion }>) {
+  // Track CASE version for serialization - default to 1.1 for new frameworks
+  const [caseVersion, setCaseVersion] = useState<CaseVersion>(initialCaseVersion)
+  
+  // Update caseVersion when initialCaseVersion changes (e.g., loading a different framework)
+  useEffect(() => {
+    setCaseVersion(initialCaseVersion)
+  }, [initialCaseVersion])
   const seed = useMemo(() => initialGraph ?? DEFAULT_GRAPH, [initialGraph])
   const [state, dispatch] = useReducer(reducer, { nodes: seed.nodes, edges: seed.edges, selectedNodeId: null, selectedEdgeId: null, layoutVersion: 0, dirty: false })
   const didInitialLayout = useRef(false)
@@ -1077,6 +1108,7 @@ export function EditorProvider({
       frameworkInfo,
       layoutVersion: state.layoutVersion,
       isDirty: state.dirty,
+      caseVersion,
       settings,
       updateSettings,
       onSelectionChange,
@@ -1109,6 +1141,7 @@ export function EditorProvider({
       frameworkInfo,
       state.layoutVersion,
       state.dirty,
+      caseVersion,
       settings,
       updateSettings,
       onSelectionChange,

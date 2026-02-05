@@ -45,6 +45,7 @@ export function fromEditorGraph(params: { graph: EditorGraph }): { framework: Fr
     frameworkType: doc?.frameworkType,
     adoptionStatus: doc?.adoptionStatus,
     caseVersion: doc?.caseVersion,
+    version: doc?.version,
     lastChangeDateTime: doc?.lastChangeDateTime,
   }
 

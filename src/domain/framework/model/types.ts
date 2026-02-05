@@ -13,6 +13,7 @@ export type FrameworkMetadata = {
   frameworkType?: string
   adoptionStatus?: string
   caseVersion?: string
+  version?: string
   lastChangeDateTime?: string
 }
 

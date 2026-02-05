@@ -14,9 +14,11 @@ type Props = {
   node: CaseEditorNodeType | null
   onClose?: () => void
   onChangeNode?: (_nodeId: string, _patch: CaseEditorNodeDataPatch) => void
+  /** Callback to open the CFPackage viewer (framework node only) */
+  onViewCFPackage?: () => void
 }
 
-export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Readonly<Props>) {
+export default function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage }: Readonly<Props>) {
   const [copied, setCopied] = useState<null | 'code' | 'uri'>(null)
   useEffect(() => {
     if (!node) return
@@ -461,6 +463,24 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
                 </div>
               )}
             </div>
+
+            {isFramework && onViewCFPackage ? (
+              <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
+                <div className="mb-3">
+                  <div className="text-sm font-semibold text-violet-900">Export</div>
+                  <div className="text-xs text-violet-700">
+                    Export this framework as a CASE CFPackage for validation or sharing.
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={onViewCFPackage}
+                  className="w-full"
+                >
+                  View CFPackage JSON
+                </Button>
+              </div>
+            ) : null}
 
             <details className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
               <summary className="cursor-pointer select-none text-sm font-semibold text-slate-900">

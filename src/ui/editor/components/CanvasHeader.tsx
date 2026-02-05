@@ -174,6 +174,8 @@ export default function CanvasHeader({
   tenantId,
   reserveRightForPanel,
   showSettings,
+  isDirty,
+  onSave,
   onBack,
   onSignIn,
   onSignOut,
@@ -185,6 +187,10 @@ export default function CanvasHeader({
   tenantId?: string
   reserveRightForPanel?: boolean
   showSettings?: boolean
+  /** Whether the editor has unsaved changes */
+  isDirty?: boolean
+  /** Called when the user clicks the Save button */
+  onSave?: () => void
   onBack?: () => void
   onSignIn?: () => void
   onSignOut?: () => void
@@ -236,9 +242,24 @@ export default function CanvasHeader({
           </div>
 
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-900">{frameworkTitle}</div>
+            <div className="flex items-center gap-2">
+              <span className="truncate text-sm font-semibold text-slate-900">{frameworkTitle}</span>
+            </div>
             {frameworkSubtitle ? <div className="truncate text-xs text-slate-600">{frameworkSubtitle}</div> : null}
           </div>
+
+          {/* Save button - always visible, disabled when no changes */}
+          {onSave ? (
+            <Button
+              variant={isDirty ? 'default' : 'secondary'}
+              size="sm"
+              onClick={onSave}
+              disabled={!isDirty}
+              className={isDirty ? '' : 'opacity-50'}
+            >
+              {isDirty ? 'Save' : 'Saved'}
+            </Button>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2">

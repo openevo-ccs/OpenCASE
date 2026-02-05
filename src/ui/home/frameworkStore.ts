@@ -47,6 +47,7 @@ function createFrameworkFromMetadata(params: {
   creator?: string
   frameworkType?: string
   adoptionStatus?: string
+  caseVersion?: string
 }): Framework {
   const metadata: FrameworkMetadata = {
     title: params.title,
@@ -54,6 +55,7 @@ function createFrameworkFromMetadata(params: {
     creator: params.creator,
     frameworkType: params.frameworkType,
     adoptionStatus: params.adoptionStatus,
+    caseVersion: params.caseVersion ?? '1.1', // Default to CASE 1.1 for new frameworks
     lastChangeDateTime: new Date().toISOString(),
   }
 

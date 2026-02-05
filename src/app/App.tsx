@@ -201,8 +201,13 @@ function AppInner() {
     )
   }
 
+  // Determine CASE version from framework metadata or CFDocument
+  const caseVersion = activeFramework.framework.metadata.caseVersion 
+    ?? activeFramework.cfDocument.caseVersion 
+    ?? '1.1' // Default to 1.1 for new frameworks
+
   return (
-    <EditorProvider initialGraph={activeGraph} graphKey={activeFramework.id}>
+    <EditorProvider initialGraph={activeGraph} graphKey={activeFramework.id} caseVersion={caseVersion}>
       <EditorCanvas
         onBack={() => {
           setScreen('home')

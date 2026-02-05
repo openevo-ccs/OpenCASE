@@ -14,14 +14,18 @@ import ConfirmLeaveDialog from '@/ui/editor/components/ConfirmLeaveDialog'
 import SettingsModal from '@/ui/editor/components/SettingsModal'
 import FloatingAddButton from '@/ui/editor/components/FloatingAddButton'
 import AddExternalFrameworkDialog from '@/ui/editor/components/AddExternalFrameworkDialog'
+import ViewCFPackageDialog from '@/ui/editor/components/ViewCFPackageDialog'
 import { useEditor } from '@/ui/editor/state/EditorContext'
 import type { CaseEditorNodeType, CaseEditorEdge } from '@/ui/editor/reactflow/types'
-import type { CFDocument, CFItem } from '@/domain/case/types'
+import type { CFDocument, CFItem, CFPackage } from '@/domain/case/types'
 import { useAuth } from '@/app/providers/AuthProvider'
+import { fromEditorGraph } from '@/ui/editor/reactflow/mapping/fromEditorGraph'
+import { frameworkToCfPackage, toOpenCaseFormat } from '@/application/framework/mappers/case/toCasePackage'
 
 export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void }>) {
   const { status: authStatus, userName, tenantId, signOut } = useAuth()
   const {
+    nodes,
     nodesWithCallbacks,
     edges: editorEdges,
     onNodesChange,
@@ -43,6 +47,7 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
     confirmAddItem,
     deleteElements,
     isDirty,
+    caseVersion,
     settings,
     updateSettings,
     addDetachedItem,
@@ -57,9 +62,52 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [externalFwDialogOpen, setExternalFwDialogOpen] = useState(false)
   const [externalFwViewportCenter, setExternalFwViewportCenter] = useState<{ x: number; y: number } | undefined>(undefined)
+  const [cfPackageDialogOpen, setCfPackageDialogOpen] = useState(false)
+  const [generatedCfPackage, setGeneratedCfPackage] = useState<CFPackage | null>(null)
   
   // Track the edge being reconnected
   const edgeReconnectSuccessful = useRef(true)
+
+  // Generate CFPackage from current editor state and open the viewer
+  const handleViewCFPackage = useCallback(() => {
+    // Convert editor graph to domain Framework + layout
+    const { framework, layout } = fromEditorGraph({ graph: { nodes, edges: editorEdges } })
+    
+    // Convert domain Framework to CFPackage with layout in extensions (no version increment for view)
+    const cfPackage = frameworkToCfPackage({
+      framework,
+      caseVersion,
+      layout,
+      incrementVersion: false,
+    })
+    
+    setGeneratedCfPackage(cfPackage)
+    setCfPackageDialogOpen(true)
+  }, [nodes, editorEdges, caseVersion])
+
+  // Save: Generate CFPackage with version increment and show for validation
+  // (Network POST to OpenCASE not yet implemented)
+  const handleSave = useCallback(() => {
+    // Convert editor graph to domain Framework + layout
+    const { framework, layout } = fromEditorGraph({ graph: { nodes, edges: editorEdges } })
+    
+    // Convert domain Framework to CFPackage with layout in extensions
+    // Increment version on save
+    const cfPackage = frameworkToCfPackage({
+      framework,
+      caseVersion,
+      layout,
+      incrementVersion: true,
+    })
+    
+    // Show the generated CFPackage for validation
+    // TODO: POST to OpenCASE server and clear dirty state on success
+    setGeneratedCfPackage(cfPackage)
+    setCfPackageDialogOpen(true)
+    
+    // Log to console for debugging
+    console.log('[Save] Generated CFPackage:', cfPackage)
+  }, [nodes, editorEdges, caseVersion])
 
   // Apply the custom labeled edge type to all edges, passing the path style in data
   const edgesWithType = useMemo<CaseEditorEdge[]>(
@@ -445,6 +493,8 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
         tenantId={tenantId ?? undefined}
         reserveRightForPanel={Boolean(selectedNode || selectedEdge)}
         showSettings
+        isDirty={isDirty}
+        onSave={handleSave}
         onSignIn={undefined}
         onSignOut={
           authStatus !== 'authenticated'
@@ -509,7 +559,12 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
         </ReactFlow>
       </div>
 
-      <NodePropertiesPanel node={selectedNode} onClose={clearSelection} onChangeNode={updateNodeData} />
+      <NodePropertiesPanel
+        node={selectedNode}
+        onClose={clearSelection}
+        onChangeNode={updateNodeData}
+        onViewCFPackage={handleViewCFPackage}
+      />
 
       <EdgePropertiesPanel
         edge={selectedEdge}
@@ -592,6 +647,16 @@ export default function EditorCanvas({ onBack }: Readonly<{ onBack?: () => void 
           addExternalFramework(draft, externalFwViewportCenter)
           setExternalFwViewportCenter(undefined)
         }}
+      />
+
+      <ViewCFPackageDialog
+        open={cfPackageDialogOpen}
+        onClose={() => {
+          setCfPackageDialogOpen(false)
+          setGeneratedCfPackage(null)
+        }}
+        cfPackage={generatedCfPackage}
+        caseVersion={caseVersion}
       />
     </div>
   )
