@@ -263,6 +263,10 @@ function reducer(state: EditorState, action: Action): EditorState {
         if (isFrameworkNode(n) && 'cfDocument' in patch && patch.cfDocument) {
           return { ...n, data: { ...n.data, ...patch, cfDocument: { ...n.data.cfDocument, ...patch.cfDocument } } }
         }
+        // Handle external framework nodes - patch contains direct properties (title, uri, etc.)
+        if (n.type === 'externalFrameworkNode') {
+          return { ...n, data: { ...n.data, ...patch } }
+        }
         return n
       })
       return { ...state, nodes, dirty: true }

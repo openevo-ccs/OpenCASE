@@ -5,6 +5,8 @@ import type {
   CaseEditorNodeType,
   CaseFrameworkNodeType,
   CaseItemNodeType,
+  ExternalFrameworkNodeType,
+  ExternalFrameworkNodeData,
 } from '../reactflow/types'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 
@@ -29,10 +31,14 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
 
   const isItemNode = (n: CaseEditorNodeType): n is CaseItemNodeType => n.type === 'caseItemNode'
   const isFrameworkNode = (n: CaseEditorNodeType): n is CaseFrameworkNodeType => n.type === 'caseFrameworkNode'
+  const isExternalFrameworkNode = (n: CaseEditorNodeType): n is ExternalFrameworkNodeType => n.type === 'externalFrameworkNode'
+  
   const isFramework = Boolean(node && isFrameworkNode(node))
+  const isExternalFramework = Boolean(node && isExternalFrameworkNode(node))
 
   const cfItem: CFItem | undefined = node && isItemNode(node) ? node.data.cfItem : undefined
   const cfDocument: CFDocument | undefined = node && isFrameworkNode(node) ? node.data.cfDocument : undefined
+  const externalData: ExternalFrameworkNodeData | undefined = node && isExternalFrameworkNode(node) ? node.data : undefined
 
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—'
@@ -65,6 +71,11 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
     onChangeNode?.(node.id, { cfDocument: { ...patch, lastChangeDateTime: new Date().toISOString() } })
   }
 
+  const updateExternalFramework = (patch: Partial<ExternalFrameworkNodeData>) => {
+    if (!node) return
+    onChangeNode?.(node.id, patch)
+  }
+
   const parseCsv = (raw: string) =>
     raw
       .split(',')
@@ -91,13 +102,19 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
         'fixed right-0 top-0 z-20 flex h-screen w-[min(460px,92vw)] flex-col border-l border-black/10 bg-gradient-to-b from-white to-slate-50 text-slate-900 shadow-[-16px_0_40px_rgba(0,0,0,0.18)] transition-transform duration-200 ease-out',
         isOpen ? 'translate-x-0' : 'translate-x-full',
       ].join(' ')}
-      aria-label={isFramework ? 'Framework details' : 'Item details'}
+      aria-label={isExternalFramework ? 'External framework details' : isFramework ? 'Framework details' : 'Item details'}
     >
       <div className="flex items-center justify-between border-b border-black/10 bg-white/70 px-4 py-3 backdrop-blur">
         <div>
-          <div className="text-sm font-bold">{isFramework ? 'Framework details' : 'Item details'}</div>
+          <div className="text-sm font-bold">
+            {isExternalFramework ? 'External framework' : isFramework ? 'Framework details' : 'Item details'}
+          </div>
           <div className="text-xs text-slate-500">
-            {isFramework ? 'High-level information about this framework.' : 'Select a card on the canvas to view and edit.'}
+            {isExternalFramework 
+              ? 'Reference to an external framework or standards document.'
+              : isFramework 
+                ? 'High-level information about this framework.' 
+                : 'Select a card on the canvas to view and edit.'}
           </div>
         </div>
         <Button variant="secondary" size="xs" onClick={() => onClose?.()}>
@@ -105,7 +122,107 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode }: Rea
         </Button>
       </div>
 
-      {node ? (
+      {node && isExternalFramework ? (
+        // External Framework Panel
+        <div className="flex-1 overflow-auto p-4">
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-amber-700">External Reference</div>
+                <div className="text-base font-semibold text-amber-900">
+                  {externalData?.title || 'Untitled external framework'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+              <div className="mb-3">
+                <div className="text-sm font-semibold text-slate-900">Basic Information</div>
+                <div className="text-xs text-slate-500">Details about this external framework reference.</div>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="ext-title">
+                    Title
+                  </label>
+                  <input
+                    id="ext-title"
+                    className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                    value={externalData?.title ?? ''}
+                    onChange={(e) => updateExternalFramework({ title: e.target.value })}
+                    placeholder="e.g., Common Core State Standards"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="ext-uri">
+                    URI / Identifier
+                  </label>
+                  <input
+                    id="ext-uri"
+                    className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                    value={externalData?.uri ?? ''}
+                    onChange={(e) => updateExternalFramework({ uri: e.target.value })}
+                    placeholder="e.g., urn:case:framework:ccss-math"
+                  />
+                  <div className="mt-1 text-xs text-slate-500">The unique identifier or URI for this framework.</div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="ext-source">
+                    Source
+                  </label>
+                  <input
+                    id="ext-source"
+                    className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                    value={externalData?.source ?? ''}
+                    onChange={(e) => updateExternalFramework({ source: e.target.value })}
+                    placeholder="e.g., OpenCASE, State Standards"
+                  />
+                  <div className="mt-1 text-xs text-slate-500">Where this framework comes from.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+              <div className="mb-2">
+                <div className="text-sm font-semibold text-slate-900">Description</div>
+                <div className="text-xs text-slate-500">Notes about this external framework reference.</div>
+              </div>
+              <textarea
+                id="ext-description"
+                rows={4}
+                className="w-full resize-y rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                value={externalData?.description ?? ''}
+                onChange={(e) => updateExternalFramework({ description: e.target.value })}
+                placeholder="Add notes about this external framework..."
+              />
+            </div>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-3">
+                <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <div className="text-sm font-medium text-amber-900">About External Frameworks</div>
+                  <div className="mt-1 text-xs text-amber-700">
+                    External frameworks represent references to standards or frameworks outside of this document. 
+                    Connect items to this node using "Is Part Of" associations to indicate alignment or relationships.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : node ? (
         <div className="flex-1 overflow-auto p-4">
           <div className="mb-4 rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
             <div className="mb-2">
