@@ -17,6 +17,7 @@ import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
 import type { EditorSettings } from '@/ui/editor/components/SettingsModal'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
 import { createSampleGraph, DEFAULT_EDGE_MARKER, getEdgeMarkers, getEdgeStyle, makeCfItem, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
+import { FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '@/ui/editor/reactflow/types'
 
 const DEFAULT_NODE_WIDTH = 280
 const DEFAULT_NODE_HEIGHT = 140
@@ -190,36 +191,63 @@ function reducer(state: EditorState, action: Action): EditorState {
       const sourceNode = state.nodes.find((n) => n.id === source)
       const targetNode = state.nodes.find((n) => n.id === target)
       
-      const isSourceFramework = 
-        sourceNode?.type === 'caseFrameworkNode' || 
-        sourceNode?.type === 'externalFrameworkNode'
-      const isTargetFramework = 
-        targetNode?.type === 'caseFrameworkNode' || 
-        targetNode?.type === 'externalFrameworkNode'
+      const isSourceMainFramework = sourceNode?.type === 'caseFrameworkNode'
+      const isTargetMainFramework = targetNode?.type === 'caseFrameworkNode'
+      const isSourceExternalFramework = sourceNode?.type === 'externalFrameworkNode'
+      const isTargetExternalFramework = targetNode?.type === 'externalFrameworkNode'
+      const isSourceAnyFramework = isSourceMainFramework || isSourceExternalFramework
+      const isTargetAnyFramework = isTargetMainFramework || isTargetExternalFramework
       
       // Prevent framework-to-framework connections
-      if (isSourceFramework && isTargetFramework) {
+      if (isSourceAnyFramework && isTargetAnyFramework) {
         // Silently reject - framework nodes can only connect to items
         return state
       }
       
-      // Use isPartOf for framework connections, isChildOf for item-to-item
-      const involvesFramework = isSourceFramework || isTargetFramework
-      const defaultAssocType = involvesFramework ? 'isPartOf' : 'isChildOf'
+      // Determine association type:
+      // - Main framework (caseFrameworkNode) uses __startsFrom (visual-only)
+      // - External framework uses isPartOf
+      // - Item-to-item uses isChildOf
+      const involvesMainFramework = isSourceMainFramework || isTargetMainFramework
+      const involvesExternalFramework = isSourceExternalFramework || isTargetExternalFramework
+      
+      let defaultAssocType: string
+      if (involvesMainFramework) {
+        defaultAssocType = FRAMEWORK_ROOT_ASSOCIATION_TYPE
+      } else if (involvesExternalFramework) {
+        defaultAssocType = 'isPartOf'
+      } else {
+        defaultAssocType = 'isChildOf'
+      }
+      
+      // For main framework connections, ensure framework is always the source (origin)
+      // and item is always the target (destination), regardless of drag direction
+      let finalSource = source
+      let finalTarget = target
+      let finalSourceHandle = sourceHandle ?? undefined
+      let finalTargetHandle = targetHandle ?? undefined
+      
+      if (involvesMainFramework && isTargetMainFramework) {
+        // User dragged from item to main framework - swap so framework is source
+        finalSource = target
+        finalTarget = source
+        finalSourceHandle = targetHandle ?? undefined
+        finalTargetHandle = sourceHandle ?? undefined
+      }
       
       const newEdge: CaseEditorEdge = {
-        id: `e_${source}_${target}_${Date.now()}`,
-        source,
-        target,
-        // Only use handles if user explicitly dragged from a specific handle
-        sourceHandle: sourceHandle ?? undefined,
-        targetHandle: targetHandle ?? undefined,
+        id: `e_${finalSource}_${finalTarget}_${Date.now()}`,
+        source: finalSource,
+        target: finalTarget,
+        sourceHandle: finalSourceHandle,
+        targetHandle: finalTargetHandle,
         label: makeEdgeLabel(defaultAssocType),
         labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 500 },
         style: getEdgeStyle(defaultAssocType),
         data: {
           isHierarchical: true,
           associationType: defaultAssocType,
+          isFrameworkRootConnection: involvesMainFramework,
         },
         ...getEdgeMarkers(defaultAssocType),
       }
@@ -320,19 +348,37 @@ function reducer(state: EditorState, action: Action): EditorState {
     case 'edge/reconnect': {
       const { edgeId, newSource, newTarget, newSourceHandle, newTargetHandle } = action
       
-      // Check if this would create a framework-to-framework connection
+      // Check node types
       const newSourceNode = state.nodes.find((n) => n.id === newSource)
       const newTargetNode = state.nodes.find((n) => n.id === newTarget)
-      const isSourceFramework = 
-        newSourceNode?.type === 'caseFrameworkNode' || 
-        newSourceNode?.type === 'externalFrameworkNode'
-      const isTargetFramework = 
-        newTargetNode?.type === 'caseFrameworkNode' || 
-        newTargetNode?.type === 'externalFrameworkNode'
+      const isSourceMainFramework = newSourceNode?.type === 'caseFrameworkNode'
+      const isTargetMainFramework = newTargetNode?.type === 'caseFrameworkNode'
+      const isSourceExternalFramework = newSourceNode?.type === 'externalFrameworkNode'
+      const isTargetExternalFramework = newTargetNode?.type === 'externalFrameworkNode'
+      const isSourceAnyFramework = isSourceMainFramework || isSourceExternalFramework
+      const isTargetAnyFramework = isTargetMainFramework || isTargetExternalFramework
       
       // Prevent framework-to-framework connections
-      if (isSourceFramework && isTargetFramework) {
+      if (isSourceAnyFramework && isTargetAnyFramework) {
         return state // Reject the reconnection
+      }
+      
+      // Determine association type
+      const involvesMainFramework = isSourceMainFramework || isTargetMainFramework
+      const involvesExternalFramework = isSourceExternalFramework || isTargetExternalFramework
+      
+      // For main framework connections, ensure framework is always the source (origin)
+      let finalSource = newSource
+      let finalTarget = newTarget
+      let finalSourceHandle = newSourceHandle
+      let finalTargetHandle = newTargetHandle
+      
+      if (involvesMainFramework && isTargetMainFramework) {
+        // Swap so main framework is source
+        finalSource = newTarget
+        finalTarget = newSource
+        finalSourceHandle = newTargetHandle
+        finalTargetHandle = newSourceHandle
       }
       
       const edges = state.edges.map((e) => {
@@ -342,28 +388,43 @@ function reducer(state: EditorState, action: Action): EditorState {
         const currentData = e.data ?? {}
         const cfAssoc = currentData.cfAssociation
         
-        // Update cfAssociation URIs if present
-        const newCfAssociation = cfAssoc ? {
+        // Determine the new association type
+        let newAssocType: string
+        if (involvesMainFramework) {
+          newAssocType = FRAMEWORK_ROOT_ASSOCIATION_TYPE
+        } else if (involvesExternalFramework) {
+          newAssocType = 'isPartOf'
+        } else {
+          newAssocType = currentData.associationType ?? 'isChildOf'
+        }
+        
+        // Update cfAssociation URIs if present (only for non-main-framework connections)
+        const newCfAssociation = (!involvesMainFramework && cfAssoc) ? {
           ...cfAssoc,
           originNodeURI: { 
             ...cfAssoc.originNodeURI,
-            identifier: newSource 
+            identifier: finalSource 
           },
           destinationNodeURI: { 
             ...cfAssoc.destinationNodeURI,
-            identifier: newTarget 
+            identifier: finalTarget 
           },
           lastChangeDateTime: new Date().toISOString(),
         } : undefined
         
         return {
           ...e,
-          source: newSource,
-          target: newTarget,
-          sourceHandle: newSourceHandle,
-          targetHandle: newTargetHandle,
+          source: finalSource,
+          target: finalTarget,
+          sourceHandle: finalSourceHandle,
+          targetHandle: finalTargetHandle,
+          label: makeEdgeLabel(newAssocType),
+          style: getEdgeStyle(newAssocType),
+          ...getEdgeMarkers(newAssocType),
           data: {
             ...currentData,
+            associationType: newAssocType,
+            isFrameworkRootConnection: involvesMainFramework,
             cfAssociation: newCfAssociation,
           },
         }
@@ -459,9 +520,21 @@ function reducer(state: EditorState, action: Action): EditorState {
         childSize
       )
       
-      // Determine association type: isPartOf for framework connections, isChildOf for item-to-item
-      const isParentFramework = isFrameworkNode(parent) || parent.type === 'externalFrameworkNode'
-      const assocType = isParentFramework ? 'isPartOf' : 'isChildOf'
+      // Determine association type:
+      // - Main framework (caseFrameworkNode) uses __startsFrom (visual-only)
+      // - External framework uses isPartOf
+      // - Item-to-item uses isChildOf
+      const isParentMainFramework = isFrameworkNode(parent)
+      const isParentExternalFramework = parent.type === 'externalFrameworkNode'
+      
+      let assocType: string
+      if (isParentMainFramework) {
+        assocType = FRAMEWORK_ROOT_ASSOCIATION_TYPE
+      } else if (isParentExternalFramework) {
+        assocType = 'isPartOf'
+      } else {
+        assocType = 'isChildOf'
+      }
       
       // Edge visually flows parent → child (hierarchy flows down/out)
       // The cfAssociation origin/destination track the semantic relationship
@@ -483,6 +556,8 @@ function reducer(state: EditorState, action: Action): EditorState {
             // Track semantic origin/destination separately
             semanticOrigin: childId,
             semanticDestination: action.parentId,
+            // Flag for UI to lock this edge type (only main framework root connections are visual-only)
+            isFrameworkRootConnection: isParentMainFramework,
           },
         },
       ]

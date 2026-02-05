@@ -3,6 +3,7 @@ import type { ItemId } from '@/domain/shared/types'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
 import { getEdgeMarkers, getEdgeStyle, makeEdgeLabel } from '@/ui/editor/state/editorFactories'
 import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
+import { FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '@/ui/editor/reactflow/types'
 import type { CFAssociation, CFDocument, CFItem } from '@/domain/case/types'
 import type { LayoutState } from './types'
 
@@ -207,17 +208,19 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
   }
 
   // Hierarchy edges: visually flow parent → child
-  // Semantic relationship: child isChildOf parent (or isPartOf for framework connections)
+  // Semantic relationship: child isChildOf parent (or __startsFrom for framework connections)
   // Arrow points to child (markerEnd on target)
   for (const itemId of itemIds) {
     const parentId = parentByChild.get(itemId) ?? fwId
     const association = associationByEdgeKey.get(`${parentId}_${itemId}`) ?? associationByEdgeKey.get(`${itemId}_${parentId}`)
     const cfAssociation = association ? mapDomainAssociationToCfAssociation(framework, association) : undefined
     const md = (association?.metadata ?? {}) as Record<string, unknown>
-    // Use isPartOf for framework connections, isChildOf for item-to-item
+    // Use __startsFrom for framework connections (visual-only), isChildOf for item-to-item
     const isFrameworkConnection = parentId === fwId
-    const defaultAssocType = isFrameworkConnection ? 'isPartOf' : 'isChildOf'
-    const assocType = association?.associationType ?? defaultAssocType
+    // Framework connections use the local-only __startsFrom type for visualization
+    // Item-to-item connections use the real CASE association type
+    const defaultAssocType = isFrameworkConnection ? FRAMEWORK_ROOT_ASSOCIATION_TYPE : 'isChildOf'
+    const assocType = isFrameworkConnection ? FRAMEWORK_ROOT_ASSOCIATION_TYPE : (association?.associationType ?? defaultAssocType)
     const seqNum = typeof md.sequenceNumber === 'number' ? md.sequenceNumber : undefined
     const markers = getEdgeMarkers(assocType)
     
@@ -244,13 +247,15 @@ export function toReactFlowGraph(params: { framework: Framework; layout?: Layout
       style: getEdgeStyle(assocType),
       ...markers,
       data: {
-        cfAssociation,
+        cfAssociation: isFrameworkConnection ? undefined : cfAssociation, // No real association for framework root
         isHierarchical: true,
         associationType: assocType,
         sequenceNumber: seqNum,
         // Track semantic origin/destination
         semanticOrigin: itemId,
         semanticDestination: parentId,
+        // Flag for UI to lock this edge type (framework root connections are visual-only)
+        isFrameworkRootConnection: isFrameworkConnection,
       },
     })
   }

@@ -1,10 +1,12 @@
 import { memo } from 'react'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath } from '@xyflow/react'
 import type { Edge, EdgeProps } from '@xyflow/react'
+import { FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '../types'
 
 /** Format association type for display */
 function formatAssociationType(associationType: string): string {
   switch (associationType) {
+    case FRAMEWORK_ROOT_ASSOCIATION_TYPE: return 'starts'
     case 'isChildOf': return 'child of'
     case 'isPartOf': return 'part of'
     case 'isRelatedTo': return 'related to'

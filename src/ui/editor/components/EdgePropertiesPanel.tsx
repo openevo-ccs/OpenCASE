@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
 import type { CaseEdgeDataPatch, CaseEditorEdge, CaseAssociationType } from '../reactflow/types'
-import { CASE_ASSOCIATION_TYPES } from '../reactflow/types'
-import type { CaseEditorNodeType, CaseItemNodeType, CaseFrameworkNodeType, ExternalFrameworkNodeType } from '../reactflow/types'
+import { CASE_ASSOCIATION_TYPES, FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '../reactflow/types'
+import type { CaseEditorNodeType, CaseItemNodeType, CaseFrameworkNodeType } from '../reactflow/types'
 
 type Props = {
   edge: CaseEditorEdge | null
@@ -14,6 +14,7 @@ type Props = {
 
 /** Human-friendly labels for CASE association types */
 const ASSOCIATION_TYPE_LABELS: Record<string, string> = {
+  [FRAMEWORK_ROOT_ASSOCIATION_TYPE]: 'Starts',
   isChildOf: 'Is Child Of',
   isPeerOf: 'Is Peer Of',
   isPartOf: 'Is Part Of',
@@ -25,6 +26,7 @@ const ASSOCIATION_TYPE_LABELS: Record<string, string> = {
 
 /** Descriptions for each association type */
 const ASSOCIATION_TYPE_DESCRIPTIONS: Record<string, string> = {
+  [FRAMEWORK_ROOT_ASSOCIATION_TYPE]: 'Framework root connection - links the framework to its top-level items (visual only)',
   isChildOf: 'The destination item is a child of the origin item (hierarchical)',
   isPeerOf: 'The origin item is a peer/sibling of the destination item',
   isPartOf: 'The destination item is a component part of the origin item',
@@ -51,16 +53,20 @@ export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge
 
   const isItemNode = (n: CaseEditorNodeType): n is CaseItemNodeType => n.type === 'caseItemNode'
   const isFrameworkNode = (n: CaseEditorNodeType): n is CaseFrameworkNodeType => n.type === 'caseFrameworkNode'
-  const isExternalFrameworkNode = (n: CaseEditorNodeType): n is ExternalFrameworkNodeType => n.type === 'externalFrameworkNode'
-  const isAnyFrameworkNode = (n: CaseEditorNodeType | undefined): boolean => 
-    n ? (isFrameworkNode(n) || isExternalFrameworkNode(n)) : false
 
   const sourceNode = useMemo(() => nodes.find((n) => n.id === edge?.source), [nodes, edge?.source])
   const targetNode = useMemo(() => nodes.find((n) => n.id === edge?.target), [nodes, edge?.target])
   
-  // Check if edge connects to a framework node - constrain to isPartOf only
-  const involvesFrameworkNode = isAnyFrameworkNode(sourceNode) || isAnyFrameworkNode(targetNode)
-  const allowedAssociationTypes = involvesFrameworkNode 
+  // Check if this is a main framework root connection (visual-only, type is locked)
+  // Only the main caseFrameworkNode connections are locked - external frameworks use isPartOf which is editable
+  const isFrameworkRootConnection = edge?.data?.isFrameworkRootConnection ?? false
+  // Also check nodes in case the flag isn't set (backwards compatibility) - only main framework
+  const involvesMainFrameworkNode = sourceNode?.type === 'caseFrameworkNode' || targetNode?.type === 'caseFrameworkNode'
+  const isLockedType = isFrameworkRootConnection || involvesMainFrameworkNode
+  
+  // For external framework connections, constrain to isPartOf only
+  const involvesExternalFrameworkNode = sourceNode?.type === 'externalFrameworkNode' || targetNode?.type === 'externalFrameworkNode'
+  const allowedAssociationTypes = involvesExternalFrameworkNode 
     ? (['isPartOf'] as const)
     : CASE_ASSOCIATION_TYPES
 
@@ -197,17 +203,19 @@ export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge
                 <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                 </svg>
-                <button
-                  type="button"
-                  onClick={() => edge && onFlipEdge?.(edge.id)}
-                  className="ml-auto flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
-                  title="Swap origin and destination"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                  </svg>
-                  Flip
-                </button>
+                {!isLockedType && (
+                  <button
+                    type="button"
+                    onClick={() => edge && onFlipEdge?.(edge.id)}
+                    className="ml-auto flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                    title="Swap origin and destination"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                    </svg>
+                    Flip
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-700">
@@ -237,77 +245,121 @@ export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge
               <div className="mb-3">
                 <div className="text-sm font-semibold text-slate-900">Association Type</div>
                 <div className="text-xs text-slate-500">
-                  {involvesFrameworkNode 
-                    ? 'Framework connections must use "Is Part Of".'
-                    : 'How the origin item relates to the destination.'}
+                  {isLockedType 
+                    ? 'Framework root connections use "Starts" (visual only, not editable).'
+                    : involvesExternalFrameworkNode
+                      ? 'External framework connections must use "Is Part Of".'
+                      : 'How the origin item relates to the destination.'}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                {allowedAssociationTypes.map((type) => (
-                  <label
-                    key={type}
-                    className={[
-                      'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors',
-                      associationType === type
-                        ? 'border-violet-300 bg-violet-50'
-                        : 'border-black/10 hover:border-black/20 hover:bg-slate-50',
-                    ].join(' ')}
-                  >
-                    <input
-                      type="radio"
-                      name="associationType"
-                      value={type}
-                      checked={associationType === type}
-                      onChange={() => handleAssociationTypeChange(type)}
-                      className="mt-0.5 h-4 w-4 text-violet-600 focus:ring-violet-500"
-                    />
+              {isLockedType ? (
+                // Locked type display for framework root connections
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100">
+                      <svg className="h-4 w-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-slate-900">
-                        {ASSOCIATION_TYPE_LABELS[type]}
+                      <div className="text-sm font-semibold text-violet-900">
+                        {ASSOCIATION_TYPE_LABELS[associationType] ?? 'Starts'}
                       </div>
-                      <div className="text-xs text-slate-500">
-                        {ASSOCIATION_TYPE_DESCRIPTIONS[type]}
+                      <div className="text-xs text-violet-700">
+                        {ASSOCIATION_TYPE_DESCRIPTIONS[associationType] ?? ASSOCIATION_TYPE_DESCRIPTIONS[FRAMEWORK_ROOT_ASSOCIATION_TYPE]}
                       </div>
                     </div>
-                  </label>
-                ))}
-
-                {/* Custom type option */}
-                <div
-                  className={[
-                    'rounded-xl border p-3 transition-colors',
-                    isCustomType
-                      ? 'border-violet-300 bg-violet-50'
-                      : 'border-black/10',
-                  ].join(' ')}
-                >
-                  <div className="mb-2 text-sm font-medium text-slate-900">Custom extension type</div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={isCustomType ? associationType : customType}
-                      onChange={(e) => {
-                        if (isCustomType) {
-                          handleAssociationTypeChange(e.target.value)
-                        } else {
-                          setCustomType(e.target.value)
-                        }
-                      }}
-                      placeholder="ext:myCustomType"
-                      className="flex-1 rounded-lg border border-black/15 bg-white px-3 py-1.5 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
-                    />
-                    {!isCustomType && customType && (
-                      <Button variant="secondary" size="xs" onClick={handleCustomTypeSubmit}>
-                        Apply
-                      </Button>
-                    )}
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    Use ext: prefix for custom association types
+                  <div className="mt-3 flex items-center gap-2 rounded-lg border border-violet-200 bg-white/50 px-3 py-2">
+                    <svg className="h-4 w-4 shrink-0 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-xs text-violet-700">
+                      This connection type cannot be changed. It represents the visual link from the framework to its top-level items.
+                    </span>
                   </div>
                 </div>
-              </div>
+              ) : (
+                // Editable association type selection for regular edges
+                <div className="space-y-2">
+                  {involvesExternalFrameworkNode && (
+                    <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                      <svg className="h-4 w-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-xs text-amber-700">
+                        External framework connections must use "Is Part Of".
+                      </span>
+                    </div>
+                  )}
+                  {allowedAssociationTypes.map((type) => (
+                    <label
+                      key={type}
+                      className={[
+                        'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors',
+                        associationType === type
+                          ? 'border-violet-300 bg-violet-50'
+                          : 'border-black/10 hover:border-black/20 hover:bg-slate-50',
+                      ].join(' ')}
+                    >
+                      <input
+                        type="radio"
+                        name="associationType"
+                        value={type}
+                        checked={associationType === type}
+                        onChange={() => handleAssociationTypeChange(type)}
+                        className="mt-0.5 h-4 w-4 text-violet-600 focus:ring-violet-500"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-slate-900">
+                          {ASSOCIATION_TYPE_LABELS[type]}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {ASSOCIATION_TYPE_DESCRIPTIONS[type]}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+
+                  {/* Custom type option - hidden for external framework connections */}
+                  {!involvesExternalFrameworkNode && (
+                    <div
+                      className={[
+                        'rounded-xl border p-3 transition-colors',
+                        isCustomType
+                          ? 'border-violet-300 bg-violet-50'
+                          : 'border-black/10',
+                      ].join(' ')}
+                    >
+                      <div className="mb-2 text-sm font-medium text-slate-900">Custom extension type</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={isCustomType ? associationType : customType}
+                          onChange={(e) => {
+                            if (isCustomType) {
+                              handleAssociationTypeChange(e.target.value)
+                            } else {
+                              setCustomType(e.target.value)
+                            }
+                          }}
+                          placeholder="ext:myCustomType"
+                          className="flex-1 rounded-lg border border-black/15 bg-white px-3 py-1.5 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                        />
+                        {!isCustomType && customType && (
+                          <Button variant="secondary" size="xs" onClick={handleCustomTypeSubmit}>
+                            Apply
+                          </Button>
+                        )}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Use ext: prefix for custom association types
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Sequence Number */}

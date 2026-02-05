@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { MarkerType } from '@xyflow/react'
 import type { CFDocument, CFItem } from '@/domain/case/types'
 import type { CaseEditorEdge, CaseEditorNodeType, CaseFrameworkNodeType, CaseItemNodeType } from '@/ui/editor/reactflow/types'
+import { FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '@/ui/editor/reactflow/types'
 
 export type EditorGraph = {
   nodes: CaseEditorNodeType[]
@@ -24,6 +25,14 @@ export const PART_OF_EDGE_MARKER = {
   color: '#94a3b8', // slate-400
 }
 
+/** Marker for framework root connections (startsFrom) - points to destination */
+export const FRAMEWORK_ROOT_EDGE_MARKER = {
+  type: MarkerType.ArrowClosed,
+  width: 14,
+  height: 14,
+  color: '#94a3b8', // slate-400 (same as other edges)
+}
+
 /** Get edge markers based on association type
  * 
  * CASE association semantics:
@@ -34,8 +43,19 @@ export const PART_OF_EDGE_MARKER = {
  * 
  * For isPartOf, the visual reads: "X is part of Y" where arrow points FROM X TO Y,
  * meaning markerStart shows the "part" pointing back to its "whole".
+ * 
+ * LOCAL-ONLY:
+ * - __startsFrom: Framework root visualization - arrow points FROM framework TO item
  */
 export function getEdgeMarkers(associationType: string) {
+  // Framework root connection: arrow points from framework (source) to item (target)
+  if (associationType === FRAMEWORK_ROOT_ASSOCIATION_TYPE) {
+    return {
+      markerStart: undefined,
+      markerEnd: FRAMEWORK_ROOT_EDGE_MARKER, // Arrow at end, pointing to the item
+    }
+  }
+
   // isRelatedTo is bidirectional - arrows on both ends
   if (associationType === 'isRelatedTo') {
     return {
@@ -62,6 +82,14 @@ export function getEdgeMarkers(associationType: string) {
 
 /** Get edge style based on association type */
 export function getEdgeStyle(associationType: string): CSSProperties {
+  // Framework root connection: dotted style, same grey color as others
+  if (associationType === FRAMEWORK_ROOT_ASSOCIATION_TYPE) {
+    return {
+      strokeDasharray: '3,3',
+      strokeWidth: 1.5,
+    }
+  }
+
   // isPartOf uses dashed line style
   if (associationType === 'isPartOf') {
     return {
@@ -80,6 +108,7 @@ export function getEdgeStyle(associationType: string): CSSProperties {
 export function formatAssociationType(associationType: string): string {
   // Convert camelCase to readable format
   switch (associationType) {
+    case FRAMEWORK_ROOT_ASSOCIATION_TYPE: return 'starts'
     case 'isChildOf': return 'child of'
     case 'isPartOf': return 'part of'
     case 'isRelatedTo': return 'related to'

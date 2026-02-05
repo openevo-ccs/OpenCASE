@@ -63,7 +63,17 @@ export const CASE_ASSOCIATION_TYPES = [
   'isTranslationOf',
 ] as const
 
-export type CaseAssociationType = (typeof CASE_ASSOCIATION_TYPES)[number] | `ext:${string}` | string
+/**
+ * Local-only association type for framework-to-item visualization.
+ * This is NOT a real CASE association type - it's purely for UI purposes.
+ * The framework node is a visualization construct, and this edge type
+ * represents the "starting point" connection to top-level items.
+ * 
+ * The double underscore prefix indicates this is internal/local-only.
+ */
+export const FRAMEWORK_ROOT_ASSOCIATION_TYPE = '__startsFrom' as const
+
+export type CaseAssociationType = (typeof CASE_ASSOCIATION_TYPES)[number] | typeof FRAMEWORK_ROOT_ASSOCIATION_TYPE | `ext:${string}` | string
 
 /**
  * Data attached to ReactFlow edges representing CASE associations.
@@ -77,6 +87,21 @@ export type CaseEdgeData = {
   associationType?: CaseAssociationType
   /** Sequence number for ordering */
   sequenceNumber?: number
+  /** 
+   * True if this is a framework root connection (visual-only, not a real CASE association).
+   * These edges use the __startsFrom type and cannot have their type changed.
+   */
+  isFrameworkRootConnection?: boolean
+  /**
+   * The semantic origin node ID (for tracking actual CASE association direction).
+   * May differ from visual source/target for better UX.
+   */
+  semanticOrigin?: string
+  /**
+   * The semantic destination node ID (for tracking actual CASE association direction).
+   * May differ from visual source/target for better UX.
+   */
+  semanticDestination?: string
 }
 
 export type CaseEditorEdge = Edge<CaseEdgeData>
