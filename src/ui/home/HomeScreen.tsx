@@ -9,6 +9,14 @@ import { getAppConfig } from '@/app/config'
 import { CaseApiClient, type CfDocumentSummary } from '@/infrastructure/caseApi/CaseApiClient'
 import { createFetchHttpClient } from '@/infrastructure/caseApi/http'
 import CanvasHeader from '@/ui/editor/components/CanvasHeader'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/ui/shared/components/ui/dialog'
 
 function OpenCaseFrameworksContent({
   isAuthenticated,
@@ -17,7 +25,9 @@ function OpenCaseFrameworksContent({
   error,
   frameworks,
   remoteOpenLoading,
+  deletingDocId,
   onOpenRemote,
+  onDelete,
 }: Readonly<{
   isAuthenticated: boolean
   isLoading: boolean
@@ -25,7 +35,9 @@ function OpenCaseFrameworksContent({
   error: string | null
   frameworks: CfDocumentSummary[]
   remoteOpenLoading?: boolean
+  deletingDocId?: string | null
   onOpenRemote: (docId: string) => void
+  onDelete?: (docId: string, title: string) => void
 }>) {
   if (!isAuthenticated) {
     return (
@@ -65,7 +77,8 @@ function OpenCaseFrameworksContent({
       {frameworks.map((doc) => {
         const title = doc.title ?? doc.identifier ?? 'Untitled Framework'
         const hint = remoteOpenLoading ? 'Loading…' : 'Open from OpenCASE'
-        const cardClass = remoteOpenLoading ? 'opacity-60 pointer-events-none' : undefined
+        const isDeleting = deletingDocId === doc.identifier
+        const cardClass = remoteOpenLoading || isDeleting ? 'opacity-60 pointer-events-none' : undefined
         return (
           <FrameworkCard
             key={doc.identifier}
@@ -76,8 +89,10 @@ function OpenCaseFrameworksContent({
               frameworkType: doc.frameworkType,
               adoptionStatus: doc.adoptionStatus,
             }}
-            rightHint={hint}
+            rightHint={isDeleting ? 'Archiving…' : hint}
             onClick={() => onOpenRemote(doc.identifier)}
+            onDelete={onDelete ? () => onDelete(doc.identifier, title) : undefined}
+            deleteDisabled={isDeleting || remoteOpenLoading}
             className={cardClass}
           />
         )
@@ -110,6 +125,10 @@ export default function HomeScreen({
   const [openCaseLoading, setOpenCaseLoading] = useState(false)
   const [openCaseError, setOpenCaseError] = useState<string | null>(null)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+
+  // Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = useState<{ docId: string; title: string } | null>(null)
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
 
   // Load OpenCASE frameworks
   const loadOpenCaseFrameworks = useCallback(async () => {
@@ -144,6 +163,35 @@ export default function HomeScreen({
     },
     [onOpenRemoteFramework],
   )
+
+  // Handle delete confirmation
+  const handleDeleteRequest = useCallback((docId: string, title: string) => {
+    setDeleteConfirm({ docId, title })
+  }, [])
+
+  // Execute delete
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteConfirm || !tenantId) return
+    
+    setDeletingDocId(deleteConfirm.docId)
+    setDeleteConfirm(null)
+    setOpenCaseError(null)
+    
+    try {
+      await api.deleteCfPackage({
+        tenantId,
+        docId: deleteConfirm.docId,
+        caseVersion: 'v1p1',
+      })
+      
+      // Remove from local list
+      setOpenCaseFrameworks((prev) => prev.filter((f) => f.identifier !== deleteConfirm.docId))
+    } catch (e: unknown) {
+      setOpenCaseError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDeletingDocId(null)
+    }
+  }, [api, deleteConfirm, tenantId])
 
   const isAuthenticated = status === 'authenticated'
   const refreshButtonClass = openCaseLoading ? 'animate-spin' : ''
@@ -195,7 +243,9 @@ export default function HomeScreen({
             error={openCaseError}
             frameworks={openCaseFrameworks}
             remoteOpenLoading={remoteOpenLoading}
+            deletingDocId={deletingDocId}
             onOpenRemote={openRemote}
+            onDelete={tenantId ? handleDeleteRequest : undefined}
           />
         </div>
 
@@ -234,6 +284,27 @@ export default function HomeScreen({
           onCreateNew(draft)
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={Boolean(deleteConfirm)} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archive Framework</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to archive "{deleteConfirm?.title}"? 
+              The framework will be archived on the server and can be restored by an administrator.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDeleteConfirm()}>
+              Archive
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

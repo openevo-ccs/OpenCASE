@@ -1,4 +1,4 @@
-import { PlusIcon } from '@heroicons/react/24/solid'
+import { PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
 import type { ReactNode } from 'react'
 import type { CFDocument } from '@/domain/case/types'
 import { Button } from '@/ui/shared/components/ui/button'
@@ -11,6 +11,8 @@ type Props = {
   onPrimaryAction?: () => void
   primaryActionLabel?: string
   primaryActionIcon?: 'plus' | 'none'
+  onDelete?: () => void
+  deleteDisabled?: boolean
   onClick?: () => void
   className?: string
   children?: ReactNode
@@ -23,6 +25,8 @@ export function FrameworkCard({
   onPrimaryAction,
   primaryActionLabel,
   primaryActionIcon = 'plus',
+  onDelete,
+  deleteDisabled,
   onClick,
   className,
   children,
@@ -80,6 +84,22 @@ export function FrameworkCard({
             >
               {primaryActionIcon === 'plus' ? <PlusIcon className="h-3.5 w-3.5" aria-hidden="true" /> : null}
               {primaryActionLabel}
+            </Button>
+          ) : null}
+          {onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              disabled={deleteDisabled}
+              className="rounded-full text-slate-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              title="Archive framework"
+            >
+              <TrashIcon className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           ) : null}
         </div>

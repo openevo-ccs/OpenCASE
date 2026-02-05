@@ -98,6 +98,27 @@ export class CaseApiClient {
   }
 
   /**
+   * Delete (archive) a CFPackage on the server.
+   * 
+   * Uses the management endpoint: DELETE /management/tenants/{tenantId}/ims/case/{version}/CFPackages/{docId}
+   * By default, OpenCASE will archive the framework rather than hard delete it.
+   * 
+   * @param params.tenantId - The tenant ID
+   * @param params.docId - The document/framework identifier to delete
+   * @param params.caseVersion - The CASE version (v1p0 or v1p1), defaults to v1p1
+   */
+  async deleteCfPackage(params: {
+    tenantId: string
+    docId: string
+    caseVersion?: 'v1p0' | 'v1p1'
+  }): Promise<void> {
+    const v = params.caseVersion ?? 'v1p1'
+    const url = `/management/tenants/${encodeURIComponent(params.tenantId)}/ims/case/${v}/CFPackages/${encodeURIComponent(params.docId)}`
+    
+    await this._http.delete(url)
+  }
+
+  /**
    * List all CFDocuments from the CASE API.
    *
    * Uses the standard CASE endpoint: GET /ims/case/{version}/CFDocuments
