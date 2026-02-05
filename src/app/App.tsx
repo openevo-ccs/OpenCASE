@@ -9,7 +9,8 @@ import { getAppConfig } from '@/app/config'
 import { CaseApiClient } from '@/infrastructure/caseApi/CaseApiClient'
 import { createFetchHttpClient } from '@/infrastructure/caseApi/http'
 import { loadFrameworkFromCfPackage } from '@/application/framework/services/FrameworkLoader'
-import { toReactFlowGraph } from '@/ui/editor/reactflow/mapping'
+import { toReactFlowGraph, extractLayoutFromCfPackage } from '@/ui/editor/reactflow/mapping'
+import type { LayoutState } from '@/ui/editor/reactflow/mapping'
 import LoginScreen from '@/ui/auth/LoginScreen'
 
 export default function App() {
@@ -28,6 +29,9 @@ function AppInner() {
   const [screen, setScreen] = useState<'home' | 'editor'>('home')
   const [frameworks, setFrameworks] = useState<HomeFramework[]>(() => loadFrameworks())
   const [activeFrameworkId, setActiveFrameworkId] = useState<string | null>(null)
+  
+  // Store layouts extracted from CASE extensions (keyed by framework ID)
+  const [frameworkLayouts, setFrameworkLayouts] = useState<Record<string, LayoutState>>({})
 
   const [authCallbackState, setAuthCallbackState] = useState<'idle' | 'processing' | 'error'>('idle')
   const [remoteOpenState, setRemoteOpenState] = useState<'idle' | 'loading'>('idle')
@@ -105,6 +109,9 @@ function AppInner() {
         // Fetch the CASE package from the API
         const pkg = await api.getCfPackage({ docId, caseVersion: 'v1p1' })
 
+        // Extract layout from CASE extensions before converting to domain model
+        const layout = extractLayoutFromCfPackage(pkg)
+
         // Use the FrameworkLoader to map CASE → domain Framework
         // This handles v1p0/v1p1 differences through the normalization layer
         const framework = loadFrameworkFromCfPackage(pkg)
@@ -115,9 +122,22 @@ function AppInner() {
         // Create a HomeFramework entry from the domain Framework
         const fw = createHomeFrameworkFromDomain(framework)
 
+        // Store the extracted layout
+        if (layout) {
+          setFrameworkLayouts((prev) => ({ ...prev, [fw.id]: layout }))
+        }
+
         setFrameworks((prev) => {
-          const exists = prev.some((f) => f.id === fw.id)
-          const next = exists ? prev : [fw, ...prev]
+          // Update existing framework or add new one
+          const existingIdx = prev.findIndex((f) => f.id === fw.id)
+          let next: HomeFramework[]
+          if (existingIdx >= 0) {
+            // Replace existing with fresh server data
+            next = [...prev]
+            next[existingIdx] = fw
+          } else {
+            next = [fw, ...prev]
+          }
           // Persist so a refresh doesn't lose the loaded backend framework.
           saveFrameworks(next)
           return next
@@ -142,9 +162,12 @@ function AppInner() {
       return activeFramework.graph
     }
 
-    // Otherwise, derive from the domain Framework
-    return toReactFlowGraph({ framework: activeFramework.framework })
-  }, [activeFramework])
+    // Get the stored layout for this framework (from CASE extensions)
+    const layout = frameworkLayouts[activeFramework.id]
+
+    // Derive from the domain Framework with layout
+    return toReactFlowGraph({ framework: activeFramework.framework, layout })
+  }, [activeFramework, frameworkLayouts])
 
   if (authCallbackState === 'processing') {
     return (
