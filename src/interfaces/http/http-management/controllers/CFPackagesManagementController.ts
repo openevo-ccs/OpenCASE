@@ -26,7 +26,10 @@ export class CFPackagesManagementController {
         return res.status(403).json({ error: 'Tenant mismatch - authenticated tenant does not match URL parameter' })
       }
 
-      const result = await this.listFrameworks.execute({ tenantId, caseVersion })
+      // Extract includeArchived query parameter (default: false)
+      const includeArchived = req.query.includeArchived === 'true'
+
+      const result = await this.listFrameworks.execute({ tenantId, caseVersion, includeArchived })
       return res.status(200).json(result)
     } catch (error: any) {
       return res.status(400).json({ error: error.message || 'List failed' })
@@ -124,13 +127,18 @@ export class CFPackagesManagementController {
       }
       if (!id) return res.status(400).json({ error: 'Missing id' })
 
+      // Extract hardDelete query parameter (default: false = soft delete/archive)
+      const hardDelete = req.query.hardDelete === 'true'
+
       await this.deleteCFDocument.execute({
         tenantId,
         caseVersion,
-        sourcedId: id
+        sourcedId: id,
+        hardDelete
       })
 
-      return res.status(200).json({ status: 'deleted', id })
+      const status = hardDelete ? 'deleted' : 'archived'
+      return res.status(200).json({ status, id })
     } catch (error: any) {
       const msg = error?.message || 'Delete failed'
       const status = msg.includes('not found') ? 404 : 400

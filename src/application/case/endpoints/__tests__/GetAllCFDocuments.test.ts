@@ -204,6 +204,71 @@ describe('GetAllCFDocuments', () => {
         title: 'Test Document'
       })
     })
+
+    it('should filter out archived documents (Retired) by default', async () => {
+      const documents = [
+        {
+          sourcedId: 'doc-1',
+          title: 'Active Document',
+          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+          currentFile: 'file1.json',
+          adoptionStatus: 'Implemented'
+        },
+        {
+          sourcedId: 'doc-2',
+          title: 'Retired Document',
+          lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
+          currentFile: 'file2.json',
+          adoptionStatus: 'Retired'
+        },
+        {
+          sourcedId: 'doc-3',
+          title: 'Legacy Deprecated Document',
+          lastChangeDateTime: new Date('2024-01-03T00:00:00Z'),
+          currentFile: 'file3.json',
+          adoptionStatus: 'Deprecated'
+        }
+      ]
+
+      mockStore.getAllDocuments.mockImplementation((_: any, v: any) => (v === '1.0' ? documents as any : []))
+
+      const result = await getAllCFDocuments.execute({
+        tenantId,
+        caseVersion
+      })
+
+      expect(result.CFDocumentSet.CFDocuments).toHaveLength(1)
+      expect(result.CFDocumentSet.CFDocuments[0].identifier).toBe('doc-1')
+    })
+
+    it('should include archived documents when includeArchived is true', async () => {
+      const documents = [
+        {
+          sourcedId: 'doc-1',
+          title: 'Active Document',
+          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+          currentFile: 'file1.json',
+          adoptionStatus: 'Implemented'
+        },
+        {
+          sourcedId: 'doc-2',
+          title: 'Retired Document',
+          lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
+          currentFile: 'file2.json',
+          adoptionStatus: 'Retired'
+        }
+      ]
+
+      mockStore.getAllDocuments.mockImplementation((_: any, v: any) => (v === '1.0' ? documents as any : []))
+
+      const result = await getAllCFDocuments.execute({
+        tenantId,
+        caseVersion,
+        includeArchived: true
+      })
+
+      expect(result.CFDocumentSet.CFDocuments).toHaveLength(2)
+    })
   })
 })
 

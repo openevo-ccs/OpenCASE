@@ -5,6 +5,7 @@ import { logger } from '../../../infrastructure/logging/Logger'
 export interface ListFrameworksQuery {
   tenantId: TenantId
   caseVersion?: CaseVersion
+  includeArchived?: boolean
 }
 
 export class ListFrameworks {
@@ -28,6 +29,14 @@ export class ListFrameworks {
     for (const version of versions) {
       const documents = this.store.getAllDocuments(query.tenantId, version)
       for (const doc of documents) {
+        // Filter archived documents (Retired or legacy Deprecated) unless includeArchived is true
+        if (!query.includeArchived) {
+          const status = doc.adoptionStatus
+          if (status === 'Retired' || status === 'Deprecated') {
+            continue // Skip archived documents
+          }
+        }
+        
         frameworks.push({
           sourcedId: doc.sourcedId,
           title: doc.title,

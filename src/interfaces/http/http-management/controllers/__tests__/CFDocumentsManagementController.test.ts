@@ -116,15 +116,49 @@ describe('CFDocumentsManagementController', () => {
   })
 
   describe('delete', () => {
-    it('should delete document successfully', async () => {
+    it('should archive document successfully (soft delete by default)', async () => {
       ;(mockRequest as any).tenantId = 'test-tenant'
+      mockRequest.query = {}
 
       await controller.delete(mockRequest as Request, mockResponse as Response)
 
       expect(mockDeleteCFDocument.execute).toHaveBeenCalledWith({
         tenantId: 'test-tenant',
         caseVersion: '1.1',
-        sourcedId: 'doc-123'
+        sourcedId: 'doc-123',
+        hardDelete: false
+      })
+      expect(responseStatus).toHaveBeenCalledWith(200)
+      expect(responseJson).toHaveBeenCalledWith({ status: 'archived' })
+    })
+
+    it('should perform hard delete when hardDelete=true', async () => {
+      ;(mockRequest as any).tenantId = 'test-tenant'
+      mockRequest.query = { hardDelete: 'true' }
+
+      await controller.delete(mockRequest as Request, mockResponse as Response)
+
+      expect(mockDeleteCFDocument.execute).toHaveBeenCalledWith({
+        tenantId: 'test-tenant',
+        caseVersion: '1.1',
+        sourcedId: 'doc-123',
+        hardDelete: true
+      })
+      expect(responseStatus).toHaveBeenCalledWith(200)
+      expect(responseJson).toHaveBeenCalledWith({ status: 'deleted' })
+    })
+
+    it('should perform hard delete when hardDelete=true', async () => {
+      ;(mockRequest as any).tenantId = 'test-tenant'
+      mockRequest.query = { hardDelete: 'true' }
+
+      await controller.delete(mockRequest as Request, mockResponse as Response)
+
+      expect(mockDeleteCFDocument.execute).toHaveBeenCalledWith({
+        tenantId: 'test-tenant',
+        caseVersion: '1.1',
+        sourcedId: 'doc-123',
+        hardDelete: true
       })
       expect(responseStatus).toHaveBeenCalledWith(200)
       expect(responseJson).toHaveBeenCalledWith({ status: 'deleted' })

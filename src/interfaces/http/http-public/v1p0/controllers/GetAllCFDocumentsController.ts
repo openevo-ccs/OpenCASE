@@ -13,6 +13,9 @@ export class GetAllCFDocumentsControllerV1p0 {
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
       const { limit, offset, sort, orderBy, filter, fields } = parsed.value
+      
+      // Extract includeArchived query parameter (default: false)
+      const includeArchived = req.query.includeArchived === 'true'
 
       const result = await this.getAllCFDocuments.execute({
         tenantId,
@@ -22,7 +25,8 @@ export class GetAllCFDocumentsControllerV1p0 {
         sort,
         orderBy,
         filter,
-        fields
+        fields,
+        includeArchived
       })
 
       const baseUrl = getBaseUrl(req)

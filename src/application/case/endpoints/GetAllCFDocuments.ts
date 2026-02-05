@@ -12,6 +12,7 @@ export interface GetAllCFDocumentsQuery {
   orderBy?: 'asc' | 'desc'
   filter?: string
   fields?: string[]
+  includeArchived?: boolean
 }
 
 export class GetAllCFDocuments {
@@ -25,6 +26,15 @@ export class GetAllCFDocuments {
     const v10 = this.store.getAllDocuments(query.tenantId, '1.0').map(d => ({ meta: d, caseVersion: '1.0' as const }))
     const v11 = this.store.getAllDocuments(query.tenantId, '1.1').map(d => ({ meta: d, caseVersion: '1.1' as const }))
     let documents = [...v10, ...v11]
+
+    // Filter archived documents (Retired or legacy Deprecated) unless includeArchived is true
+    if (!query.includeArchived) {
+      documents = documents.filter(doc => {
+        const status = doc.meta.adoptionStatus
+        // Filter out Retired and legacy Deprecated status
+        return status !== 'Retired' && status !== 'Deprecated'
+      })
+    }
 
     // Apply filtering (basic implementation - can be enhanced)
     if (query.filter) {

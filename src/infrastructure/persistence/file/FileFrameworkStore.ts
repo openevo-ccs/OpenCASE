@@ -16,6 +16,7 @@ export interface DocumentMetadata {
   version?: string
   lastChangeDateTime: Date
   currentFile: string // relative to tenant/version root
+  adoptionStatus?: string // For filtering archived/retired documents
 }
 
 export interface DocumentVersionInfo {
@@ -134,7 +135,8 @@ export class FileFrameworkStore {
           subject: d.subject,
           version: d.version,
           lastChangeDateTime: new Date(d.lastChangeDateTime as string | number | Date),
-          currentFile: d.currentFile
+          currentFile: d.currentFile,
+          adoptionStatus: d.adoptionStatus
         })
       }
     } catch {
@@ -341,7 +343,8 @@ export class FileFrameworkStore {
       subject: doc.subject as string | undefined,
       version: doc.version as string | undefined,
       lastChangeDateTime: new Date(doc.lastChangeDateTime as string | number | Date),
-      currentFile: relativePath
+      currentFile: relativePath,
+      adoptionStatus: doc.adoptionStatus as string | undefined
     })
   }
 
@@ -531,7 +534,8 @@ export class FileFrameworkStore {
       subject: meta.subject,
       version: meta.version,
       lastChangeDateTime: meta.lastChangeDateTime.toISOString(),
-      currentFile: meta.currentFile
+      currentFile: meta.currentFile,
+      adoptionStatus: meta.adoptionStatus
     }))
 
     await fs.writeFile(

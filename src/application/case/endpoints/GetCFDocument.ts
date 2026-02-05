@@ -19,6 +19,8 @@ export class GetCFDocument {
     const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, query.sourcedId)
     if (!pkg) return null
 
+    // Note: Get by ID returns archived documents regardless - filtering only applies to list endpoints
+
     // Generate CFPackageURI for the document
     const basePath = query.caseVersion === '1.1' ? '/ims/case/v1p1' : '/ims/case/v1p0'
     const packageURI: LinkData = {

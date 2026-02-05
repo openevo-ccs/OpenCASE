@@ -134,6 +134,73 @@ describe('ListFrameworks', () => {
         lastChangeDateTime: '2024-01-01T00:00:00.000Z'
       })
     })
+
+    it('should filter out archived frameworks (Retired) by default', async () => {
+      const docs: DocumentMetadata[] = [
+        {
+          sourcedId: 'doc-1',
+          title: 'Active Framework',
+          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+          currentFile: 'frameworks/doc-1/doc-1_v0001.json',
+          adoptionStatus: 'Implemented'
+        },
+        {
+          sourcedId: 'doc-2',
+          title: 'Retired Framework',
+          lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
+          currentFile: 'frameworks/doc-2/doc-2_v0001.json',
+          adoptionStatus: 'Retired'
+        },
+        {
+          sourcedId: 'doc-3',
+          title: 'Deprecated Framework',
+          lastChangeDateTime: new Date('2024-01-03T00:00:00Z'),
+          currentFile: 'frameworks/doc-3/doc-3_v0001.json',
+          adoptionStatus: 'Deprecated'
+        }
+      ]
+
+      mockStore.getAllDocuments
+        .mockReturnValueOnce([]) // For 1.0
+        .mockReturnValueOnce(docs) // For 1.1
+
+      const result = await listFrameworks.execute({
+        tenantId
+      })
+
+      expect(result.frameworks).toHaveLength(1)
+      expect(result.frameworks[0].sourcedId).toBe('doc-1')
+    })
+
+    it('should include archived frameworks when includeArchived is true', async () => {
+      const docs: DocumentMetadata[] = [
+        {
+          sourcedId: 'doc-1',
+          title: 'Active Framework',
+          lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+          currentFile: 'frameworks/doc-1/doc-1_v0001.json',
+          adoptionStatus: 'Implemented'
+        },
+        {
+          sourcedId: 'doc-2',
+          title: 'Retired Framework',
+          lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
+          currentFile: 'frameworks/doc-2/doc-2_v0001.json',
+          adoptionStatus: 'Retired'
+        }
+      ]
+
+      mockStore.getAllDocuments
+        .mockReturnValueOnce([]) // For 1.0
+        .mockReturnValueOnce(docs) // For 1.1
+
+      const result = await listFrameworks.execute({
+        tenantId,
+        includeArchived: true
+      })
+
+      expect(result.frameworks).toHaveLength(2)
+    })
   })
 })
 

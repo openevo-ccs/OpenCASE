@@ -187,6 +187,60 @@ describe('GetCFPackage', () => {
         }
       });
     });
+
+    it('should return archived document when getting by ID (archived documents always returned)', async () => {
+      const document = CFDocument.create({
+        tenantId,
+        caseVersion,
+        sourcedId: docId,
+        uri: `/ims/case/v1p1/CFDocuments/${docId}`,
+        creator: 'Test Creator',
+        title: 'Retired Document',
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+        adoptionStatus: 'Retired'
+      });
+
+      const pkg = new CFPackage({
+        document,
+        items: [],
+        associations: [],
+        rubrics: []
+      });
+
+      mockRepository.load.mockResolvedValue(pkg);
+
+      const result = await getCFPackage.execute({ tenantId, caseVersion, docId });
+
+      expect(result).not.toBeNull();
+      expect(result?.CFPackage.CFDocument.adoptionStatus).toBe('Retired');
+    });
+
+    it('should return deprecated document when getting by ID (archived documents always returned)', async () => {
+      const document = CFDocument.create({
+        tenantId,
+        caseVersion,
+        sourcedId: docId,
+        uri: `/ims/case/v1p1/CFDocuments/${docId}`,
+        creator: 'Test Creator',
+        title: 'Deprecated Document',
+        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
+        adoptionStatus: 'Deprecated'
+      });
+
+      const pkg = new CFPackage({
+        document,
+        items: [],
+        associations: [],
+        rubrics: []
+      });
+
+      mockRepository.load.mockResolvedValue(pkg);
+
+      const result = await getCFPackage.execute({ tenantId, caseVersion, docId });
+
+      expect(result).not.toBeNull();
+      expect(result?.CFPackage.CFDocument.adoptionStatus).toBe('Deprecated');
+    });
   });
 });
 

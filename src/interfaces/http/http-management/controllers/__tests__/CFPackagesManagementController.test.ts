@@ -56,12 +56,13 @@ describe('CFPackagesManagementController', () => {
 
     expect(mockListFrameworks.execute).toHaveBeenCalledWith({
       tenantId: 'test-tenant',
-      caseVersion: '1.0'
+      caseVersion: '1.0',
+      includeArchived: false
     })
     expect(responseStatus).toHaveBeenCalledWith(200)
   })
 
-  it('deletes a CFPackage by id', async () => {
+  it('archives a CFPackage by id (soft delete by default)', async () => {
     ;(mockRequest as any).tenantId = 'test-tenant'
     mockRequest.params = { tenantId: 'test-tenant', id: 'doc-1' } as any
     mockRequest.query = { caseVersion: '1.1' }
@@ -72,7 +73,26 @@ describe('CFPackagesManagementController', () => {
     expect(mockDeleteCFDocument.execute).toHaveBeenCalledWith({
       tenantId: 'test-tenant',
       caseVersion: '1.1',
-      sourcedId: 'doc-1'
+      sourcedId: 'doc-1',
+      hardDelete: false
+    })
+    expect(responseStatus).toHaveBeenCalledWith(200)
+    expect(responseJson).toHaveBeenCalledWith({ status: 'archived', id: 'doc-1' })
+  })
+
+  it('performs hard delete when hardDelete=true', async () => {
+    ;(mockRequest as any).tenantId = 'test-tenant'
+    mockRequest.params = { tenantId: 'test-tenant', id: 'doc-1' } as any
+    mockRequest.query = { caseVersion: '1.1', hardDelete: 'true' }
+    mockDeleteCFDocument.execute.mockResolvedValueOnce(undefined as any)
+
+    await (controller.delete as any)(mockRequest as Request, mockResponse as Response, next)
+
+    expect(mockDeleteCFDocument.execute).toHaveBeenCalledWith({
+      tenantId: 'test-tenant',
+      caseVersion: '1.1',
+      sourcedId: 'doc-1',
+      hardDelete: true
     })
     expect(responseStatus).toHaveBeenCalledWith(200)
     expect(responseJson).toHaveBeenCalledWith({ status: 'deleted', id: 'doc-1' })

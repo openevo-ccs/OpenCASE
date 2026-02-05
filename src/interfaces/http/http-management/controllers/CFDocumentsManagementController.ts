@@ -59,13 +59,18 @@ export class CFDocumentsManagementController {
       }
       if (!sourcedId) return res.status(400).json({ error: 'Missing id' })
 
+      // Extract hardDelete query parameter (default: false = soft delete/archive)
+      const hardDelete = req.query.hardDelete === 'true'
+
       await this.deleteCFDocument.execute({
         tenantId,
         caseVersion,
-        sourcedId
+        sourcedId,
+        hardDelete
       })
 
-      res.status(200).json({ status: 'deleted' })
+      const status = hardDelete ? 'deleted' : 'archived'
+      res.status(200).json({ status })
     } catch (error: any) {
       if (error.message?.includes('not found')) {
         return res.status(404).json({ error: error.message })

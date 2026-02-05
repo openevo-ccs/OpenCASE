@@ -64,7 +64,8 @@ describe('GetAllCFDocumentsControllerV1p1', () => {
         sort: undefined,
         orderBy: undefined,
         filter: undefined,
-        fields: undefined
+        fields: undefined,
+        includeArchived: false
       })
       expect(responseStatus).toHaveBeenCalledWith(200)
       expect(responseJson).toHaveBeenCalledWith(absolutizeCaseUris(result as any, 'http://localhost'))
@@ -101,7 +102,8 @@ describe('GetAllCFDocumentsControllerV1p1', () => {
         sort: 'title',
         orderBy: 'asc',
         filter: 'test',
-        fields: ['title', 'identifier']
+        fields: ['title', 'identifier'],
+        includeArchived: false
       })
       expect(responseStatus).toHaveBeenCalledWith(200)
     })

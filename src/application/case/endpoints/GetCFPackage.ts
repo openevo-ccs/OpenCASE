@@ -22,6 +22,8 @@ export class GetCFPackage {
     logger.info({ pkg }, 'Loaded CFPackage')
     if (!pkg) return null
 
+    // Note: Get by ID returns archived packages regardless - filtering only applies to list endpoints
+
     // Generate CFPackageURI for the document
     const basePath = query.caseVersion === '1.1' ? '/ims/case/v1p1' : '/ims/case/v1p0'
     const packageURI: LinkData = {
