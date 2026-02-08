@@ -9,6 +9,7 @@ import type {
   ExternalFrameworkNodeData,
 } from '../reactflow/types'
 import type { CFDocument, CFItem } from '@/domain/case/types'
+import { getAppConfig } from '@/app/config'
 
 type Props = {
   node: CaseEditorNodeType | null
@@ -19,7 +20,7 @@ type Props = {
 }
 
 export default function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage }: Readonly<Props>) {
-  const [copied, setCopied] = useState<null | 'code' | 'uri'>(null)
+  const [copied, setCopied] = useState<null | 'code' | 'uri' | 'opencase'>(null)
   useEffect(() => {
     if (!node) return
 
@@ -86,7 +87,7 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
 
   const joinCsv = (arr?: string[]) => (arr?.length ? arr.join(', ') : '')
 
-  const copyToClipboard = async (text: string, kind: 'code' | 'uri') => {
+  const copyToClipboard = async (text: string, kind: 'code' | 'uri' | 'opencase') => {
     try {
       await globalThis.navigator?.clipboard?.writeText(text)
       setCopied(kind)
@@ -95,6 +96,19 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
       // best-effort; ignore
     }
   }
+
+  // Compute the full OpenCASE CFPackage URL for published frameworks
+  const opencaseUrl = useMemo(() => {
+    if (!cfDocument?.identifier) return null
+    try {
+      const { opencaseBaseUrl } = getAppConfig()
+      // Build the standard CASE API path from the document identifier
+      const base = opencaseBaseUrl.replace(/\/+$/, '')
+      return `${base}/ims/case/v1p1/CFPackages/${cfDocument.identifier}`
+    } catch {
+      return null
+    }
+  }, [cfDocument?.identifier])
 
   const isOpen = Boolean(node)
 
@@ -479,6 +493,42 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
                 >
                   View CFPackage JSON
                 </Button>
+              </div>
+            ) : null}
+
+            {isFramework && opencaseUrl ? (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+                <div className="mb-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <div className="text-sm font-semibold text-blue-900">OpenCASE URL</div>
+                  </div>
+                  <div className="mt-1 text-xs text-blue-700">
+                    The CASE API endpoint for this framework on OpenCASE.
+                  </div>
+                </div>
+                <div className="flex items-stretch gap-2">
+                  <a
+                    href={opencaseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-w-0 flex-1 rounded-xl border border-blue-200 bg-white px-3 py-2 font-mono text-xs text-blue-800 hover:bg-blue-50 hover:underline break-all"
+                    title="Open in new tab"
+                  >
+                    {opencaseUrl}
+                  </a>
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    onClick={() => void copyToClipboard(opencaseUrl, 'opencase')}
+                    title="Copy URL"
+                    className="shrink-0 self-center"
+                  >
+                    {copied === 'opencase' ? 'Copied' : 'Copy'}
+                  </Button>
+                </div>
               </div>
             ) : null}
 
