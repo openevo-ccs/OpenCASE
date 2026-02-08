@@ -125,6 +125,37 @@ export function absolutizeCaseUris<T> (payload: T, baseUrl: string, caseVersion:
   return walk(payload)
 }
 
+/**
+ * Strip all `extensions` properties from a CFPackage response.
+ * OpenCASE extensions are proprietary and should only be included
+ * when the client explicitly requests them via the X-CASE-EDITOR header.
+ */
+export function stripExtensions<T> (payload: T): T {
+  if (!payload || typeof payload !== 'object') return payload
+
+  const walk = (value: any): any => {
+    if (!value || typeof value !== 'object') return value
+    if (Array.isArray(value)) return value.map(walk)
+
+    const out: any = {}
+    for (const [k, v] of Object.entries(value)) {
+      if (k === 'extensions') continue
+      out[k] = walk(v)
+    }
+    return out
+  }
+
+  return walk(payload)
+}
+
+/**
+ * Check whether the request includes the X-CASE-EDITOR header,
+ * indicating the client wants OpenCASE-specific extensions.
+ */
+export function wantsOpenCaseExtensions (req: Request): boolean {
+  return req.header('X-CASE-EDITOR') !== undefined
+}
+
 export function applyFieldSelectionToEntity (entity: Record<string, any>, fields?: string[]): Record<string, any> {
   if (!fields || fields.length === 0) return entity
   const filtered: Record<string, any> = {}

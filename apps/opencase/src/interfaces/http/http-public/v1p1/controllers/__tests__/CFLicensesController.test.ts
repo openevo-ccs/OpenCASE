@@ -6,6 +6,7 @@ import { absolutizeCaseUris } from '../../utils/httpUtils'
 describe('CFLicensesControllerV1p1', () => {
   let controller: CFLicensesControllerV1p1
   let mockGetCFLicense: jest.Mocked<GetCFLicense>
+  let mockStore: any
   let mockRequest: Partial<Request>
   let mockResponse: Partial<Response>
   let responseJson: jest.Mock
@@ -16,7 +17,10 @@ describe('CFLicensesControllerV1p1', () => {
       execute: jest.fn()
     } as any
 
-    controller = new CFLicensesControllerV1p1(mockGetCFLicense)
+    mockStore = {
+      resolveDefinitionGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', entry: {} })
+    }
+    controller = new CFLicensesControllerV1p1(mockGetCFLicense, mockStore)
 
     responseJson = jest.fn()
     mockResponse = {
@@ -63,7 +67,7 @@ describe('CFLicensesControllerV1p1', () => {
     })
 
     it('should return 404 when license is not found', async () => {
-      mockGetCFLicense.execute.mockResolvedValue(null)
+      mockStore.resolveDefinitionGlobal.mockReturnValue(null)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
       await controller.getById(mockRequest as Request, mockResponse as Response)

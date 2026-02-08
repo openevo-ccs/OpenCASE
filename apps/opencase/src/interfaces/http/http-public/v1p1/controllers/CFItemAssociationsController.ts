@@ -13,7 +13,6 @@ export class CFItemAssociationsControllerV1p1 {
 
   getById = async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId ?? 'demo'
       const sourcedId = getParam(req, 'id')
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
@@ -23,18 +22,32 @@ export class CFItemAssociationsControllerV1p1 {
         return res.status(404).json(StatusInfoFormatter.invalidUUID('The supplied identifier is not a valid UUID.'))
       }
 
+      // Global lookup — IDs are globally unique across all tenants
+      const resolved = this.store.resolveItemGlobal(sourcedId)
+      if (!resolved) {
+        return res.status(404).json(StatusInfoFormatter.notFound('The requested CFItem was not found.'))
+      }
+
+      if (resolved.version !== '1.1') {
+        return res.status(409).json(StatusInfoFormatter.internalError(
+          `CFItem '${sourcedId}' exists in CASE v1p0. Use GET /ims/case/v1p0/CFItems/${sourcedId}/CFAssociations (and related v1p0 endpoints).`
+        ))
+      }
+
+      // Access control: check parent framework's license
+      if (!(req as any).isAuthenticated) {
+        if (!this.store.isDocumentPublic(resolved.tenantId, '1.1', resolved.docSourcedId)) {
+          return res.status(401).json(StatusInfoFormatter.unauthorized('Authentication required to access this item.'))
+        }
+      }
+
       const result = await this.getCFItemAssociations.execute({
-        tenantId,
+        tenantId: resolved.tenantId,
         caseVersion: '1.1',
         sourcedId
       })
 
       if (!result) {
-        if (this.store.itemExists(tenantId, '1.0', sourcedId)) {
-          return res.status(409).json(StatusInfoFormatter.internalError(
-            `CFItem '${sourcedId}' exists in CASE v1p0. Use GET /ims/case/v1p0/CFItems/${sourcedId}/CFAssociations (and related v1p0 endpoints).`
-          ))
-        }
         return res.status(404).json(StatusInfoFormatter.notFound('The requested CFItem was not found.'))
       }
 

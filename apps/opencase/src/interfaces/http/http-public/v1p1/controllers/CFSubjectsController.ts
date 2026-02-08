@@ -3,13 +3,16 @@ import { GetCFSubject } from '../../../../../application/case/endpoints/GetCFSub
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter'
 import { absolutizeCaseUris, applyFieldSelectionToEntity, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
 import { getParam } from '../../../utils/expressParams'
+import type { FileFrameworkStore } from '../../../../../infrastructure/persistence/file/FileFrameworkStore'
 
 export class CFSubjectsControllerV1p1 {
-  constructor (private readonly getCFSubject: GetCFSubject) {}
+  constructor (
+    private readonly getCFSubject: GetCFSubject,
+    private readonly store: FileFrameworkStore
+  ) {}
 
   getById = async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId ?? 'demo'
       const sourcedId = getParam(req, 'id')
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
@@ -19,9 +22,15 @@ export class CFSubjectsControllerV1p1 {
         return res.status(404).json(StatusInfoFormatter.invalidUUID('The supplied identifier is not a valid UUID.'))
       }
 
+      // Global lookup for definitions — resolve tenantId across all tenants
+      const resolved = this.store.resolveDefinitionGlobal('CFSubjects', sourcedId)
+      if (!resolved) {
+        return res.status(404).json(StatusInfoFormatter.notFound('The requested CFSubject was not found.'))
+      }
+
       const result = await this.getCFSubject.execute({
-        tenantId,
-        caseVersion: '1.1',
+        tenantId: resolved.tenantId,
+        caseVersion: resolved.version,
         sourcedId
       })
 

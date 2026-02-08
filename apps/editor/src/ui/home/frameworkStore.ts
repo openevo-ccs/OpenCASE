@@ -86,6 +86,7 @@ function createCfDocumentFromFramework(framework: Framework): CFDocument {
     caseVersion: meta.caseVersion,
     lastChangeDateTime: meta.lastChangeDateTime ?? new Date().toISOString(),
     CFPackageURI: { uri: `urn:case:package:${id}` },
+    licenseURI: meta.licenseURI,
   }
 }
 

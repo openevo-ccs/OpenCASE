@@ -18,7 +18,8 @@ describe('CFItemsControllerV1p1', () => {
     } as any
 
     mockStore = {
-      itemExists: jest.fn().mockReturnValue(false)
+      resolveItemGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', docSourcedId: 'doc-123' }),
+      isDocumentPublic: jest.fn().mockReturnValue(true),
     }
     controller = new CFItemsControllerV1p1(mockGetCFItem, mockStore)
 
@@ -71,7 +72,7 @@ describe('CFItemsControllerV1p1', () => {
     })
 
     it('should return 404 when item is not found', async () => {
-      mockGetCFItem.execute.mockResolvedValue(null)
+      mockStore.resolveItemGlobal.mockReturnValue(null)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
       await controller.getById(mockRequest as Request, mockResponse as Response)

@@ -18,7 +18,8 @@ describe('CFAssociationsControllerV1p1', () => {
     } as any
 
     mockStore = {
-      associationExists: jest.fn().mockReturnValue(false)
+      resolveAssociationGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', docSourcedId: 'doc-123' }),
+      isDocumentPublic: jest.fn().mockReturnValue(true),
     }
     controller = new CFAssociationsControllerV1p1(mockGetCFAssociation, mockStore)
 
@@ -76,7 +77,7 @@ describe('CFAssociationsControllerV1p1', () => {
     })
 
     it('should return 404 when association is not found', async () => {
-      mockGetCFAssociation.execute.mockResolvedValue(null)
+      mockStore.resolveAssociationGlobal.mockReturnValue(null)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
       await controller.getById(mockRequest as Request, mockResponse as Response)

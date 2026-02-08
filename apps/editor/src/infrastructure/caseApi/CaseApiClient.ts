@@ -1,4 +1,4 @@
-import type { CFDocument, CFPackage } from '@/domain/case/types'
+import type { CFDocument, CFLicense, CFPackage } from '@/domain/case/types'
 import type { HttpClient } from './http'
 
 export type OpenCaseCfPackageResponse = { CFPackage: CFPackage }
@@ -157,6 +157,27 @@ export class CaseApiClient {
       // Check for direct CFDocuments array
       if ('CFDocuments' in obj && Array.isArray(obj.CFDocuments)) {
         return obj.CFDocuments as CfDocumentSummary[]
+      }
+    }
+
+    return []
+  }
+
+  /**
+   * List the available CFLicenses for a tenant.
+   *
+   * Uses the management endpoint: GET /management/tenants/{tenantId}/licenses
+   */
+  async listLicenses(params: { tenantId: string }): Promise<CFLicense[]> {
+    const url = `/management/tenants/${encodeURIComponent(params.tenantId)}/licenses`
+    const res = (await this._http.get(url)) as unknown
+
+    if (Array.isArray(res)) return res as CFLicense[]
+
+    if (res && typeof res === 'object') {
+      const obj = res as Record<string, unknown>
+      if ('CFLicenses' in obj && Array.isArray(obj.CFLicenses)) {
+        return obj.CFLicenses as CFLicense[]
       }
     }
 

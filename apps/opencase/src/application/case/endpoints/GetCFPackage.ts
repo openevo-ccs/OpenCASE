@@ -62,10 +62,28 @@ export class GetCFPackage {
       return Array.from(map.values())
     }
 
+    // Collect license identifiers actually referenced by this package's document and items
+    const referencedLicenseIds = new Set<string>()
+    const docLicenseId = documentJSON.licenseURI?.identifier as string | undefined
+    if (docLicenseId) referencedLicenseIds.add(docLicenseId)
+    for (const item of result.CFPackage.CFItems ?? []) {
+      const itemLicenseId = (item as any)?.licenseURI?.identifier as string | undefined
+      if (itemLicenseId) referencedLicenseIds.add(itemLicenseId)
+    }
+
+    // Merge all available licenses, then filter to only those referenced by this package
+    const allLicenses = mergeById(tenantDefs.CFLicenses, frameworkDefs?.CFLicenses ?? [])
+    const packageLicenses = referencedLicenseIds.size > 0
+      ? allLicenses.filter((lic: any) => {
+        const id = (lic?.identifier ?? lic?.sourcedId) as string | undefined
+        return id != null && referencedLicenseIds.has(id)
+      })
+      : []
+
     const mergedDefinitions: any = {
       CFConcepts: mergeById(tenantDefs.CFConcepts, frameworkDefs?.CFConcepts ?? []),
       CFSubjects: mergeById(tenantDefs.CFSubjects, frameworkDefs?.CFSubjects ?? []),
-      CFLicenses: mergeById(tenantDefs.CFLicenses, frameworkDefs?.CFLicenses ?? []),
+      CFLicenses: packageLicenses,
       CFItemTypes: mergeById(tenantDefs.CFItemTypes, frameworkDefs?.CFItemTypes ?? []),
       CFAssociationGroupings: mergeById(tenantDefs.CFAssociationGroupings, frameworkDefs?.CFAssociationGroupings ?? [])
     }

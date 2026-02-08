@@ -254,6 +254,16 @@ export function normalizeCasePackageResponse(res: unknown): CasePackageSnapshot 
     })
     .filter((x): x is NonNullable<typeof x> => Boolean(x))
 
+  // Extract licenseURI (LinkURI object) if present
+  const rawLicense = asRecord(doc.licenseURI)
+  const licenseURI = rawLicense
+    ? {
+        title: asString(rawLicense.title),
+        identifier: asString(rawLicense.identifier),
+        uri: asString(rawLicense.uri) ?? '',
+      }
+    : undefined
+
   return {
     version,
     document: {
@@ -269,6 +279,7 @@ export function normalizeCasePackageResponse(res: unknown): CasePackageSnapshot 
       language: asString(doc.language),
       version: asString(doc.version),
       lastChangeDateTime: asString(doc.lastChangeDateTime),
+      licenseURI,
     },
     items,
     associations,

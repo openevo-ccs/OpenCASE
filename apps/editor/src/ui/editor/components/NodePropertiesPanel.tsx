@@ -8,7 +8,7 @@ import type {
   ExternalFrameworkNodeType,
   ExternalFrameworkNodeData,
 } from '../reactflow/types'
-import type { CFDocument, CFItem } from '@/domain/case/types'
+import type { CFDocument, CFItem, CFLicense } from '@/domain/case/types'
 import { getAppConfig } from '@/app/config'
 
 type Props = {
@@ -19,9 +19,11 @@ type Props = {
   onViewCFPackage?: () => void
   /** Whether the current framework has been published to OpenCASE */
   isPublishedToOpenCase?: boolean
+  /** Available license options fetched from OpenCASE */
+  availableLicenses?: CFLicense[]
 }
 
-export default function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage, isPublishedToOpenCase }: Readonly<Props>) {
+export default function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage, isPublishedToOpenCase, availableLicenses }: Readonly<Props>) {
   const [copied, setCopied] = useState<null | 'code' | 'uri' | 'opencase'>(null)
   useEffect(() => {
     if (!node) return
@@ -250,6 +252,16 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
                   ? cfDocument?.title ?? 'Untitled framework'
                   : cfItem?.humanCodingScheme ?? cfItem?.alternativeLabel ?? 'Untitled item'}
               </div>
+              {isFramework && cfDocument?.licenseURI?.title ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3">
+                      <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1.5V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z" clipRule="evenodd" />
+                    </svg>
+                    {cfDocument.licenseURI.title}
+                  </span>
+                </div>
+              ) : null}
               {!isFramework && (cfItem?.CFItemType || cfItem?.subject?.[0] || cfItem?.educationLevel?.[0]) ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {cfItem?.CFItemType ? (
@@ -435,6 +447,52 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
                 ) : null}
               </div>
             </div>
+
+            {isFramework && availableLicenses && availableLicenses.length > 0 ? (
+              <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+                <div className="mb-2">
+                  <div className="text-sm font-semibold text-slate-900">License</div>
+                  <div className="text-xs text-slate-500">
+                    Choose who can use this framework and how.
+                  </div>
+                </div>
+                <select
+                  id="node-license"
+                  className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                  value={cfDocument?.licenseURI?.identifier ?? ''}
+                  onChange={(e) => {
+                    const selectedId = e.target.value
+                    if (!selectedId) {
+                      updateDocument({ licenseURI: undefined })
+                      return
+                    }
+                    const lic = availableLicenses.find((l) => l.identifier === selectedId)
+                    if (lic) {
+                      updateDocument({
+                        licenseURI: {
+                          title: lic.title,
+                          identifier: lic.identifier,
+                          uri: lic.uri,
+                        },
+                      })
+                    }
+                  }}
+                >
+                  <option value="">No license selected</option>
+                  {availableLicenses.map((lic) => (
+                    <option key={lic.identifier} value={lic.identifier}>
+                      {lic.title}
+                    </option>
+                  ))}
+                </select>
+                {cfDocument?.licenseURI?.identifier ? (
+                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    {availableLicenses.find((l) => l.identifier === cfDocument?.licenseURI?.identifier)?.description ??
+                      'License details not available.'}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
               <div className="mb-2">

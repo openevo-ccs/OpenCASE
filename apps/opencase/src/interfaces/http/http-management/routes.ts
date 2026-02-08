@@ -1,9 +1,10 @@
-import type { Express, RequestHandler } from 'express'
+import type { Express, Request, Response, RequestHandler } from 'express'
 import type { CFDocumentsManagementController } from './controllers/CFDocumentsManagementController'
 import type { CFItemsManagementController } from './controllers/CFItemsManagementController'
 import type { CFAssociationsManagementController } from './controllers/CFAssociationsManagementController'
 import type { CFPackagesManagementController } from './controllers/CFPackagesManagementController'
 import type { TenantsManagementController } from './controllers/TenantsManagementController'
+import type { FileFrameworkStore } from '../../../infrastructure/persistence/file/FileFrameworkStore'
 import { requireScope } from '../middleware/scope'
 
 function withCaseVersion (caseVersion: '1.0' | '1.1', handler: RequestHandler): RequestHandler {
@@ -30,6 +31,7 @@ export interface ManagementDeps {
   cfAssociationsController: CFAssociationsManagementController
   cfPackagesController: CFPackagesManagementController
   tenantsController: TenantsManagementController
+  store?: FileFrameworkStore
 }
 
 /**
@@ -343,4 +345,25 @@ export function registerManagementRoutes (app: Express, deps: ManagementDeps): v
     requireScope('case.admin'),
     deps.tenantsController.create
   )
+
+  // License listing endpoint (non-CASE extension)
+  if (deps.store) {
+    app.get(
+      '/management/tenants/:tenantId/licenses',
+      (req: Request, res: Response) => {
+        try {
+          const tenantId = (req as any).tenantId ?? req.params.tenantId
+          const urlTenantId = req.params.tenantId
+          if (urlTenantId && urlTenantId !== tenantId) {
+            res.status(403).json({ error: 'Tenant mismatch' })
+            return
+          }
+          const defs = deps.store!.getTenantDefinitions(tenantId, '1.1')
+          res.status(200).json({ CFLicenses: defs.CFLicenses ?? [] })
+        } catch (error: any) {
+          res.status(400).json({ error: error.message || 'Failed to list licenses' })
+        }
+      }
+    )
+  }
 }

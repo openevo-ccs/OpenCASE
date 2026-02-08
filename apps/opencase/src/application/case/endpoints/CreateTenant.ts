@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { logger } from '../../../infrastructure/logging/Logger'
+import { buildDefaultDefinitionsIndex } from '../../../domain/case/seed/defaultLicenses'
 
 export interface CreateTenantCommand {
   baseDataDir: string
@@ -74,6 +75,19 @@ export class CreateTenant {
         'utf8'
       )
     }
+
+    // Seed default definitions (licenses) for both CASE versions
+    const defaultDefs = buildDefaultDefinitionsIndex()
+    await fs.writeFile(
+      path.join(v1p1Path, 'indexes', 'definitions.json'),
+      JSON.stringify(defaultDefs, null, 2),
+      'utf8'
+    )
+    await fs.writeFile(
+      path.join(v1p0Path, 'indexes', 'definitions.json'),
+      JSON.stringify(defaultDefs, null, 2),
+      'utf8'
+    )
 
     logger.info({ tenantId: cmd.tenantId }, 'Tenant created successfully')
 

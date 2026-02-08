@@ -15,6 +15,8 @@ export type FrameworkMetadata = {
   caseVersion?: string
   version?: string
   lastChangeDateTime?: string
+  /** CASE licenseURI — link to the CFLicense governing this framework */
+  licenseURI?: { title?: string; identifier?: string; uri: string }
 }
 
 export type ItemMetadata = Record<string, unknown>

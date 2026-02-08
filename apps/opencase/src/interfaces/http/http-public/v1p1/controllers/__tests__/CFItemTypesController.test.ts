@@ -6,6 +6,7 @@ import { absolutizeCaseUris } from '../../utils/httpUtils'
 describe('CFItemTypesControllerV1p1', () => {
   let controller: CFItemTypesControllerV1p1
   let mockGetCFItemType: jest.Mocked<GetCFItemType>
+  let mockStore: any
   let mockRequest: Partial<Request>
   let mockResponse: Partial<Response>
   let responseJson: jest.Mock
@@ -16,7 +17,10 @@ describe('CFItemTypesControllerV1p1', () => {
       execute: jest.fn()
     } as any
 
-    controller = new CFItemTypesControllerV1p1(mockGetCFItemType)
+    mockStore = {
+      resolveDefinitionGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', entry: {} })
+    }
+    controller = new CFItemTypesControllerV1p1(mockGetCFItemType, mockStore)
 
     responseJson = jest.fn()
     mockResponse = {
@@ -64,7 +68,7 @@ describe('CFItemTypesControllerV1p1', () => {
     })
 
     it('should return 404 when item type is not found', async () => {
-      mockGetCFItemType.execute.mockResolvedValue(null)
+      mockStore.resolveDefinitionGlobal.mockReturnValue(null)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
       await controller.getById(mockRequest as Request, mockResponse as Response)

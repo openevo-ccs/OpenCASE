@@ -6,6 +6,7 @@ import { absolutizeCaseUris } from '../../utils/httpUtils'
 describe('CFConceptsControllerV1p1', () => {
   let controller: CFConceptsControllerV1p1
   let mockGetCFConcept: jest.Mocked<GetCFConcept>
+  let mockStore: any
   let mockRequest: Partial<Request>
   let mockResponse: Partial<Response>
   let responseJson: jest.Mock
@@ -16,7 +17,10 @@ describe('CFConceptsControllerV1p1', () => {
       execute: jest.fn()
     } as any
 
-    controller = new CFConceptsControllerV1p1(mockGetCFConcept)
+    mockStore = {
+      resolveDefinitionGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', entry: {} })
+    }
+    controller = new CFConceptsControllerV1p1(mockGetCFConcept, mockStore)
 
     responseJson = jest.fn()
     mockResponse = {
@@ -62,7 +66,7 @@ describe('CFConceptsControllerV1p1', () => {
     })
 
     it('should return 404 when concept is not found', async () => {
-      mockGetCFConcept.execute.mockResolvedValue(null)
+      mockStore.resolveDefinitionGlobal.mockReturnValue(null)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
       await controller.getById(mockRequest as Request, mockResponse as Response)

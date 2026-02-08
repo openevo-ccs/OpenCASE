@@ -44,6 +44,7 @@ export function mapCaseSnapshotToDomainFramework(snapshot: CasePackageSnapshot):
     adoptionStatus: doc.adoptionStatus,
     caseVersion: doc.caseVersion ?? (snapshot.version === 'unknown' ? undefined : snapshot.version),
     lastChangeDateTime: doc.lastChangeDateTime,
+    licenseURI: doc.licenseURI,
   }
 
   const items: Framework['items'] = new Map()

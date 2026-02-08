@@ -18,7 +18,8 @@ describe('CFPackagesControllerV1p1', () => {
     } as any;
 
     mockStore = {
-      documentExists: jest.fn().mockReturnValue(false)
+      resolveDocumentGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', metadata: {} }),
+      isDocumentPublic: jest.fn().mockReturnValue(true),
     }
     controller = new CFPackagesControllerV1p1(mockGetCFPackage, mockStore);
 
@@ -73,7 +74,7 @@ describe('CFPackagesControllerV1p1', () => {
       expect(responseJson).toHaveBeenCalledWith(absolutizeCaseUris(result, 'http://localhost'));
     });
 
-    it('should use default tenantId when not in request', async () => {
+    it('should resolve tenantId from global lookup (not from request)', async () => {
       const result = {
         CFPackage: {
           CFDocument: { 
@@ -88,32 +89,26 @@ describe('CFPackagesControllerV1p1', () => {
       };
 
       mockGetCFPackage.execute.mockResolvedValue(result);
-      delete (mockRequest as any).tenantId;
-      mockRequest.params = { id: '550e8400-e29b-41d4-a716-446655440000' }; // Valid UUID
+      // tenantId is resolved from the store, not the request
+      mockStore.resolveDocumentGlobal.mockReturnValue({ tenantId: 'other-tenant', version: '1.1', metadata: {} })
+      mockRequest.params = { id: '550e8400-e29b-41d4-a716-446655440000' };
 
       await controller.getById(mockRequest as Request, mockResponse as Response);
 
       expect(mockGetCFPackage.execute).toHaveBeenCalledWith({
-        tenantId: 'demo',
+        tenantId: 'other-tenant',
         caseVersion: '1.1',
         docId: '550e8400-e29b-41d4-a716-446655440000'
       });
       expect(responseStatus).toHaveBeenCalledWith(200);
-      expect(responseJson).toHaveBeenCalledWith(absolutizeCaseUris(result, 'http://localhost'));
     });
 
     it('should return 404 when package is not found', async () => {
-      mockGetCFPackage.execute.mockResolvedValue(null);
-      (mockRequest as any).tenantId = 'test-tenant';
+      mockStore.resolveDocumentGlobal.mockReturnValue(null);
       mockRequest.params = { id: '550e8400-e29b-41d4-a716-446655440000' }; // Valid UUID
 
       await controller.getById(mockRequest as Request, mockResponse as Response);
 
-      expect(mockGetCFPackage.execute).toHaveBeenCalledWith({
-        tenantId: 'test-tenant',
-        caseVersion: '1.1',
-        docId: '550e8400-e29b-41d4-a716-446655440000'
-      });
       expect(responseStatus).toHaveBeenCalledWith(404);
       expect(responseJson).toHaveBeenCalledWith(
         expect.objectContaining({

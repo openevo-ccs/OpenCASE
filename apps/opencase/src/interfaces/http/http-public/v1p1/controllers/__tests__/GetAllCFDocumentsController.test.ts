@@ -16,7 +16,8 @@ describe('GetAllCFDocumentsControllerV1p1', () => {
       execute: jest.fn()
     } as any
 
-    controller = new GetAllCFDocumentsControllerV1p1(mockGetAllCFDocuments)
+    const mockStore = { isDocumentPublicGlobal: jest.fn() } as any
+    controller = new GetAllCFDocumentsControllerV1p1(mockGetAllCFDocuments, mockStore)
 
     responseJson = jest.fn()
     mockResponse = {
@@ -53,6 +54,7 @@ describe('GetAllCFDocumentsControllerV1p1', () => {
 
       mockGetAllCFDocuments.execute.mockResolvedValue(result)
       ;(mockRequest as any).tenantId = 'test-tenant'
+      ;(mockRequest as any).isAuthenticated = true
 
       await controller.getAll(mockRequest as Request, mockResponse as Response)
 
@@ -83,6 +85,7 @@ describe('GetAllCFDocumentsControllerV1p1', () => {
 
       mockGetAllCFDocuments.execute.mockResolvedValue(result)
       ;(mockRequest as any).tenantId = 'test-tenant'
+      ;(mockRequest as any).isAuthenticated = true
       mockRequest.query = {
         limit: '5',
         offset: '0',

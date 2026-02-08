@@ -18,7 +18,8 @@ describe('CFDocumentsControllerV1p1', () => {
     } as any
 
     mockStore = {
-      documentExists: jest.fn().mockReturnValue(false)
+      resolveDocumentGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', metadata: {} }),
+      isDocumentPublic: jest.fn().mockReturnValue(true),
     }
     controller = new CFDocumentsControllerV1p1(mockGetCFDocument, mockStore)
 
@@ -67,7 +68,7 @@ describe('CFDocumentsControllerV1p1', () => {
     })
 
     it('should return 404 when document is not found', async () => {
-      mockGetCFDocument.execute.mockResolvedValue(null)
+      mockStore.resolveDocumentGlobal.mockReturnValue(null)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
       await controller.getById(mockRequest as Request, mockResponse as Response)

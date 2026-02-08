@@ -1,6 +1,6 @@
 import express, { type RequestHandler } from 'express'
 import cors from 'cors'
-import { makeAuthMiddleware } from './middleware/auth'
+import { makeAuthMiddleware, makeOptionalAuthMiddleware } from './middleware/auth'
 import { registerV1p1Routes } from './http-public/v1p1/routes'
 import { registerV1p0Routes } from './http-public/v1p0/routes'
 import { registerPublicRoutes } from './http-public/public/routes'
@@ -21,7 +21,7 @@ export function createServer (container: Container): express.Express {
   app.use(express.json())
   app.use(express.urlencoded({ extended: true }))
 
-  // Service Discovery endpoint (no auth required - used for service discovery)
+  // Service Discovery endpoints (no auth required - used for service discovery)
   app.get(
     '/ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json',
     container.controllers.v1p1.discovery.getOpenAPISpec as RequestHandler
@@ -37,9 +37,13 @@ export function createServer (container: Container): express.Express {
     tenantLookupController: container.controllers.public.tenantLookup
   })
 
-  // Protected routes
+  // CASE Provider API — optional auth (public-licensed frameworks accessible without auth)
+  // IDs are globally unique so no tenantId is needed for read endpoints.
+  const optionalAuthMiddleware = makeOptionalAuthMiddleware(container.jwtVerifier)
+  app.use('/ims/case', optionalAuthMiddleware)
+
+  // Management API — strict auth required
   const authMiddleware = makeAuthMiddleware(container.jwtVerifier)
-  app.use('/ims/case', authMiddleware)
   app.use('/management', authMiddleware)
 
   registerV1p1Routes(app, {
@@ -79,7 +83,7 @@ export function createServer (container: Container): express.Express {
     cfAssociationsController: container.controllers.management.cfAssociations,
     cfPackagesController: container.controllers.management.cfPackages,
     tenantsController: container.controllers.management.tenants,
-    // Keycloak is the source of truth for accounts/clients in this deployment
+    store: container.store,
   })
 
   // simple health endpoint

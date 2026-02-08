@@ -6,6 +6,7 @@ import { absolutizeCaseUris } from '../../utils/httpUtils'
 describe('CFRubricsControllerV1p1', () => {
   let controller: CFRubricsControllerV1p1
   let mockGetCFRubric: jest.Mocked<GetCFRubric>
+  let mockStore: any
   let mockRequest: Partial<Request>
   let mockResponse: Partial<Response>
   let responseJson: jest.Mock
@@ -16,7 +17,11 @@ describe('CFRubricsControllerV1p1', () => {
       execute: jest.fn()
     } as any
 
-    controller = new CFRubricsControllerV1p1(mockGetCFRubric)
+    mockStore = {
+      resolveRubricGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', docSourcedId: 'doc-123' }),
+      isDocumentPublic: jest.fn().mockReturnValue(true),
+    }
+    controller = new CFRubricsControllerV1p1(mockGetCFRubric, mockStore)
 
     responseJson = jest.fn()
     mockResponse = {
@@ -62,7 +67,7 @@ describe('CFRubricsControllerV1p1', () => {
     })
 
     it('should return 404 when rubric is not found', async () => {
-      mockGetCFRubric.execute.mockResolvedValue(null)
+      mockStore.resolveRubricGlobal.mockReturnValue(null)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
       await controller.getById(mockRequest as Request, mockResponse as Response)

@@ -62,6 +62,7 @@ function mapDomainFrameworkToCfDocument(framework: Framework): CFDocument {
     caseVersion: meta.caseVersion,
     lastChangeDateTime: meta.lastChangeDateTime ?? nowIso(),
     CFPackageURI: { uri: `urn:case:package:${id}` },
+    licenseURI: meta.licenseURI,
   }
 }
 

@@ -3,13 +3,16 @@ import { GetCFItemType } from '../../../../../application/case/endpoints/GetCFIt
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter'
 import { absolutizeCaseUris, applyFieldSelectionToEntity, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
 import { getParam } from '../../../utils/expressParams'
+import type { FileFrameworkStore } from '../../../../../infrastructure/persistence/file/FileFrameworkStore'
 
 export class CFItemTypesControllerV1p0 {
-  constructor (private readonly getCFItemType: GetCFItemType) {}
+  constructor (
+    private readonly getCFItemType: GetCFItemType,
+    private readonly store: FileFrameworkStore
+  ) {}
 
   getById = async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId ?? 'demo'
       const sourcedId = getParam(req, 'id')
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
@@ -19,9 +22,12 @@ export class CFItemTypesControllerV1p0 {
         return res.status(404).json(StatusInfoFormatter.invalidUUID('The supplied identifier is not a valid UUID.'))
       }
 
+      const resolved = this.store.resolveDefinitionGlobal('CFItemTypes', sourcedId)
+      if (!resolved) return res.status(404).json(StatusInfoFormatter.notFound('The requested CFItemType was not found.'))
+
       const result = await this.getCFItemType.execute({
-        tenantId,
-        caseVersion: '1.0',
+        tenantId: resolved.tenantId,
+        caseVersion: resolved.version,
         sourcedId
       })
 

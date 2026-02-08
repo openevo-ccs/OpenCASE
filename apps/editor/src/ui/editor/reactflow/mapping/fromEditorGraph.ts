@@ -54,6 +54,7 @@ export function fromEditorGraph(params: { graph: EditorGraph }): { framework: Fr
     caseVersion: doc?.caseVersion,
     version: doc?.version,
     lastChangeDateTime: doc?.lastChangeDateTime,
+    licenseURI: doc?.licenseURI,
   }
 
   const items: Framework['items'] = new Map()

@@ -6,6 +6,7 @@ import { absolutizeCaseUris } from '../../utils/httpUtils'
 describe('CFAssociationGroupingsControllerV1p1', () => {
   let controller: CFAssociationGroupingsControllerV1p1
   let mockGetCFAssociationGrouping: jest.Mocked<GetCFAssociationGrouping>
+  let mockStore: any
   let mockRequest: Partial<Request>
   let mockResponse: Partial<Response>
   let responseJson: jest.Mock
@@ -16,7 +17,10 @@ describe('CFAssociationGroupingsControllerV1p1', () => {
       execute: jest.fn()
     } as any
 
-    controller = new CFAssociationGroupingsControllerV1p1(mockGetCFAssociationGrouping)
+    mockStore = {
+      resolveDefinitionGlobal: jest.fn().mockReturnValue({ tenantId: 'test-tenant', version: '1.1', entry: {} })
+    }
+    controller = new CFAssociationGroupingsControllerV1p1(mockGetCFAssociationGrouping, mockStore)
 
     responseJson = jest.fn()
     mockResponse = {
@@ -62,7 +66,7 @@ describe('CFAssociationGroupingsControllerV1p1', () => {
     })
 
     it('should return 404 when grouping is not found', async () => {
-      mockGetCFAssociationGrouping.execute.mockResolvedValue(null)
+      mockStore.resolveDefinitionGlobal.mockReturnValue(null)
       ;(mockRequest as any).tenantId = 'test-tenant'
 
       await controller.getById(mockRequest as Request, mockResponse as Response)

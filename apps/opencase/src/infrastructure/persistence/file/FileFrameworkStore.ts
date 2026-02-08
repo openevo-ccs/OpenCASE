@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { type CaseVersion, type TenantId } from '../../../domain/case/value-objects/Identifiers'
 import { logger } from '../../logging/Logger'
+import { DEFAULT_LICENSES, isPublicLicense } from '../../../domain/case/seed/defaultLicenses'
 
 export interface FileFrameworkStoreConfig {
   baseDataDir: string
@@ -17,6 +18,7 @@ export interface DocumentMetadata {
   lastChangeDateTime: Date
   currentFile: string // relative to tenant/version root
   adoptionStatus?: string // For filtering archived/retired documents
+  licenseIdentifier?: string // UUID of the assigned CFLicense (for public-access checks)
 }
 
 export interface DocumentVersionInfo {
@@ -136,7 +138,8 @@ export class FileFrameworkStore {
           version: d.version,
           lastChangeDateTime: new Date(d.lastChangeDateTime as string | number | Date),
           currentFile: d.currentFile,
-          adoptionStatus: d.adoptionStatus
+          adoptionStatus: d.adoptionStatus,
+          licenseIdentifier: d.licenseIdentifier,
         })
       }
     } catch {
@@ -235,6 +238,16 @@ export class FileFrameworkStore {
     } catch {
       // ignore missing
     }
+
+    // Backfill: inject default seed licenses if no CFLicenses exist yet
+    const licensesMap = result.get('CFLicenses')!
+    if (licensesMap.size === 0) {
+      for (const lic of DEFAULT_LICENSES) {
+        licensesMap.set(lic.identifier, { docSourcedId: '__seed__', value: lic })
+      }
+      logger.info({ idxDir }, 'Backfilled default seed licenses into definitions index')
+    }
+
     return result
   }
 
@@ -335,6 +348,13 @@ export class FileFrameworkStore {
       tenantMap.set(version, versionMap)
     }
 
+    // Extract licenseIdentifier from licenseURI (LinkData object or legacy string)
+    let licenseIdentifier: string | undefined
+    const lic = doc.licenseURI
+    if (lic && typeof lic === 'object' && typeof lic.identifier === 'string') {
+      licenseIdentifier = lic.identifier
+    }
+
     versionMap.set(docId, {
       sourcedId: docId,
       title: doc.title as string,
@@ -344,7 +364,8 @@ export class FileFrameworkStore {
       version: doc.version as string | undefined,
       lastChangeDateTime: new Date(doc.lastChangeDateTime as string | number | Date),
       currentFile: relativePath,
-      adoptionStatus: doc.adoptionStatus as string | undefined
+      adoptionStatus: doc.adoptionStatus as string | undefined,
+      licenseIdentifier,
     })
   }
 
@@ -535,7 +556,8 @@ export class FileFrameworkStore {
       version: meta.version,
       lastChangeDateTime: meta.lastChangeDateTime.toISOString(),
       currentFile: meta.currentFile,
-      adoptionStatus: meta.adoptionStatus
+      adoptionStatus: meta.adoptionStatus,
+      licenseIdentifier: meta.licenseIdentifier,
     }))
 
     await fs.writeFile(
@@ -667,6 +689,16 @@ export class FileFrameworkStore {
     return Boolean(this.documents.get(tenantId)?.get(version)?.get(docId))
   }
 
+  /**
+   * Returns true if the framework has a license that allows unauthenticated access.
+   * Frameworks with no license or a private license return false.
+   */
+  isDocumentPublic (tenantId: TenantId, version: CaseVersion, docId: string): boolean {
+    const meta = this.documents.get(tenantId)?.get(version)?.get(docId)
+    if (!meta) return false
+    return isPublicLicense(meta.licenseIdentifier)
+  }
+
   itemExists (tenantId: TenantId, version: CaseVersion, itemId: string): boolean {
     return Boolean(this.itemsIndex.get(tenantId)?.get(version)?.get(itemId))
   }
@@ -679,6 +711,100 @@ export class FileFrameworkStore {
     const versionMap = this.documents.get(tenantId)?.get(version)
     if (!versionMap) return []
     return Array.from(versionMap.values())
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Global lookup methods — search across ALL tenants by globally-unique ID
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Resolve a CFDocument by its globally-unique identifier across all tenants.
+   */
+  resolveDocumentGlobal (docId: string): { tenantId: TenantId; version: CaseVersion; metadata: DocumentMetadata } | null {
+    for (const [tenantId, tenantMap] of this.documents) {
+      for (const [version, versionMap] of tenantMap) {
+        const meta = versionMap.get(docId)
+        if (meta) return { tenantId, version, metadata: meta }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Resolve a CFItem by its globally-unique identifier across all tenants.
+   */
+  resolveItemGlobal (itemId: string): { tenantId: TenantId; version: CaseVersion; docSourcedId: string } | null {
+    for (const [tenantId, tenantMap] of this.itemsIndex) {
+      for (const [version, versionMap] of tenantMap) {
+        const entry = versionMap.get(itemId)
+        if (entry) return { tenantId, version, docSourcedId: entry.docSourcedId }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Resolve a CFAssociation by its globally-unique identifier across all tenants.
+   */
+  resolveAssociationGlobal (assocId: string): { tenantId: TenantId; version: CaseVersion; docSourcedId: string } | null {
+    for (const [tenantId, tenantMap] of this.assocIndex) {
+      for (const [version, versionMap] of tenantMap) {
+        const entry = versionMap.get(assocId)
+        if (entry) return { tenantId, version, docSourcedId: entry.docSourcedId }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Resolve a CFRubric by its globally-unique identifier across all tenants.
+   */
+  resolveRubricGlobal (rubricId: string): { tenantId: TenantId; version: CaseVersion; docSourcedId: string } | null {
+    for (const [tenantId, tenantMap] of this.rubricsIndex) {
+      for (const [version, versionMap] of tenantMap) {
+        const entry = versionMap.get(rubricId)
+        if (entry) return { tenantId, version, docSourcedId: entry.docSourcedId }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Resolve a definition entity (CFSubject, CFConcept, etc.) by its globally-unique identifier.
+   */
+  resolveDefinitionGlobal (category: DefinitionCategory, id: string): { tenantId: TenantId; version: CaseVersion; entry: DefinitionIndexEntry } | null {
+    for (const [tenantId, tenantMap] of this.definitionsIndex) {
+      for (const [version, versionMap] of tenantMap) {
+        const catMap = versionMap.get(category)
+        const entry = catMap?.get(id)
+        if (entry) return { tenantId, version, entry }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Return all documents across all tenants (for cross-tenant list endpoints).
+   */
+  getAllDocumentsGlobal (): Array<{ tenantId: TenantId; caseVersion: CaseVersion; metadata: DocumentMetadata }> {
+    const result: Array<{ tenantId: TenantId; caseVersion: CaseVersion; metadata: DocumentMetadata }> = []
+    for (const [tenantId, tenantMap] of this.documents) {
+      for (const [version, versionMap] of tenantMap) {
+        for (const metadata of versionMap.values()) {
+          result.push({ tenantId, caseVersion: version, metadata })
+        }
+      }
+    }
+    return result
+  }
+
+  /**
+   * Check whether a globally-unique document ID has a public license, searching all tenants.
+   */
+  isDocumentPublicGlobal (docId: string): boolean {
+    const resolved = this.resolveDocumentGlobal(docId)
+    if (!resolved) return false
+    return isPublicLicense(resolved.metadata.licenseIdentifier)
   }
 
   // Public methods for index management (used by management endpoints)
@@ -745,7 +871,10 @@ export class FileFrameworkStore {
   }
 
   /**
-   * Guard against accidental GUID reuse across different frameworks (docs/items/associations/rubrics).
+   * Guard against accidental GUID reuse across ALL tenants and CASE versions.
+   * CASE IDs are globally unique, so no entity ID may collide with any other
+   * entity across the entire service — not just within a single tenant.
+   *
    * Note: definition IDs are intentionally reusable (per-tenant defaults) so they are not enforced here.
    */
   assertNoEntityIdReuse (
@@ -769,69 +898,57 @@ export class FileFrameworkStore {
     for (const it of bundle.items ?? []) add((it?.sourcedId ?? it?.identifier) as string | undefined, 'CFItem')
     for (const a of bundle.associations ?? []) add((a?.sourcedId ?? a?.identifier) as string | undefined, 'CFAssociation')
     for (const r of bundle.rubrics ?? []) {
-      // Handle both CFRubric entities and raw objects
       const rubricId = (r as any)?.identifier ?? (r as any)?.id ?? (r as any)?.sourcedId
       add(rubricId as string | undefined, 'CFRubric')
     }
 
-    const other = version === '1.1' ? '1.0' : '1.1'
-
-    const itemsMap = this.itemsIndex.get(tenantId)?.get(version) ?? new Map()
-    const assocMap = this.assocIndex.get(tenantId)?.get(version) ?? new Map()
-    const rubricsMap = this.rubricsIndex.get(tenantId)?.get(version) ?? new Map()
-    const docsMap = this.documents.get(tenantId)?.get(version) ?? new Map()
-
-    const itemsMapOther = this.itemsIndex.get(tenantId)?.get(other) ?? new Map()
-    const assocMapOther = this.assocIndex.get(tenantId)?.get(other) ?? new Map()
-    const rubricsMapOther = this.rubricsIndex.get(tenantId)?.get(other) ?? new Map()
-    const docsMapOther = this.documents.get(tenantId)?.get(other) ?? new Map()
-
-    // Disallow creating the "same" document id in the other CASE partition.
-    // This keeps framework identity consistent irrespective of CASE version.
-    if (docsMapOther.get(docId)) {
-      throw new Error(`CFDocument id '${docId}' already exists in CASE ${other}; cannot create it again in CASE ${version}`)
-    }
-
+    // Check every ID in the bundle against the GLOBAL indexes (all tenants, all versions)
     for (const [id, kind] of ids.entries()) {
       if (kind === 'CFDocument') {
-        // Allowed: docId already exists (publishing new version).
-        // Disallowed: docId is used by any other entity.
-        if (itemsMap.get(id) || assocMap.get(id) || rubricsMap.get(id) || itemsMapOther.get(id) || assocMapOther.get(id) || rubricsMapOther.get(id)) {
-          throw new Error(`ID '${id}' is already used by another entity and cannot be used as a CFDocument id`)
+        // Allowed: docId already exists in the SAME tenant (publishing a new version).
+        // Disallowed: exists in a DIFFERENT tenant, or used as a non-document entity anywhere.
+        const existingDoc = this.resolveDocumentGlobal(id)
+        if (existingDoc && existingDoc.tenantId !== tenantId) {
+          throw new Error(`CFDocument id '${id}' already exists in another tenant ('${existingDoc.tenantId}')`)
         }
+        // Check that the ID isn't used as a non-document entity globally
+        if (this.resolveItemGlobal(id)) throw new Error(`ID '${id}' is already used as a CFItem and cannot be used as a CFDocument id`)
+        if (this.resolveAssociationGlobal(id)) throw new Error(`ID '${id}' is already used as a CFAssociation and cannot be used as a CFDocument id`)
+        if (this.resolveRubricGlobal(id)) throw new Error(`ID '${id}' is already used as a CFRubric and cannot be used as a CFDocument id`)
         continue
       }
 
-      // Prevent collisions with document IDs
-      if (docsMap.get(id) || docsMapOther.get(id)) {
-        throw new Error(`ID '${id}' is already used as a CFDocument id and cannot be reused for ${kind}`)
+      // Prevent collisions with document IDs globally
+      const docCollision = this.resolveDocumentGlobal(id)
+      if (docCollision) {
+        throw new Error(`ID '${id}' is already used as a CFDocument id (tenant '${docCollision.tenantId}') and cannot be reused for ${kind}`)
       }
 
       if (kind === 'CFItem') {
-        const existing = itemsMap.get(id) ?? itemsMapOther.get(id)
-        if (existing && (existing as any).docSourcedId !== docId) {
-          throw new Error(`CFItem id '${id}' is already used in a different framework (docId=${(existing as any).docSourcedId})`)
+        const existing = this.resolveItemGlobal(id)
+        if (existing && existing.docSourcedId !== docId) {
+          throw new Error(`CFItem id '${id}' is already used in a different framework (docId=${existing.docSourcedId}, tenant='${existing.tenantId}')`)
         }
-        if (assocMap.get(id) || assocMapOther.get(id)) throw new Error(`ID '${id}' is already used as a CFAssociation id and cannot be reused for CFItem`)
-        if (rubricsMap.get(id) || rubricsMapOther.get(id)) throw new Error(`ID '${id}' is already used as a CFRubric id and cannot be reused for CFItem`)
+        if (this.resolveAssociationGlobal(id)) throw new Error(`ID '${id}' is already used as a CFAssociation and cannot be reused for CFItem`)
+        if (this.resolveRubricGlobal(id)) throw new Error(`ID '${id}' is already used as a CFRubric and cannot be reused for CFItem`)
       }
 
       if (kind === 'CFAssociation') {
-        const existing = assocMap.get(id) ?? assocMapOther.get(id)
-        if (existing && (existing as any).docSourcedId !== docId) {
-          throw new Error(`CFAssociation id '${id}' is already used in a different framework (docId=${(existing as any).docSourcedId})`)
+        const existing = this.resolveAssociationGlobal(id)
+        if (existing && existing.docSourcedId !== docId) {
+          throw new Error(`CFAssociation id '${id}' is already used in a different framework (docId=${existing.docSourcedId}, tenant='${existing.tenantId}')`)
         }
-        if (itemsMap.get(id) || itemsMapOther.get(id)) throw new Error(`ID '${id}' is already used as a CFItem id and cannot be reused for CFAssociation`)
-        if (rubricsMap.get(id) || rubricsMapOther.get(id)) throw new Error(`ID '${id}' is already used as a CFRubric id and cannot be reused for CFAssociation`)
+        if (this.resolveItemGlobal(id)) throw new Error(`ID '${id}' is already used as a CFItem and cannot be reused for CFAssociation`)
+        if (this.resolveRubricGlobal(id)) throw new Error(`ID '${id}' is already used as a CFRubric and cannot be reused for CFAssociation`)
       }
 
       if (kind === 'CFRubric') {
-        const existing = rubricsMap.get(id) ?? rubricsMapOther.get(id)
-        if (existing && (existing as any).docSourcedId !== docId) {
-          throw new Error(`CFRubric id '${id}' is already used in a different framework (docId=${(existing as any).docSourcedId})`)
+        const existing = this.resolveRubricGlobal(id)
+        if (existing && existing.docSourcedId !== docId) {
+          throw new Error(`CFRubric id '${id}' is already used in a different framework (docId=${existing.docSourcedId}, tenant='${existing.tenantId}')`)
         }
-        if (itemsMap.get(id) || itemsMapOther.get(id)) throw new Error(`ID '${id}' is already used as a CFItem id and cannot be reused for CFRubric`)
-        if (assocMap.get(id) || assocMapOther.get(id)) throw new Error(`ID '${id}' is already used as a CFAssociation id and cannot be reused for CFRubric`)
+        if (this.resolveItemGlobal(id)) throw new Error(`ID '${id}' is already used as a CFItem and cannot be reused for CFRubric`)
+        if (this.resolveAssociationGlobal(id)) throw new Error(`ID '${id}' is already used as a CFAssociation and cannot be reused for CFRubric`)
       }
     }
   }

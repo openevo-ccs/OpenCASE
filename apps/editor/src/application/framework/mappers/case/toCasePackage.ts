@@ -169,7 +169,7 @@ function frameworkToCfDocument(
     caseVersion: effectiveVersion === '1.1' ? '1.1' : undefined,
     statusStartDate: undefined,
     statusEndDate: undefined,
-    licenseURI: undefined,
+    licenseURI: meta.licenseURI ?? undefined,
     lastChangeDateTime: nowIso(), // Always update timestamp on export
     CFPackageURI: { 
       uri: `urn:case:package:${fwId}`,
@@ -386,6 +386,7 @@ export type CaseV1p1Document = {
   notes?: string
   statusStartDate?: string
   statusEndDate?: string
+  licenseURI?: CaseLinkURI
   CFPackageURI?: CaseLinkURI
   extensions?: Record<string, unknown>
 }
@@ -482,6 +483,11 @@ export function toOpenCaseFormat(cfPackage: CFPackage): CaseV1p1Package {
     notes: doc.notes,
     statusStartDate: doc.statusStartDate,
     statusEndDate: doc.statusEndDate,
+    licenseURI: doc.licenseURI ? {
+      title: doc.licenseURI.title ?? '',
+      identifier: doc.licenseURI.identifier ?? '',
+      uri: doc.licenseURI.uri,
+    } : undefined,
     CFPackageURI: {
       uri: makePackageUri(docId),
       title: docTitle,

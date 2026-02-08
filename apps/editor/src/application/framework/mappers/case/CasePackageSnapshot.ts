@@ -22,6 +22,8 @@ export type CaseDocumentSnapshot = {
   /** Document version string */
   version?: string
   lastChangeDateTime?: string
+  /** Link to the CFLicense governing this framework */
+  licenseURI?: { title?: string; identifier?: string; uri: string }
 }
 
 /**

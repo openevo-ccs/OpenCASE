@@ -17,10 +17,13 @@ import AddExternalFrameworkDialog from '@/ui/editor/components/AddExternalFramew
 import ViewCFPackageDialog from '@/ui/editor/components/ViewCFPackageDialog'
 import { useEditor } from '@/ui/editor/state/EditorContext'
 import type { CaseEditorNodeType, CaseEditorEdge } from '@/ui/editor/reactflow/types'
-import type { CFDocument, CFItem, CFPackage } from '@/domain/case/types'
+import type { CFDocument, CFItem, CFLicense, CFPackage } from '@/domain/case/types'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { fromEditorGraph } from '@/ui/editor/reactflow/mapping/fromEditorGraph'
 import { frameworkToCfPackage, toOpenCaseFormat } from '@/application/framework/mappers/case/toCasePackage'
+import { getAppConfig } from '@/app/config'
+import { CaseApiClient } from '@/infrastructure/caseApi/CaseApiClient'
+import { createFetchHttpClient } from '@/infrastructure/caseApi/http'
 
 type EditorCanvasProps = {
   onBack?: () => void
@@ -30,7 +33,7 @@ type EditorCanvasProps = {
 }
 
 export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpenCase }: Readonly<EditorCanvasProps>) {
-  const { status: authStatus, userName, tenantId, signOut } = useAuth()
+  const { status: authStatus, userName, tenantId, signOut, getAccessToken } = useAuth()
   const {
     nodes,
     nodesWithCallbacks,
@@ -74,6 +77,19 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
   const [generatedCfPackage, setGeneratedCfPackage] = useState<CFPackage | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  // Available licenses fetched from OpenCASE
+  const [availableLicenses, setAvailableLicenses] = useState<CFLicense[]>([])
+
+  // Fetch available licenses when authenticated
+  useEffect(() => {
+    if (!tenantId) return
+    const cfg = getAppConfig()
+    const api = new CaseApiClient(createFetchHttpClient(cfg.opencaseBaseUrl, { getAccessToken }))
+    api.listLicenses({ tenantId }).then(setAvailableLicenses).catch(() => {
+      // best-effort; ignore failures
+    })
+  }, [tenantId, getAccessToken])
   
   // Track the edge being reconnected
   const edgeReconnectSuccessful = useRef(true)
@@ -599,6 +615,7 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         onChangeNode={updateNodeData}
         onViewCFPackage={handleViewCFPackage}
         isPublishedToOpenCase={isPublishedToOpenCase}
+        availableLicenses={availableLicenses}
       />
 
       <EdgePropertiesPanel

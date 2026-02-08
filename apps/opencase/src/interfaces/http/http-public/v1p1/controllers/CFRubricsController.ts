@@ -3,13 +3,16 @@ import { GetCFRubric } from '../../../../../application/case/endpoints/GetCFRubr
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter'
 import { absolutizeCaseUris, applyFieldSelectionToEntity, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
 import { getParam } from '../../../utils/expressParams'
+import type { FileFrameworkStore } from '../../../../../infrastructure/persistence/file/FileFrameworkStore'
 
 export class CFRubricsControllerV1p1 {
-  constructor (private readonly getCFRubric: GetCFRubric) {}
+  constructor (
+    private readonly getCFRubric: GetCFRubric,
+    private readonly store: FileFrameworkStore
+  ) {}
 
   getById = async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId ?? 'demo'
       const sourcedId = getParam(req, 'id')
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
@@ -19,8 +22,25 @@ export class CFRubricsControllerV1p1 {
         return res.status(404).json(StatusInfoFormatter.invalidUUID('The supplied identifier is not a valid UUID.'))
       }
 
+      // Global lookup — IDs are globally unique across all tenants
+      const resolved = this.store.resolveRubricGlobal(sourcedId)
+      if (!resolved) {
+        return res.status(404).json(StatusInfoFormatter.notFound('The requested CFRubric was not found.'))
+      }
+
+      if (resolved.version !== '1.1') {
+        return res.status(404).json(StatusInfoFormatter.notFound('The requested CFRubric was not found.'))
+      }
+
+      // Access control: check parent framework's license
+      if (!(req as any).isAuthenticated) {
+        if (!this.store.isDocumentPublic(resolved.tenantId, resolved.version, resolved.docSourcedId)) {
+          return res.status(401).json(StatusInfoFormatter.unauthorized('Authentication required to access this rubric.'))
+        }
+      }
+
       const result = await this.getCFRubric.execute({
-        tenantId,
+        tenantId: resolved.tenantId,
         caseVersion: '1.1',
         sourcedId
       })

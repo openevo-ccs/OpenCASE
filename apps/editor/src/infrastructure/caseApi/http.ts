@@ -45,7 +45,7 @@ export function createFetchHttpClient(baseUrl: string, options: FetchHttpClientO
     const token = options.getAccessToken ? await options.getAccessToken() : null
 
     const headers: Record<string, string> = {
-      // Required by OpenCASE to return ext:opencase extensions in responses
+      // Required by OpenCASE to return OpenCASE extensions in responses
       'X-CASE-EDITOR': 'true',
     }
     if (token) headers.Authorization = `Bearer ${token}`

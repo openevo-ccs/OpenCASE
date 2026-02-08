@@ -13,7 +13,6 @@ export class CFAssociationsControllerV1p1 {
 
   getById = async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId ?? 'demo'
       const sourcedId = getParam(req, 'id')
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
@@ -23,18 +22,32 @@ export class CFAssociationsControllerV1p1 {
         return res.status(404).json(StatusInfoFormatter.invalidUUID('The supplied identifier is not a valid UUID.'))
       }
 
+      // Global lookup — IDs are globally unique across all tenants
+      const resolved = this.store.resolveAssociationGlobal(sourcedId)
+      if (!resolved) {
+        return res.status(404).json(StatusInfoFormatter.notFound('The requested CFAssociation was not found.'))
+      }
+
+      if (resolved.version !== '1.1') {
+        return res.status(409).json(StatusInfoFormatter.internalError(
+          `CFAssociation '${sourcedId}' exists in CASE v1p0. Use GET /ims/case/v1p0/CFAssociations/${sourcedId} (and related v1p0 endpoints).`
+        ))
+      }
+
+      // Access control: check parent framework's license
+      if (!(req as any).isAuthenticated) {
+        if (!this.store.isDocumentPublic(resolved.tenantId, '1.1', resolved.docSourcedId)) {
+          return res.status(401).json(StatusInfoFormatter.unauthorized('Authentication required to access this association.'))
+        }
+      }
+
       const result = await this.getCFAssociation.execute({
-        tenantId,
+        tenantId: resolved.tenantId,
         caseVersion: '1.1',
         sourcedId
       })
 
       if (!result) {
-        if (this.store.associationExists(tenantId, '1.0', sourcedId)) {
-          return res.status(409).json(StatusInfoFormatter.internalError(
-            `CFAssociation '${sourcedId}' exists in CASE v1p0. Use GET /ims/case/v1p0/CFAssociations/${sourcedId} (and related v1p0 endpoints).`
-          ))
-        }
         return res.status(404).json(StatusInfoFormatter.notFound('The requested CFAssociation was not found.'))
       }
 

@@ -2,13 +2,19 @@ import type { Request, Response } from 'express'
 import { GetAllCFDocuments } from '../../../../../application/case/endpoints/GetAllCFDocuments'
 import { StatusInfoFormatter } from '../../../../../infrastructure/http/StatusInfoFormatter'
 import { absolutizeCaseUris, getBaseUrl, parseCaseQueryParams, setEtagAndHandleNotModified } from '../utils/httpUtils'
+import type { FileFrameworkStore } from '../../../../../infrastructure/persistence/file/FileFrameworkStore'
 
 export class GetAllCFDocumentsControllerV1p0 {
-  constructor (private readonly getAllCFDocuments: GetAllCFDocuments) {}
+  constructor (
+    private readonly getAllCFDocuments: GetAllCFDocuments,
+    private readonly store: FileFrameworkStore
+  ) {}
 
   getAll = async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId ?? 'demo'
+      // Authenticated: scope to the authenticated tenant's documents
+      // Unauthenticated: list across ALL tenants (global catalog), filtered to public only
+      const tenantId = (req as any).isAuthenticated ? ((req as any).tenantId ?? undefined) : undefined
 
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
@@ -28,6 +34,13 @@ export class GetAllCFDocumentsControllerV1p0 {
         fields,
         includeArchived
       })
+
+      // Access control: unauthenticated requests only see public frameworks
+      if (!(req as any).isAuthenticated && result.CFDocumentSet?.CFDocuments) {
+        result.CFDocumentSet.CFDocuments = result.CFDocumentSet.CFDocuments.filter(
+          (doc: any) => this.store.isDocumentPublicGlobal(doc.identifier)
+        )
+      }
 
       const baseUrl = getBaseUrl(req)
       const body = absolutizeCaseUris(result, baseUrl, '1.0')

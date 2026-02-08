@@ -4,7 +4,7 @@ import { type FileFrameworkStore } from '../../../infrastructure/persistence/fil
 import { type LinkData } from '../../../domain/case/value-objects/LinkData'
 
 export interface GetAllCFDocumentsQuery {
-  tenantId: TenantId
+  tenantId?: TenantId  // Optional — when omitted, lists across ALL tenants (global catalog)
   caseVersion: CaseVersion
   limit?: number
   offset?: number
@@ -21,11 +21,17 @@ export class GetAllCFDocuments {
   async execute (query: GetAllCFDocumentsQuery) {
     //logger.info({ query }, 'Executing GetAllCFDocuments')
 
-    // List endpoints should return all frameworks, irrespective of which CASE version path is used.
-    // Each entry includes its CASE version and versioned URIs point to the correct API surface.
-    const v10 = this.store.getAllDocuments(query.tenantId, '1.0').map(d => ({ meta: d, caseVersion: '1.0' as const }))
-    const v11 = this.store.getAllDocuments(query.tenantId, '1.1').map(d => ({ meta: d, caseVersion: '1.1' as const }))
-    let documents = [...v10, ...v11]
+    // List endpoints return all frameworks irrespective of which CASE version path is used.
+    // When tenantId is provided, scope to that tenant; otherwise list across all tenants.
+    let documents: Array<{ meta: import('../../../infrastructure/persistence/file/FileFrameworkStore').DocumentMetadata; caseVersion: CaseVersion }>
+    if (query.tenantId) {
+      const v10 = this.store.getAllDocuments(query.tenantId, '1.0').map(d => ({ meta: d, caseVersion: '1.0' as CaseVersion }))
+      const v11 = this.store.getAllDocuments(query.tenantId, '1.1').map(d => ({ meta: d, caseVersion: '1.1' as CaseVersion }))
+      documents = [...v10, ...v11]
+    } else {
+      // Global catalog: all documents from every tenant
+      documents = this.store.getAllDocumentsGlobal().map(d => ({ meta: d.metadata, caseVersion: d.caseVersion }))
+    }
 
     // Filter archived documents (Retired or legacy Deprecated) unless includeArchived is true
     if (!query.includeArchived) {

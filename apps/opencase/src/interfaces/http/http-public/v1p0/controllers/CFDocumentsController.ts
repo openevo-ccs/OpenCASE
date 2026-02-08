@@ -13,7 +13,6 @@ export class CFDocumentsControllerV1p0 {
 
   getById = async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId ?? 'demo'
       const sourcedId = getParam(req, 'id')
       const parsed = parseCaseQueryParams(req)
       if (!parsed.ok) return res.status(parsed.status).json(parsed.body)
@@ -23,18 +22,30 @@ export class CFDocumentsControllerV1p0 {
         return res.status(404).json(StatusInfoFormatter.invalidUUID('The supplied identifier is not a valid UUID.'))
       }
 
+      // Global lookup — IDs are globally unique across all tenants
+      const resolved = this.store.resolveDocumentGlobal(sourcedId)
+      if (!resolved) {
+        return res.status(404).json(StatusInfoFormatter.notFound('The requested CFDocument was not found.'))
+      }
+
+      if (resolved.version !== '1.0') {
+        return res.status(409).json(StatusInfoFormatter.internalError(
+          `CFDocument '${sourcedId}' exists in CASE v1p1. Use GET /ims/case/v1p1/CFDocuments/${sourcedId} (and related v1p1 endpoints).`
+        ))
+      }
+
+      // Access control: unauthenticated requests only see public frameworks
+      if (!(req as any).isAuthenticated && !this.store.isDocumentPublic(resolved.tenantId, '1.0', sourcedId)) {
+        return res.status(401).json(StatusInfoFormatter.unauthorized('Authentication required to access this framework.'))
+      }
+
       const result = await this.getCFDocument.execute({
-        tenantId,
+        tenantId: resolved.tenantId,
         caseVersion: '1.0',
         sourcedId
       })
 
       if (!result) {
-        if (this.store.documentExists(tenantId, '1.1', sourcedId)) {
-          return res.status(409).json(StatusInfoFormatter.internalError(
-            `CFDocument '${sourcedId}' exists in CASE v1p1. Use GET /ims/case/v1p1/CFDocuments/${sourcedId} (and related v1p1 endpoints).`
-          ))
-        }
         return res.status(404).json(StatusInfoFormatter.notFound('The requested CFDocument was not found.'))
       }
 
