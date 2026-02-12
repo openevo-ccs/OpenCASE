@@ -334,6 +334,16 @@ export function registerManagementRoutes (app: Express, deps: ManagementDeps): v
     withCaseVersion('1.1', deps.cfPackagesController.delete as unknown as RequestHandler)
   )
 
+  // Restore (unarchive) a previously archived framework
+  app.post(
+    '/management/tenants/:tenantId/ims/case/v1p0/CFPackages/:id/restore',
+    withCaseVersion('1.0', deps.cfPackagesController.restore as unknown as RequestHandler)
+  )
+  app.post(
+    '/management/tenants/:tenantId/ims/case/v1p1/CFPackages/:id/restore',
+    withCaseVersion('1.1', deps.cfPackagesController.restore as unknown as RequestHandler)
+  )
+
   // Tenant management endpoints (require case.admin scope)
   app.get(
     '/management/tenants',

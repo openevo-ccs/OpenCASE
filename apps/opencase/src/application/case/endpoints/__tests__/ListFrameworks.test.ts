@@ -135,7 +135,7 @@ describe('ListFrameworks', () => {
       })
     })
 
-    it('should filter out archived frameworks (Retired) by default', async () => {
+    it('should filter out archived frameworks by default (using server-level archived flag)', async () => {
       const docs: DocumentMetadata[] = [
         {
           sourcedId: 'doc-1',
@@ -146,17 +146,18 @@ describe('ListFrameworks', () => {
         },
         {
           sourcedId: 'doc-2',
-          title: 'Retired Framework',
+          title: 'Archived Framework',
           lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
           currentFile: 'frameworks/doc-2/doc-2_v0001.json',
-          adoptionStatus: 'Retired'
+          adoptionStatus: 'Implemented',
+          archived: true
         },
         {
           sourcedId: 'doc-3',
-          title: 'Deprecated Framework',
+          title: 'Retired but not archived Framework',
           lastChangeDateTime: new Date('2024-01-03T00:00:00Z'),
           currentFile: 'frameworks/doc-3/doc-3_v0001.json',
-          adoptionStatus: 'Deprecated'
+          adoptionStatus: 'Retired'
         }
       ]
 
@@ -168,8 +169,9 @@ describe('ListFrameworks', () => {
         tenantId
       })
 
-      expect(result.frameworks).toHaveLength(1)
-      expect(result.frameworks[0].sourcedId).toBe('doc-1')
+      // Only the server-level archived doc should be filtered out
+      expect(result.frameworks).toHaveLength(2)
+      expect(result.frameworks.map(f => f.sourcedId)).toEqual(['doc-1', 'doc-3'])
     })
 
     it('should include archived frameworks when includeArchived is true', async () => {
@@ -183,10 +185,11 @@ describe('ListFrameworks', () => {
         },
         {
           sourcedId: 'doc-2',
-          title: 'Retired Framework',
+          title: 'Archived Framework',
           lastChangeDateTime: new Date('2024-01-02T00:00:00Z'),
           currentFile: 'frameworks/doc-2/doc-2_v0001.json',
-          adoptionStatus: 'Retired'
+          adoptionStatus: 'Implemented',
+          archived: true
         }
       ]
 

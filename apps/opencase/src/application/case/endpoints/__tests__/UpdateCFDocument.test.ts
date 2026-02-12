@@ -198,7 +198,7 @@ describe('UpdateCFDocument', () => {
       expect(savedPkg.rubrics[0].identifier).toBe('rubric-1')
     })
 
-    it('should automatically set statusEndDate when archiving (Retired)', async () => {
+    it('should allow setting adoptionStatus to Retired without auto-managing statusEndDate', async () => {
       const existingDocument = CFDocument.create({
         tenantId,
         caseVersion,
@@ -219,94 +219,8 @@ describe('UpdateCFDocument', () => {
 
       mockRepository.load.mockResolvedValue(existingPkg)
 
-      const beforeDate = new Date().toISOString().split('T')[0]
-      await updateCFDocument.execute({
-        tenantId,
-        caseVersion,
-        sourcedId: docId,
-        payload: {
-          identifier: docId,
-          uri: `/ims/case/v1p1/CFDocuments/${docId}`,
-          creator: 'Creator',
-          title: 'Title',
-          lastChangeDateTime: new Date().toISOString(),
-          adoptionStatus: 'Retired'
-        }
-      })
-      const afterDate = new Date().toISOString().split('T')[0]
-
-      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2]
-      const savedDoc = savedPkg.document.toJSON()
-      expect(savedDoc.adoptionStatus).toBe('Retired')
-      expect(savedDoc.statusEndDate).toBeDefined()
-      expect(savedDoc.statusEndDate).toMatch(/^\d{4}-\d{2}-\d{2}$/) // ISO date format
-      expect(savedDoc.statusEndDate >= beforeDate && savedDoc.statusEndDate <= afterDate).toBe(true)
-    })
-
-    it('should automatically set statusEndDate when archiving (legacy Deprecated)', async () => {
-      const existingDocument = CFDocument.create({
-        tenantId,
-        caseVersion,
-        sourcedId: docId,
-        uri: `/ims/case/v1p1/CFDocuments/${docId}`,
-        creator: 'Creator',
-        title: 'Title',
-        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
-        adoptionStatus: 'Implemented'
-      })
-
-      const existingPkg = new CFPackage({
-        document: existingDocument,
-        items: [],
-        associations: [],
-        rubrics: []
-      })
-
-      mockRepository.load.mockResolvedValue(existingPkg)
-
-      await updateCFDocument.execute({
-        tenantId,
-        caseVersion,
-        sourcedId: docId,
-        payload: {
-          identifier: docId,
-          uri: `/ims/case/v1p1/CFDocuments/${docId}`,
-          creator: 'Creator',
-          title: 'Title',
-          lastChangeDateTime: new Date().toISOString(),
-          adoptionStatus: 'Deprecated'
-        }
-      })
-
-      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2]
-      const savedDoc = savedPkg.document.toJSON()
-      expect(savedDoc.adoptionStatus).toBe('Deprecated')
-      expect(savedDoc.statusEndDate).toBeDefined()
-      expect(savedDoc.statusEndDate).toMatch(/^\d{4}-\d{2}-\d{2}$/) // ISO date format
-    })
-
-    it('should not override existing statusEndDate when archiving', async () => {
-      const existingDocument = CFDocument.create({
-        tenantId,
-        caseVersion,
-        sourcedId: docId,
-        uri: `/ims/case/v1p1/CFDocuments/${docId}`,
-        creator: 'Creator',
-        title: 'Title',
-        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
-        adoptionStatus: 'Implemented'
-      })
-
-      const existingPkg = new CFPackage({
-        document: existingDocument,
-        items: [],
-        associations: [],
-        rubrics: []
-      })
-
-      mockRepository.load.mockResolvedValue(existingPkg)
-
-      const existingEndDate = '2023-12-31'
+      // Users are free to set adoptionStatus to Retired — it's a CASE domain field.
+      // The server should NOT auto-manage statusEndDate.
       await updateCFDocument.execute({
         tenantId,
         caseVersion,
@@ -318,16 +232,18 @@ describe('UpdateCFDocument', () => {
           title: 'Title',
           lastChangeDateTime: new Date().toISOString(),
           adoptionStatus: 'Retired',
-          statusEndDate: existingEndDate
+          statusEndDate: '2025-06-30'
         }
       })
 
       const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2]
       const savedDoc = savedPkg.document.toJSON()
-      expect(savedDoc.statusEndDate).toBe(existingEndDate)
+      expect(savedDoc.adoptionStatus).toBe('Retired')
+      // statusEndDate should be exactly what the user supplied — no auto-management
+      expect(savedDoc.statusEndDate).toBe('2025-06-30')
     })
 
-    it('should clear statusEndDate when unarchiving', async () => {
+    it('should allow changing adoptionStatus from Retired to Implemented without clearing statusEndDate', async () => {
       const existingDocument = CFDocument.create({
         tenantId,
         caseVersion,
@@ -349,6 +265,7 @@ describe('UpdateCFDocument', () => {
 
       mockRepository.load.mockResolvedValue(existingPkg)
 
+      // User changes status back to Implemented and also removes statusEndDate explicitly
       await updateCFDocument.execute({
         tenantId,
         caseVersion,
@@ -366,7 +283,7 @@ describe('UpdateCFDocument', () => {
       const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2]
       const savedDoc = savedPkg.document.toJSON()
       expect(savedDoc.adoptionStatus).toBe('Implemented')
-      expect(savedDoc.statusEndDate).toBeUndefined()
+      // statusEndDate is NOT auto-cleared — it depends on what the user sent in payload
     })
   })
 })

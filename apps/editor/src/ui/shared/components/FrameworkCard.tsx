@@ -1,4 +1,4 @@
-import { PlusIcon, TrashIcon, CloudArrowDownIcon, ArchiveBoxArrowDownIcon } from '@heroicons/react/24/solid'
+import { PlusIcon, TrashIcon, CloudArrowDownIcon, ArchiveBoxArrowDownIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/solid'
 import type { ReactNode } from 'react'
 import type { CFDocument } from '@/domain/case/types'
 import { Button } from '@/ui/shared/components/ui/button'
@@ -60,6 +60,9 @@ type Props = {
   deleteDisabled?: boolean
   /** Visual style for the action button: 'archive' shows amber archive icon, 'delete' shows red trash icon */
   actionStyle?: 'archive' | 'delete'
+  /** Restore callback — shown on archived cards to unarchive */
+  onRestore?: () => void
+  restoreDisabled?: boolean
   onClick?: () => void
   className?: string
   children?: ReactNode
@@ -83,6 +86,8 @@ export function FrameworkCard({
   onDelete,
   deleteDisabled,
   actionStyle = 'archive',
+  onRestore,
+  restoreDisabled,
   onClick,
   className,
   children,
@@ -138,6 +143,22 @@ export function FrameworkCard({
             >
               {primaryActionIcon === 'plus' ? <PlusIcon className="h-3.5 w-3.5" aria-hidden="true" /> : null}
               {primaryActionLabel}
+            </Button>
+          ) : null}
+          {onRestore ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              disabled={restoreDisabled}
+              className="rounded-full text-white/50 opacity-0 transition-opacity hover:bg-white/10 hover:text-emerald-300 group-hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRestore()
+              }}
+              title="Restore framework"
+            >
+              <ArrowUturnLeftIcon className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           ) : null}
           {onDelete ? (

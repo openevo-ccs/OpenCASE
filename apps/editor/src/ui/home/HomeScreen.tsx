@@ -175,14 +175,17 @@ export default function HomeScreen({
     [onOpenRemoteFramework],
   )
 
+  // Restore (unarchive) state
+  const [restoringDocId, setRestoringDocId] = useState<string | null>(null)
+
   // Load archived frameworks from server
   const loadArchivedFrameworks = useCallback(async () => {
     setArchivedLoading(true)
     setError(null)
     try {
       const docs = await api.listCfDocuments({ caseVersion: 'v1p1', includeArchived: true })
-      // Filter to only archived (Retired/Deprecated) frameworks
-      const archived = docs.filter((d) => d.adoptionStatus === 'Retired' || d.adoptionStatus === 'Deprecated')
+      // Filter to only server-level archived frameworks
+      const archived = docs.filter((d) => d.archived === true)
       setArchivedFrameworks(archived)
     } catch (e: unknown) {
       setArchivedFrameworks([])
@@ -252,6 +255,24 @@ export default function HomeScreen({
       setDeletingDocId(null)
     }
   }, [api, hardDeleteConfirm, tenantId, onRemoveFromStorage])
+
+  // Handle restore (unarchive) of an archived framework
+  const handleRestore = useCallback(async (docId: string) => {
+    if (!tenantId) return
+    setRestoringDocId(docId)
+    setError(null)
+    try {
+      await api.restoreFramework({ tenantId, docId, caseVersion: 'v1p1' })
+      // Remove from archived list
+      setArchivedFrameworks((prev) => prev.filter((f) => f.identifier !== docId))
+      // Refresh active list to show the restored framework
+      void loadFrameworks()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRestoringDocId(null)
+    }
+  }, [api, tenantId, loadFrameworks])
 
   // Handle unsaved draft delete
   const handleDraftDeleteConfirm = useCallback(() => {
@@ -630,7 +651,9 @@ export default function HomeScreen({
                   {archivedFrameworks.map((doc) => {
                     const title = doc.title ?? doc.identifier ?? 'Untitled Framework'
                     const isDeleting = deletingDocId === doc.identifier
-                    const cardClass = isDeleting ? 'opacity-60 pointer-events-none' : undefined
+                    const isRestoring = restoringDocId === doc.identifier
+                    const busy = isDeleting || isRestoring
+                    const cardClass = busy ? 'opacity-60 pointer-events-none' : undefined
                     return (
                       <FrameworkCard
                         key={doc.identifier}
@@ -643,11 +666,13 @@ export default function HomeScreen({
                         }}
                         sourcePackageURI={doc.sourcePackageURI}
                         isModifiedFromSource={doc.isModifiedFromSource}
-                        rightHint={isDeleting ? 'Deleting' : undefined}
+                        rightHint={isDeleting ? 'Deleting' : (isRestoring ? 'Restoring' : undefined)}
                         lastChanged={doc.lastChangeDateTime}
                         onDelete={tenantId ? () => handleHardDeleteRequest(doc.identifier, title) : undefined}
-                        deleteDisabled={isDeleting}
+                        deleteDisabled={busy}
                         actionStyle="delete"
+                        onRestore={tenantId ? () => void handleRestore(doc.identifier) : undefined}
+                        restoreDisabled={busy}
                         className={cardClass}
                       />
                     )

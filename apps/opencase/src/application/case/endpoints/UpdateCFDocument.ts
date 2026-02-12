@@ -38,30 +38,6 @@ export class UpdateCFDocument {
       throw new Error(`CFDocument with sourcedId ${sourcedId} not found`)
     }
 
-    // Handle adoptionStatus changes - auto-set statusEndDate when archiving
-    const currentStatus = existingPkg.document.toJSON().adoptionStatus
-    const newStatus = payload.adoptionStatus
-    const isArchiving = (newStatus === 'Retired' || newStatus === 'Deprecated') && 
-                        (currentStatus !== 'Retired' && currentStatus !== 'Deprecated')
-    const isUnarchiving = (currentStatus === 'Retired' || currentStatus === 'Deprecated') && 
-                          (newStatus !== 'Retired' && newStatus !== 'Deprecated' && newStatus !== undefined)
-
-    // Auto-set statusEndDate when archiving (if not already set)
-    if (isArchiving && !payload.statusEndDate) {
-      const today = new Date().toISOString().split('T')[0] // ISO date format (YYYY-MM-DD)
-      payload.statusEndDate = today
-    }
-
-    // Clear statusEndDate when unarchiving
-    if (isUnarchiving) {
-      delete payload.statusEndDate
-    }
-
-    // Update lastChangeDateTime when status changes
-    if (currentStatus !== newStatus) {
-      payload.lastChangeDateTime = new Date().toISOString()
-    }
-
     // Create updated document from payload
     const updatedDocument = CFDocument.fromRaw(tenantId, caseVersion, payload)
     

@@ -32,6 +32,8 @@ export type CfDocumentSummary = {
   sourcePackageURI?: string
   /** True when an imported framework has been locally modified after import. */
   isModifiedFromSource?: boolean
+  /** Server-level archive flag — independent of CASE adoptionStatus */
+  archived?: boolean
 }
 
 export class CaseApiClient {
@@ -124,6 +126,25 @@ export class CaseApiClient {
     const query = params.hardDelete ? '?hardDelete=true' : ''
     
     await this._http.delete(`${url}${query}`)
+  }
+
+  /**
+   * Restore (unarchive) a previously archived CFPackage on the server.
+   *
+   * Uses the management endpoint: POST /management/tenants/{tenantId}/ims/case/{version}/CFPackages/{docId}/restore
+   *
+   * @param params.tenantId - The tenant ID
+   * @param params.docId - The document/framework identifier to restore
+   * @param params.caseVersion - The CASE version (v1p0 or v1p1), defaults to v1p1
+   */
+  async restoreFramework(params: {
+    tenantId: string
+    docId: string
+    caseVersion?: 'v1p0' | 'v1p1'
+  }): Promise<void> {
+    const v = params.caseVersion ?? 'v1p1'
+    const url = `/management/tenants/${encodeURIComponent(params.tenantId)}/ims/case/${v}/CFPackages/${encodeURIComponent(params.docId)}/restore`
+    await this._http.post(url, {})
   }
 
   /**

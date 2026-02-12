@@ -1,7 +1,5 @@
 import type { CFPackageRepository } from '../ports/CFPackageRepository'
 import { CaseVersion, TenantId } from '../../../domain/case/value-objects/Identifiers'
-import { CFDocument } from '../../../domain/case/entities/CFDocument'
-import { CFPackage } from '../../../domain/case/entities/CFPackage'
 import type { FileFrameworkStore } from '../../../infrastructure/persistence/file/FileFrameworkStore'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -67,37 +65,15 @@ export class DeleteCFDocument {
       // Update index files on disk
       await this.store.writeIndexesToDisk(tenantId, caseVersion)
     } else {
-      // Soft delete (archive): update adoptionStatus to "Retired" and set statusEndDate
-      // Check if already archived
-      const currentStatus = existingPkg.document.toJSON().adoptionStatus
-      if (currentStatus === 'Retired' || currentStatus === 'Deprecated') {
+      // Soft delete (archive): set the server-level archived flag.
+      // This does NOT touch adoptionStatus or any CASE domain content.
+      if (this.store.isDocumentArchived(tenantId, caseVersion, sourcedId)) {
         // Already archived, nothing to do
         return
       }
 
-      const docJSON = existingPkg.document.toJSON()
-      const today = new Date().toISOString().split('T')[0] // ISO date format (YYYY-MM-DD)
-      
-      // Create updated document with Retired status
-      const updatedDocument = CFDocument.fromRaw(tenantId, caseVersion, {
-        ...docJSON,
-        adoptionStatus: 'Retired',
-        statusEndDate: docJSON.statusEndDate || today,
-        lastChangeDateTime: new Date().toISOString()
-      })
-
-      // Create updated package with archived document
-      const archivedPkg = new CFPackage({
-        document: updatedDocument,
-        items: existingPkg.items,
-        associations: existingPkg.associations,
-        rubrics: existingPkg.rubrics,
-        definitions: existingPkg.definitions,
-        extensions: existingPkg.extensions
-      })
-
-      // Save the archived version
-      await this.pkgRepo.saveNewVersion(tenantId, caseVersion, archivedPkg)
+      this.store.setDocumentArchived(tenantId, caseVersion, sourcedId, true)
+      await this.store.writeIndexesToDisk(tenantId, caseVersion)
     }
   }
 }

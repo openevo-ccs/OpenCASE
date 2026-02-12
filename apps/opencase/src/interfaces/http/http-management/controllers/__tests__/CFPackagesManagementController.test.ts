@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { CFPackagesManagementController } from '../CFPackagesManagementController'
 import { DeleteCFDocument } from '../../../../../application/case/endpoints/DeleteCFDocument'
+import { RestoreFramework } from '../../../../../application/case/endpoints/RestoreFramework'
 import { ListFrameworks } from '../../../../../application/case/endpoints/ListFrameworks'
 import { CreateFramework } from '../../../../../application/case/endpoints/CreateFramework'
 import { ImportFrameworkFromEndpoint } from '../../../../../application/case/endpoints/ImportFrameworkFromEndpoint'
@@ -11,6 +12,7 @@ describe('CFPackagesManagementController', () => {
   let mockImportFramework: jest.Mocked<ImportFrameworkFromEndpoint>
   let mockListFrameworks: jest.Mocked<ListFrameworks>
   let mockDeleteCFDocument: jest.Mocked<DeleteCFDocument>
+  let mockRestoreFramework: jest.Mocked<RestoreFramework>
   let mockRequest: Partial<Request>
   let mockResponse: Partial<Response>
   let responseJson: jest.Mock
@@ -22,12 +24,14 @@ describe('CFPackagesManagementController', () => {
     mockImportFramework = { execute: jest.fn() } as any
     mockListFrameworks = { execute: jest.fn() } as any
     mockDeleteCFDocument = { execute: jest.fn() } as any
+    mockRestoreFramework = { execute: jest.fn() } as any
 
     controller = new CFPackagesManagementController(
       mockCreateFramework,
       mockImportFramework,
       mockListFrameworks,
-      mockDeleteCFDocument
+      mockDeleteCFDocument,
+      mockRestoreFramework
     )
 
     responseJson = jest.fn()
@@ -96,6 +100,23 @@ describe('CFPackagesManagementController', () => {
     })
     expect(responseStatus).toHaveBeenCalledWith(200)
     expect(responseJson).toHaveBeenCalledWith({ status: 'deleted', id: 'doc-1' })
+  })
+
+  it('restores an archived CFPackage', async () => {
+    ;(mockRequest as any).tenantId = 'test-tenant'
+    mockRequest.params = { tenantId: 'test-tenant', id: 'doc-1' } as any
+    mockRequest.query = { caseVersion: '1.1' }
+    mockRestoreFramework.execute.mockResolvedValueOnce(undefined as any)
+
+    await (controller.restore as any)(mockRequest as Request, mockResponse as Response, next)
+
+    expect(mockRestoreFramework.execute).toHaveBeenCalledWith({
+      tenantId: 'test-tenant',
+      caseVersion: '1.1',
+      sourcedId: 'doc-1'
+    })
+    expect(responseStatus).toHaveBeenCalledWith(200)
+    expect(responseJson).toHaveBeenCalledWith({ status: 'restored', id: 'doc-1' })
   })
 })
 

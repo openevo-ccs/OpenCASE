@@ -23,6 +23,7 @@ import { UpdateCFDocument } from '../application/case/endpoints/UpdateCFDocument
 import { UpdateCFItem } from '../application/case/endpoints/UpdateCFItem'
 import { UpdateCFAssociation } from '../application/case/endpoints/UpdateCFAssociation'
 import { DeleteCFDocument } from '../application/case/endpoints/DeleteCFDocument'
+import { RestoreFramework } from '../application/case/endpoints/RestoreFramework'
 import { DeleteCFItem } from '../application/case/endpoints/DeleteCFItem'
 import { DeleteCFAssociation } from '../application/case/endpoints/DeleteCFAssociation'
 import { CFPackagesControllerV1p0 } from '../interfaces/http/http-public/v1p0/controllers/CFPackagesController'
@@ -359,11 +360,13 @@ export async function buildContainer(): Promise<Container> {
     updateCFAssociation,
     deleteCFAssociation
   )
+  const restoreFramework = new RestoreFramework(store)
   const cfPackagesManagementController = new CFPackagesManagementController(
     createFramework,
     importFramework,
     listFrameworks,
-    deleteCFDocument
+    deleteCFDocument,
+    restoreFramework
   )
   const tenantsManagementController = new TenantsManagementController(
     listTenants,

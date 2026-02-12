@@ -3,6 +3,7 @@ import { type Request, type Response, type RequestHandler } from 'express'
 import { type CreateFramework } from '../../../../application/case/endpoints/CreateFramework'
 import { type ImportFrameworkFromEndpoint } from '../../../../application/case/endpoints/ImportFrameworkFromEndpoint'
 import { type DeleteCFDocument } from '../../../../application/case/endpoints/DeleteCFDocument'
+import { type RestoreFramework } from '../../../../application/case/endpoints/RestoreFramework'
 import { type ListFrameworks } from '../../../../application/case/endpoints/ListFrameworks'
 import { getParam } from '../../utils/expressParams'
 import { getCaseVersion } from '../../utils/caseVersion'
@@ -12,7 +13,8 @@ export class CFPackagesManagementController {
     private readonly createFramework: CreateFramework,
     private readonly importFramework: ImportFrameworkFromEndpoint,
     private readonly listFrameworks: ListFrameworks,
-    private readonly deleteCFDocument: DeleteCFDocument
+    private readonly deleteCFDocument: DeleteCFDocument,
+    private readonly restoreFrameworkUseCase: RestoreFramework
   ) {}
 
   list: RequestHandler<{ tenantId: string }> = async (req: Request, res: Response) => {
@@ -146,6 +148,32 @@ export class CFPackagesManagementController {
     } catch (error: any) {
       const msg = error?.message || 'Delete failed'
       const status = msg.includes('not found') ? 404 : 400
+      return res.status(status).json({ error: msg })
+    }
+  }
+
+  restore: RequestHandler<{ tenantId: string, id: string }> = async (req: Request, res: Response) => {
+    try {
+      const tenantId = (req as any).tenantId ?? req.params.tenantId
+      const urlTenantId = getParam(req, 'tenantId')
+      const id = getParam(req, 'id')
+      const caseVersion = getCaseVersion(req, { default: '1.1' })!
+
+      if (urlTenantId && urlTenantId !== tenantId) {
+        return res.status(403).json({ error: 'Tenant mismatch - authenticated tenant does not match URL parameter' })
+      }
+      if (!id) return res.status(400).json({ error: 'Missing id' })
+
+      await this.restoreFrameworkUseCase.execute({
+        tenantId,
+        caseVersion,
+        sourcedId: id
+      })
+
+      return res.status(200).json({ status: 'restored', id })
+    } catch (error: any) {
+      const msg = error?.message || 'Restore failed'
+      const status = msg.includes('not found') || msg.includes('not archived') ? 404 : 400
       return res.status(status).json({ error: msg })
     }
   }

@@ -29,10 +29,9 @@ export class ListFrameworks {
     for (const version of versions) {
       const documents = this.store.getAllDocuments(query.tenantId, version)
       for (const doc of documents) {
-        // Filter archived documents (Retired or legacy Deprecated) unless includeArchived is true
+        // Filter server-level archived documents unless includeArchived is true
         if (!query.includeArchived) {
-          const status = doc.adoptionStatus
-          if (status === 'Retired' || status === 'Deprecated') {
+          if (doc.archived === true) {
             continue // Skip archived documents
           }
         }

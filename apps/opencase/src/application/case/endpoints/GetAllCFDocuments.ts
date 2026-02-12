@@ -33,13 +33,9 @@ export class GetAllCFDocuments {
       documents = this.store.getAllDocumentsGlobal().map(d => ({ meta: d.metadata, caseVersion: d.caseVersion }))
     }
 
-    // Filter archived documents (Retired or legacy Deprecated) unless includeArchived is true
+    // Filter server-level archived documents unless includeArchived is true
     if (!query.includeArchived) {
-      documents = documents.filter(doc => {
-        const status = doc.meta.adoptionStatus
-        // Filter out Retired and legacy Deprecated status
-        return status !== 'Retired' && status !== 'Deprecated'
-      })
+      documents = documents.filter(doc => doc.meta.archived !== true)
     }
 
     // Apply filtering (basic implementation - can be enhanced)
@@ -117,6 +113,7 @@ export class GetAllCFDocuments {
       if (docMeta.adoptionStatus) doc.adoptionStatus = docMeta.adoptionStatus
       if (docMeta.sourcePackageURI) doc.sourcePackageURI = docMeta.sourcePackageURI
       if (docMeta.isModifiedFromSource) doc.isModifiedFromSource = docMeta.isModifiedFromSource
+      if (docMeta.archived) doc.archived = true
 
       // Apply field selection if specified
       if (query.fields && query.fields.length > 0) {

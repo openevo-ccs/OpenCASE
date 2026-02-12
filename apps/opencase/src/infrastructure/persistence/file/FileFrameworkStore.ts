@@ -19,12 +19,14 @@ export interface DocumentMetadata {
   version?: string
   lastChangeDateTime: Date
   currentFile: string // relative to tenant/version root
-  adoptionStatus?: string // For filtering archived/retired documents
+  adoptionStatus?: string // CASE domain field — NOT used for server-level archive filtering
   licenseIdentifier?: string // UUID of the assigned CFLicense (for public-access checks)
   /** URL this framework was imported from (set during import). */
   sourcePackageURI?: string
   /** True when an imported framework has been locally modified after import. */
   isModifiedFromSource?: boolean
+  /** Server-level archive flag — independent of CASE adoptionStatus */
+  archived?: boolean
 }
 
 export interface DocumentVersionInfo {
@@ -150,6 +152,7 @@ export class FileFrameworkStore {
           licenseIdentifier: d.licenseIdentifier,
           sourcePackageURI: d.sourcePackageURI,
           isModifiedFromSource: d.isModifiedFromSource,
+          archived: d.archived,
         })
       }
     } catch {
@@ -589,6 +592,7 @@ export class FileFrameworkStore {
       licenseIdentifier: meta.licenseIdentifier,
       sourcePackageURI: meta.sourcePackageURI,
       isModifiedFromSource: meta.isModifiedFromSource,
+      archived: meta.archived,
     }))
 
     await fs.writeFile(
@@ -878,6 +882,26 @@ export class FileFrameworkStore {
     if (versionMap) {
       versionMap.delete(rubricId)
     }
+  }
+
+  /**
+   * Set or clear the server-level archived flag on a document.
+   * This is independent of the CASE adoptionStatus field.
+   */
+  setDocumentArchived (tenantId: TenantId, version: CaseVersion, docId: string, archived: boolean): void {
+    const meta = this.documents.get(tenantId)?.get(version)?.get(docId)
+    if (!meta) {
+      throw new Error(`Document ${docId} not found in index for tenant ${tenantId} version ${version}`)
+    }
+    meta.archived = archived || undefined // omit false to keep index clean
+  }
+
+  /**
+   * Check whether a document is archived at the server level.
+   */
+  isDocumentArchived (tenantId: TenantId, version: CaseVersion, docId: string): boolean {
+    const meta = this.documents.get(tenantId)?.get(version)?.get(docId)
+    return meta?.archived === true
   }
 
   removeDefinitionsFromIndexForDocument (tenantId: TenantId, version: CaseVersion, docId: string): void {

@@ -26,6 +26,8 @@ describe('DeleteCFDocument', () => {
       removeAssociationFromIndex: jest.fn(),
       removeRubricFromIndex: jest.fn(),
       removeDefinitionsFromIndexForDocument: jest.fn(),
+      setDocumentArchived: jest.fn(),
+      isDocumentArchived: jest.fn().mockReturnValue(false),
       writeIndexesToDisk: jest.fn().mockResolvedValue(undefined),
       getTenantVersionRootDir: jest.fn().mockReturnValue('/data/tenants/test-tenant/v1p1')
     } as any
@@ -39,7 +41,7 @@ describe('DeleteCFDocument', () => {
     const caseVersion = '1.1'
     const docId = 'doc-123'
 
-    it('should archive document by default (soft delete)', async () => {
+    it('should archive document by setting archived flag (soft delete)', async () => {
       const existingDocument = CFDocument.create({
         tenantId,
         caseVersion,
@@ -51,61 +53,15 @@ describe('DeleteCFDocument', () => {
         adoptionStatus: 'Implemented'
       })
 
-      const item1 = CFItem.create({
-        tenantId,
-        caseVersion,
-        sourcedId: 'item-1',
-        uri: `/ims/case/v1p1/CFItems/item-1`,
-        fullStatement: 'Statement 1',
-        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
-        CFDocumentURI: {
-          title: 'CFDocument',
-          identifier: docId,
-          uri: `/ims/case/v1p1/CFDocuments/${docId}`
-        }
-      })
-
-      const item2 = CFItem.create({
-        tenantId,
-        caseVersion,
-        sourcedId: 'item-2',
-        uri: `/ims/case/v1p1/CFItems/item-2`,
-        fullStatement: 'Statement 2',
-        lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
-        CFDocumentURI: {
-          title: 'CFDocument',
-          identifier: docId,
-          uri: `/ims/case/v1p1/CFDocuments/${docId}`
-        }
-      })
-
-      const assoc = CFAssociation.create({
-        tenantId,
-        caseVersion,
-        sourcedId: 'assoc-1',
-        uri: `/ims/case/v1p1/CFAssociations/assoc-1`,
-        originNodeURI: {
-          title: 'CFItem',
-          identifier: 'item-1',
-          uri: `/ims/case/v1p1/CFItems/item-1`
-        },
-        destinationNodeURI: {
-          title: 'CFItem',
-          identifier: 'item-2',
-          uri: `/ims/case/v1p1/CFItems/item-2`
-        },
-        associationType: 'isChildOf',
-        lastChangeDateTime: new Date('2024-01-01T00:00:00Z')
-      })
-
       const existingPkg = new CFPackage({
         document: existingDocument,
-        items: [item1, item2],
-        associations: [assoc],
+        items: [],
+        associations: [],
         rubrics: []
       })
 
       mockRepository.load.mockResolvedValue(existingPkg)
+      mockStore.isDocumentArchived.mockReturnValue(false)
 
       await deleteCFDocument.execute({
         tenantId,
@@ -114,17 +70,11 @@ describe('DeleteCFDocument', () => {
       })
 
       expect(mockRepository.load).toHaveBeenCalledWith(tenantId, caseVersion, docId)
-      expect(mockRepository.saveNewVersion).toHaveBeenCalledTimes(1)
-      
-      const savedPkg = mockRepository.saveNewVersion.mock.calls[0][2] as CFPackage
-      const savedDoc = savedPkg.document.toJSON()
-      expect(savedDoc.adoptionStatus).toBe('Retired')
-      expect(savedDoc.statusEndDate).toBeDefined()
-      expect(savedDoc.statusEndDate).toMatch(/^\d{4}-\d{2}-\d{2}$/) // ISO date format
-      
-      // Verify all related data is preserved
-      expect(savedPkg.items).toHaveLength(2)
-      expect(savedPkg.associations).toHaveLength(1)
+      // Should set the server-level archived flag, NOT mutate adoptionStatus
+      expect(mockStore.setDocumentArchived).toHaveBeenCalledWith(tenantId, caseVersion, docId, true)
+      expect(mockStore.writeIndexesToDisk).toHaveBeenCalledWith(tenantId, caseVersion)
+      // Should NOT create a new version (no content change)
+      expect(mockRepository.saveNewVersion).not.toHaveBeenCalled()
     })
 
     it('should throw error when document not found', async () => {
@@ -148,8 +98,7 @@ describe('DeleteCFDocument', () => {
         creator: 'Creator',
         title: 'Title',
         lastChangeDateTime: new Date('2024-01-01T00:00:00Z'),
-        adoptionStatus: 'Retired',
-        statusEndDate: '2024-01-15'
+        adoptionStatus: 'Implemented'
       })
 
       const existingPkg = new CFPackage({
@@ -160,6 +109,7 @@ describe('DeleteCFDocument', () => {
       })
 
       mockRepository.load.mockResolvedValue(existingPkg)
+      mockStore.isDocumentArchived.mockReturnValue(true)
 
       await deleteCFDocument.execute({
         tenantId,
@@ -169,6 +119,7 @@ describe('DeleteCFDocument', () => {
       })
 
       expect(mockRepository.load).toHaveBeenCalledWith(tenantId, caseVersion, docId)
+      expect(mockStore.setDocumentArchived).not.toHaveBeenCalled()
       expect(mockRepository.saveNewVersion).not.toHaveBeenCalled()
     })
 
