@@ -1,0 +1,44 @@
+# =============================================================================
+# Traefik Static Configuration — HTTPS (Production)
+# =============================================================================
+# TLS on :443 with automatic Let's Encrypt certificates.
+# HTTP on :80 redirects to HTTPS.
+#
+# Selected via .env: TRAEFIK_CONFIG=traefik/traefik-https.yml
+#
+# The ACME email is set via environment variable in docker-compose.yml:
+#   TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${ACME_EMAIL}
+# =============================================================================
+
+api:
+  dashboard: true
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: opencase_opencasenet
+    constraints: "Label(`traefik.constraint-label`,`opencase_opencasenet`)"
+
+entryPoints:
+  web:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+  http-redirect:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: web
+          scheme: https
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: http-redirect
+
+log:
+  level: INFO

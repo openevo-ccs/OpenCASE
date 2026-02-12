@@ -170,7 +170,13 @@ Traefik routes requests based on path:
 
 ## Configuration
 
-See `env.example` for available environment variables. Copy it to `.env` to customize:
+See `docs/env.example` for available environment variables. Copy it to `.env` to customize:
+
+```bash
+cp docs/env.example .env
+```
+
+The `.env` file is the single source of truth — `docker-compose.yml` reads all configurable values from it. For remote server deployment, see the [Get Started Guide](docs/GET_STARTED.md).
 
 ## Testing
 
@@ -234,6 +240,7 @@ monorepo/
 
 ## Learn More
 
+- [Get Started Guide](docs/GET_STARTED.md) — Deploy on a Linux server (Docker)
 - [Editor README](apps/editor/README.md) — How the frontend works
 - [Editor Architecture](apps/editor/docs/architecture.md) — Design decisions, folder structure, contributing guide
 - [OpenCASE README](apps/opencase/README.md) — Backend API documentation

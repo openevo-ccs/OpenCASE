@@ -5,21 +5,18 @@ services:
   # Traefik - Reverse Proxy
   # =============================================================================
   traefik:
-    image: traefik:v3.2
-    command:
-      - "--api.insecure=true"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=opencase_opencasenet"
-      - "--providers.docker.constraints=Label(`traefik.constraint-label`,`opencase_opencasenet`)"
-      - "--entrypoints.web.address=:3000"
-      - "--log.level=DEBUG"
+    image: traefik:v3.3
+    environment:
+      - DOCKER_API_VERSION=1.45
+      # ACME email for Let's Encrypt (only used in HTTPS mode)
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${ACME_EMAIL:-}
     ports:
-      - "3000:3000"   # Main entry point
-      - "8080:8080"   # Traefik dashboard
+      - "${TRAEFIK_PORTS_WEB:-3000:3000}"
+      - "${TRAEFIK_PORTS_ALT:-8080:8080}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt_data:/letsencrypt
+      - ./${TRAEFIK_CONFIG:-traefik/traefik-http.yml}:/etc/traefik/traefik.yml:ro
     networks:
       - opencasenet
     labels:
@@ -32,16 +29,15 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0.7
     environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       - KC_HTTP_ENABLED=true
       - KC_HEALTH_ENABLED=true
       - KC_METRICS_ENABLED=true
       # Hostname configuration - tell Keycloak its external URL
-      - KC_HOSTNAME=localhost
-      - KC_HOSTNAME_PORT=3000
+      - KC_HOSTNAME=${OPENCASE_HOSTNAME:-localhost}
       - KC_HOSTNAME_STRICT=false
-      - KC_HOSTNAME_STRICT_HTTPS=false
+      - KC_HOSTNAME_STRICT_HTTPS=${KC_HOSTNAME_STRICT_HTTPS:-false}
       # Proxy settings for running behind Traefik
       - KC_PROXY_HEADERS=xforwarded
       - KC_HTTP_RELATIVE_PATH=/
@@ -102,32 +98,32 @@ services:
   opencase:
     build: ./apps/opencase
     environment:
-      - CASE_DATA_DIR=/app/data
+      - CASE_DATA_DIR=${CASE_DATA_DIR:-/app/data}
       - PORT=8080
       # Keycloak / OIDC configuration
-      # External issuer URL (matches iss claim in tokens from browser)
-      - OIDC_ISSUER_URL=http://localhost:3000/realms/opencase
+      # External issuer URL — constructed from base variables (scheme://host:port/realms/realm)
+      - OIDC_ISSUER_URL=${OPENCASE_SCHEME:-http}://${OPENCASE_HOSTNAME:-localhost}${OPENCASE_PORT_SUFFIX:-:3000}/realms/${KEYCLOAK_REALM:-opencase}
       # Internal URL for fetching JWKS (Docker network access to Keycloak)
-      - OIDC_JWKS_FETCH_URL=http://keycloak:8080/realms/opencase
-      - OIDC_CLIENT_ID_PREFIX=tenant-
+      - OIDC_JWKS_FETCH_URL=http://keycloak:8080/realms/${KEYCLOAK_REALM:-opencase}
+      - OIDC_CLIENT_ID_PREFIX=${OIDC_CLIENT_ID_PREFIX:-tenant-}
       # Keycloak Admin API (internal Docker network)
       - KEYCLOAK_BASE_URL=http://keycloak:8080
-      - KEYCLOAK_REALM=opencase
-      - KEYCLOAK_ADMIN_REALM=master
-      - KEYCLOAK_ADMIN_CLIENT_ID=admin-cli
-      - KEYCLOAK_ADMIN_USERNAME=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
-      # SPA redirect URIs (through Traefik)
-      - KEYCLOAK_SPA_REDIRECT_URIS=http://localhost:3000/*
-      - KEYCLOAK_SPA_WEB_ORIGINS=http://localhost:3000
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-opencase}
+      - KEYCLOAK_ADMIN_REALM=${KEYCLOAK_ADMIN_REALM:-master}
+      - KEYCLOAK_ADMIN_CLIENT_ID=${KEYCLOAK_ADMIN_CLIENT_ID:-admin-cli}
+      - KEYCLOAK_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USERNAME:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      # SPA redirect URIs — constructed from base variables
+      - KEYCLOAK_SPA_REDIRECT_URIS=${OPENCASE_SCHEME:-http}://${OPENCASE_HOSTNAME:-localhost}${OPENCASE_PORT_SUFFIX:-:3000}/*
+      - KEYCLOAK_SPA_WEB_ORIGINS=${OPENCASE_SCHEME:-http}://${OPENCASE_HOSTNAME:-localhost}${OPENCASE_PORT_SUFFIX:-:3000}
       # Bootstrap system admin
-      - KEYCLOAK_BOOTSTRAP_SYSTEM_ADMIN=true
-      - KEYCLOAK_SYSTEM_ADMIN_EMAIL=system-admin@local
-      - KEYCLOAK_SYSTEM_ADMIN_PASSWORD=admin
+      - KEYCLOAK_BOOTSTRAP_SYSTEM_ADMIN=${KEYCLOAK_BOOTSTRAP_SYSTEM_ADMIN:-true}
+      - KEYCLOAK_SYSTEM_ADMIN_EMAIL=${KEYCLOAK_SYSTEM_ADMIN_EMAIL:-system-admin@local}
+      - KEYCLOAK_SYSTEM_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       # SMTP for Keycloak email delivery (forgot password, etc.)
-      - SMTP_HOST=mailpit
-      - SMTP_PORT=1025
-      - SMTP_FROM=noreply@opencase.local
+      - SMTP_HOST=${SMTP_HOST:-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_FROM=noreply@${OPENCASE_HOSTNAME:-opencase.local}
     restart: on-failure
     volumes:
       - ./apps/opencase/data:/app/data
@@ -180,10 +176,10 @@ services:
       context: ./apps/editor
       dockerfile: Dockerfile
     environment:
-      # All URLs point to Traefik entry point
-      - VITE_OPENCASE_BASE_URL=http://localhost:3000
-      - VITE_OIDC_AUTHORITY=http://localhost:3000/realms/opencase
-      - VITE_OIDC_CLIENT_ID_PREFIX=tenant-
+      # All URLs constructed from base variables (scheme://host:port)
+      - VITE_OPENCASE_BASE_URL=${OPENCASE_SCHEME:-http}://${OPENCASE_HOSTNAME:-localhost}${OPENCASE_PORT_SUFFIX:-:3000}
+      - VITE_OIDC_AUTHORITY=${OPENCASE_SCHEME:-http}://${OPENCASE_HOSTNAME:-localhost}${OPENCASE_PORT_SUFFIX:-:3000}/realms/${KEYCLOAK_REALM:-opencase}
+      - VITE_OIDC_CLIENT_ID_PREFIX=${OIDC_CLIENT_ID_PREFIX:-tenant-}
     volumes:
       # Mount source for hot-reload
       - ./apps/editor/src:/app/src
@@ -213,5 +209,6 @@ networks:
 volumes:
   editor_node_modules:
   keycloak_data:
+  letsencrypt_data:
   # OpenCASE data uses bind mount: ./apps/opencase/data:/app/data
   # This keeps framework files visible on host for easy inspection/backup

@@ -1,0 +1,25 @@
+# =============================================================================
+# Traefik Static Configuration — HTTP (Local Development)
+# =============================================================================
+# Plain HTTP on :3000, no TLS.
+# Traefik dashboard exposed on :8080.
+#
+# Selected via .env: TRAEFIK_CONFIG=traefik/traefik-http.yml
+# =============================================================================
+
+api:
+  dashboard: true
+  insecure: true
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: opencase_opencasenet
+    constraints: "Label(`traefik.constraint-label`,`opencase_opencasenet`)"
+
+entryPoints:
+  web:
+    address: ":3000"
+
+log:
+  level: INFO

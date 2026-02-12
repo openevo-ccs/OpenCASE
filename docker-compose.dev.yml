@@ -4,6 +4,8 @@
 # This enables:
 # - OpenCASE: ts-node-dev auto-restart on source changes
 # - Editor: Already has Vite HMR via volume mounts in base compose
+#
+# Networking (HTTP/HTTPS, ports) is controlled by .env — not this file.
 
 services:
   opencase:
@@ -20,15 +22,3 @@ services:
       - ./apps/opencase/data:/app/data
     # Remove restart policy for dev (fail fast, see errors)
     restart: "no"
-
-  # Reduce Traefik log noise in dev
-  traefik:
-    command:
-      - "--api.insecure=true"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=opencase_opencasenet"
-      - "--providers.docker.constraints=Label(`traefik.constraint-label`,`opencase_opencasenet`)"
-      - "--entrypoints.web.address=:3000"
-      - "--log.level=INFO"
