@@ -5,7 +5,7 @@ services:
   # Traefik - Reverse Proxy
   # =============================================================================
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3
     environment:
       - DOCKER_API_VERSION=1.45
       # ACME email for Let's Encrypt (only used in HTTPS mode)
@@ -53,27 +53,27 @@ services:
       - "traefik.enable=true"
       - "traefik.constraint-label=opencase_opencasenet"
       # Route /realms/* to Keycloak (OIDC endpoints)
-      - "traefik.http.routers.keycloak-realms.rule=PathPrefix(`/realms`)"
+      - "traefik.http.routers.keycloak-realms.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/realms`)"
       - "traefik.http.routers.keycloak-realms.entrypoints=web"
       - "traefik.http.routers.keycloak-realms.priority=100"
       - "traefik.http.routers.keycloak-realms.service=keycloak"
       # Route /admin/* to Keycloak (Admin console)
-      - "traefik.http.routers.keycloak-admin.rule=PathPrefix(`/admin`)"
+      - "traefik.http.routers.keycloak-admin.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/admin`)"
       - "traefik.http.routers.keycloak-admin.entrypoints=web"
       - "traefik.http.routers.keycloak-admin.priority=100"
       - "traefik.http.routers.keycloak-admin.service=keycloak"
       # Route /resources/* to Keycloak (static assets)
-      - "traefik.http.routers.keycloak-resources.rule=PathPrefix(`/resources`)"
+      - "traefik.http.routers.keycloak-resources.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/resources`)"
       - "traefik.http.routers.keycloak-resources.entrypoints=web"
       - "traefik.http.routers.keycloak-resources.priority=100"
       - "traefik.http.routers.keycloak-resources.service=keycloak"
       # Route /js/* to Keycloak (JavaScript assets)
-      - "traefik.http.routers.keycloak-js.rule=PathPrefix(`/js`)"
+      - "traefik.http.routers.keycloak-js.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/js`)"
       - "traefik.http.routers.keycloak-js.entrypoints=web"
       - "traefik.http.routers.keycloak-js.priority=100"
       - "traefik.http.routers.keycloak-js.service=keycloak"
       # Route /robots.txt to Keycloak
-      - "traefik.http.routers.keycloak-robots.rule=Path(`/robots.txt`)"
+      - "traefik.http.routers.keycloak-robots.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && Path(`/robots.txt`)"
       - "traefik.http.routers.keycloak-robots.entrypoints=web"
       - "traefik.http.routers.keycloak-robots.priority=100"
       - "traefik.http.routers.keycloak-robots.service=keycloak"
@@ -136,32 +136,32 @@ services:
       - "traefik.enable=true"
       - "traefik.constraint-label=opencase_opencasenet"
       # Route /ims/* to OpenCASE (CASE API)
-      - "traefik.http.routers.opencase-ims.rule=PathPrefix(`/ims`)"
+      - "traefik.http.routers.opencase-ims.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/ims`)"
       - "traefik.http.routers.opencase-ims.entrypoints=web"
       - "traefik.http.routers.opencase-ims.priority=100"
       - "traefik.http.routers.opencase-ims.service=opencase"
       # Route /management/* to OpenCASE
-      - "traefik.http.routers.opencase-management.rule=PathPrefix(`/management`)"
+      - "traefik.http.routers.opencase-management.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/management`)"
       - "traefik.http.routers.opencase-management.entrypoints=web"
       - "traefik.http.routers.opencase-management.priority=100"
       - "traefik.http.routers.opencase-management.service=opencase"
       # Route /oauth/* to OpenCASE
-      - "traefik.http.routers.opencase-oauth.rule=PathPrefix(`/oauth`)"
+      - "traefik.http.routers.opencase-oauth.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/oauth`)"
       - "traefik.http.routers.opencase-oauth.entrypoints=web"
       - "traefik.http.routers.opencase-oauth.priority=100"
       - "traefik.http.routers.opencase-oauth.service=opencase"
       # Route /public/* to OpenCASE (tenant lookup, etc.)
-      - "traefik.http.routers.opencase-public.rule=PathPrefix(`/public`)"
+      - "traefik.http.routers.opencase-public.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/public`)"
       - "traefik.http.routers.opencase-public.entrypoints=web"
       - "traefik.http.routers.opencase-public.priority=100"
       - "traefik.http.routers.opencase-public.service=opencase"
       # Route /health to OpenCASE
-      - "traefik.http.routers.opencase-health.rule=Path(`/health`)"
+      - "traefik.http.routers.opencase-health.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && Path(`/health`)"
       - "traefik.http.routers.opencase-health.entrypoints=web"
       - "traefik.http.routers.opencase-health.priority=100"
       - "traefik.http.routers.opencase-health.service=opencase"
       # Route /.well-known/* to OpenCASE (OAuth discovery)
-      - "traefik.http.routers.opencase-wellknown.rule=PathPrefix(`/.well-known`)"
+      - "traefik.http.routers.opencase-wellknown.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/.well-known`)"
       - "traefik.http.routers.opencase-wellknown.entrypoints=web"
       - "traefik.http.routers.opencase-wellknown.priority=100"
       - "traefik.http.routers.opencase-wellknown.service=opencase"
@@ -195,7 +195,7 @@ services:
       - "traefik.enable=true"
       - "traefik.constraint-label=opencase_opencasenet"
       # Catch-all route for editor (lowest priority)
-      - "traefik.http.routers.editor.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.editor.rule=Host(`${OPENCASE_HOSTNAME:-localhost}`) && PathPrefix(`/`)"
       - "traefik.http.routers.editor.entrypoints=web"
       - "traefik.http.routers.editor.priority=1"
       - "traefik.http.routers.editor.service=editor"
