@@ -179,6 +179,112 @@ export class KeycloakAdminClient {
     await this.requestJson('POST', `/admin/realms/${encodeURIComponent(realm)}/users/${encodeURIComponent(userId)}/role-mappings/clients/${encodeURIComponent(clientUuid)}`, roles)
   }
 
+  // ── API-key (confidential client) helpers ────────────────────────
+
+  /**
+   * Create a confidential (non-public) Keycloak client with service-account
+   * support and the `client_credentials` grant.  Returns the Keycloak-internal
+   * UUID, the clientId string, and the auto-generated client secret.
+   */
+  async createConfidentialClient (opts: {
+    clientId: string
+    description?: string
+  }): Promise<{ id: string, clientId: string, secret: string }> {
+    const realm = this.cfg.realm
+
+    await this.requestJson('POST', `/admin/realms/${encodeURIComponent(realm)}/clients`, {
+      clientId: opts.clientId,
+      description: opts.description ?? '',
+      enabled: true,
+      publicClient: false,
+      standardFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      implicitFlowEnabled: false,
+      serviceAccountsEnabled: true,
+      redirectUris: [],
+      webOrigins: []
+    })
+
+    const created = await this.findClientByClientId(opts.clientId)
+    if (!created) throw new Error(`Failed to create confidential client '${opts.clientId}'`)
+
+    const secret = await this.getClientSecret(created.id)
+    return { id: created.id, clientId: opts.clientId, secret }
+  }
+
+  /**
+   * Fetch the client secret for a confidential client (by Keycloak UUID).
+   */
+  async getClientSecret (clientUuid: string): Promise<string> {
+    const realm = this.cfg.realm
+    const res = await this.requestJson(
+      'GET',
+      `/admin/realms/${encodeURIComponent(realm)}/clients/${encodeURIComponent(clientUuid)}/client-secret`
+    )
+    const value = res?.value as string | undefined
+    if (!value) throw new Error(`No secret found for client ${clientUuid}`)
+    return value
+  }
+
+  /**
+   * Delete a Keycloak client by its internal UUID.
+   */
+  async deleteClient (clientUuid: string): Promise<void> {
+    const realm = this.cfg.realm
+    await this.requestRaw('DELETE', `/admin/realms/${encodeURIComponent(realm)}/clients/${encodeURIComponent(clientUuid)}`)
+  }
+
+  /**
+   * Get the service-account user associated with a confidential client.
+   * Needed to assign client roles to the service account.
+   */
+  async getServiceAccountUser (clientUuid: string): Promise<{ id: string }> {
+    const realm = this.cfg.realm
+    const user = await this.requestJson(
+      'GET',
+      `/admin/realms/${encodeURIComponent(realm)}/clients/${encodeURIComponent(clientUuid)}/service-account-user`
+    )
+    if (!user?.id) throw new Error(`No service-account user for client ${clientUuid}`)
+    return { id: user.id }
+  }
+
+  /**
+   * List all clients whose `clientId` starts with the given prefix.
+   * Returns id (UUID), clientId, and description for each match.
+   */
+  async listClientsByPrefix (prefix: string): Promise<Array<{ id: string, clientId: string, description: string }>> {
+    const realm = this.cfg.realm
+    // Keycloak search is substring-based; we filter the result for an exact prefix match.
+    const list = await this.requestJson(
+      'GET',
+      `/admin/realms/${encodeURIComponent(realm)}/clients?clientId=${encodeURIComponent(prefix)}&max=500&search=true`
+    )
+    if (!Array.isArray(list)) return []
+    return list
+      .filter((c: any) => typeof c?.clientId === 'string' && c.clientId.startsWith(prefix))
+      .map((c: any) => ({
+        id: c.id as string,
+        clientId: c.clientId as string,
+        description: (c.description ?? '') as string
+      }))
+  }
+
+  /**
+   * Retrieve a single client by its Keycloak internal UUID.
+   */
+  async getClientByUuid (clientUuid: string): Promise<{ id: string, clientId: string, description: string } | null> {
+    const realm = this.cfg.realm
+    const res = await this.requestRaw('GET', `/admin/realms/${encodeURIComponent(realm)}/clients/${encodeURIComponent(clientUuid)}`)
+    if (res.status === 404) return null
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`Keycloak Admin API error: GET client ${clientUuid} -> ${res.status}. ${text}`)
+    }
+    const c = await res.json().catch(() => null) as any
+    if (!c?.id) return null
+    return { id: c.id, clientId: c.clientId ?? '', description: c.description ?? '' }
+  }
+
   private async findClientByClientId (clientId: string): Promise<{ id: string, clientId: string } | null> {
     const realm = this.cfg.realm
     const list = await this.requestJson('GET', `/admin/realms/${encodeURIComponent(realm)}/clients?clientId=${encodeURIComponent(clientId)}`)

@@ -83,6 +83,7 @@ export function createServer (container: Container): express.Express {
     cfAssociationsController: container.controllers.management.cfAssociations,
     cfPackagesController: container.controllers.management.cfPackages,
     tenantsController: container.controllers.management.tenants,
+    apiKeysController: container.controllers.management.apiKeys,
     store: container.store,
   })
 

@@ -4,8 +4,9 @@ import type { CFItemsManagementController } from './controllers/CFItemsManagemen
 import type { CFAssociationsManagementController } from './controllers/CFAssociationsManagementController'
 import type { CFPackagesManagementController } from './controllers/CFPackagesManagementController'
 import type { TenantsManagementController } from './controllers/TenantsManagementController'
+import type { ApiKeysManagementController } from './controllers/ApiKeysManagementController'
 import type { FileFrameworkStore } from '../../../infrastructure/persistence/file/FileFrameworkStore'
-import { requireScope } from '../middleware/scope'
+import { requireScope, requireAnyScope } from '../middleware/scope'
 
 function withCaseVersion (caseVersion: '1.0' | '1.1', handler: RequestHandler): RequestHandler {
   return (req, res, next) => {
@@ -31,6 +32,7 @@ export interface ManagementDeps {
   cfAssociationsController: CFAssociationsManagementController
   cfPackagesController: CFPackagesManagementController
   tenantsController: TenantsManagementController
+  apiKeysController?: ApiKeysManagementController
   store?: FileFrameworkStore
 }
 
@@ -374,6 +376,25 @@ export function registerManagementRoutes (app: Express, deps: ManagementDeps): v
           res.status(400).json({ error: error.message || 'Failed to list licenses' })
         }
       }
+    )
+  }
+
+  // API key management endpoints (require case.owner or case.admin scope)
+  if (deps.apiKeysController) {
+    app.get(
+      '/management/tenants/:tenantId/api-keys',
+      requireAnyScope('case.owner', 'case.admin'),
+      deps.apiKeysController.list
+    )
+    app.post(
+      '/management/tenants/:tenantId/api-keys',
+      requireAnyScope('case.owner', 'case.admin'),
+      deps.apiKeysController.create
+    )
+    app.delete(
+      '/management/tenants/:tenantId/api-keys/:keyId',
+      requireAnyScope('case.owner', 'case.admin'),
+      deps.apiKeysController.delete
     )
   }
 

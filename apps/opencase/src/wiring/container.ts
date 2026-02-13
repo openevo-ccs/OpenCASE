@@ -57,6 +57,7 @@ import { CFItemsManagementController } from '../interfaces/http/http-management/
 import { CFAssociationsManagementController } from '../interfaces/http/http-management/controllers/CFAssociationsManagementController'
 import { CFPackagesManagementController } from '../interfaces/http/http-management/controllers/CFPackagesManagementController'
 import { TenantsManagementController } from '../interfaces/http/http-management/controllers/TenantsManagementController'
+import { ApiKeysManagementController } from '../interfaces/http/http-management/controllers/ApiKeysManagementController'
 import { ListFrameworks } from '../application/case/endpoints/ListFrameworks'
 import { ListTenants } from '../application/case/endpoints/ListTenants'
 import { CreateTenant } from '../application/case/endpoints/CreateTenant'
@@ -109,6 +110,7 @@ export interface Container {
       cfAssociations: CFAssociationsManagementController
       cfPackages: CFPackagesManagementController
       tenants: TenantsManagementController
+      apiKeys: ApiKeysManagementController
     }
     public: {
       tenantLookup: TenantLookupController
@@ -377,6 +379,10 @@ export async function buildContainer(): Promise<Container> {
     config.caseDataDir
   )
 
+  const apiKeysManagementController = new ApiKeysManagementController(keycloakAdmin, {
+    clientIdPrefix: config.oidcClientIdPrefix
+  })
+
   const tenantLookupController = new TenantLookupController(keycloakAdmin, {
     clientIdPrefix: config.oidcClientIdPrefix
   })
@@ -423,7 +429,8 @@ export async function buildContainer(): Promise<Container> {
         cfItems: cfItemsManagementController,
         cfAssociations: cfAssociationsManagementController,
         cfPackages: cfPackagesManagementController,
-        tenants: tenantsManagementController
+        tenants: tenantsManagementController,
+        apiKeys: apiKeysManagementController
       },
       public: {
         tenantLookup: tenantLookupController

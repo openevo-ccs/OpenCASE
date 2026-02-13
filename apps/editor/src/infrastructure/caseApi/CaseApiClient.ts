@@ -246,5 +246,74 @@ export class CaseApiClient {
 
     return []
   }
+
+  // ── API Key Management ──────────────────────────────────────────
+
+  /**
+   * List API keys for a tenant.
+   *
+   * Uses the management endpoint: GET /management/tenants/{tenantId}/api-keys
+   * Requires `case.owner` scope.
+   */
+  async listApiKeys(params: { tenantId: string }): Promise<ApiKeySummary[]> {
+    const url = `/management/tenants/${encodeURIComponent(params.tenantId)}/api-keys`
+    const res = (await this._http.get(url)) as unknown
+
+    if (res && typeof res === 'object' && 'apiKeys' in res) {
+      const obj = res as { apiKeys?: unknown }
+      if (Array.isArray(obj.apiKeys)) return obj.apiKeys as ApiKeySummary[]
+    }
+    if (Array.isArray(res)) return res as ApiKeySummary[]
+
+    return []
+  }
+
+  /**
+   * Create a new API key for a tenant.
+   *
+   * Uses the management endpoint: POST /management/tenants/{tenantId}/api-keys
+   * Returns the clientId and clientSecret — the secret is only shown once.
+   * Requires `case.owner` scope.
+   */
+  async createApiKey(params: {
+    tenantId: string
+    description: string
+  }): Promise<{ clientId: string; clientSecret: string; description: string }> {
+    const url = `/management/tenants/${encodeURIComponent(params.tenantId)}/api-keys`
+    const res = (await this._http.post(url, { description: params.description })) as unknown
+
+    if (res && typeof res === 'object') {
+      const obj = res as { clientId?: string; clientSecret?: string; description?: string }
+      if (obj.clientId && obj.clientSecret) {
+        return {
+          clientId: obj.clientId,
+          clientSecret: obj.clientSecret,
+          description: obj.description ?? ''
+        }
+      }
+    }
+
+    throw new Error('Unexpected API key creation response')
+  }
+
+  /**
+   * Delete an API key for a tenant.
+   *
+   * Uses the management endpoint: DELETE /management/tenants/{tenantId}/api-keys/{keyId}
+   * Requires `case.owner` scope.
+   *
+   * @param params.keyId - The Keycloak internal UUID of the API key client
+   */
+  async deleteApiKey(params: { tenantId: string; keyId: string }): Promise<void> {
+    const url = `/management/tenants/${encodeURIComponent(params.tenantId)}/api-keys/${encodeURIComponent(params.keyId)}`
+    await this._http.delete(url)
+  }
+}
+
+/** Summary of an API key returned by the list endpoint. */
+export type ApiKeySummary = {
+  id: string
+  clientId: string
+  description: string
 }
 

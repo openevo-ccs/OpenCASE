@@ -1,4 +1,5 @@
 import { PlusIcon, ArrowPathIcon, MagnifyingGlassIcon, FunnelIcon, XMarkIcon, ArrowRightStartOnRectangleIcon, CloudArrowDownIcon, KeyIcon, ArrowUpTrayIcon } from '@heroicons/react/24/solid'
+import { CodeBracketSquareIcon } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
 import { FrameworkCard } from '@/ui/shared/components/FrameworkCard'
@@ -6,6 +7,7 @@ import type { HomeFramework } from '@/ui/home/frameworkStore'
 import CreateFrameworkDialog, { type CreateFrameworkDraft } from '@/ui/home/CreateFrameworkDialog'
 import ImportFrameworkDialog from '@/ui/home/ImportFrameworkDialog'
 import UploadFrameworkDialog from '@/ui/home/UploadFrameworkDialog'
+import ApiKeysDialog from '@/ui/home/ApiKeysDialog'
 import type { Framework } from '@/domain/framework/model/types'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { getAppConfig } from '@/app/config'
@@ -31,7 +33,7 @@ import {
 } from '@/ui/shared/components/ui/dialog'
 
 /** Minimal user avatar dropdown for the hero */
-function UserAvatarMenu({ userName, tenantId, isAuthenticated, onSignOut, onChangePassword }: Readonly<{ userName?: string; tenantId?: string; isAuthenticated: boolean; onSignOut?: () => void; onChangePassword?: () => void }>) {
+function UserAvatarMenu({ userName, tenantId, isAuthenticated, onSignOut, onChangePassword, onApiKeys }: Readonly<{ userName?: string; tenantId?: string; isAuthenticated: boolean; onSignOut?: () => void; onChangePassword?: () => void; onApiKeys?: () => void }>) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const avatarText = useMemo(() => initials(userName), [userName])
@@ -78,6 +80,17 @@ function UserAvatarMenu({ userName, tenantId, isAuthenticated, onSignOut, onChan
                 Change password
               </button>
             ) : null}
+            {isAuthenticated && onApiKeys ? (
+              <button
+                role="menuitem"
+                type="button"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-[#2E2F2F] hover:bg-gray-50"
+                onClick={() => { onApiKeys(); setOpen(false) }}
+              >
+                <CodeBracketSquareIcon className="h-4 w-4 text-gray-500" aria-hidden />
+                API Keys
+              </button>
+            ) : null}
             {isAuthenticated && onSignOut ? (
               <button
                 role="menuitem"
@@ -120,6 +133,7 @@ export default function HomeScreen({
   const [createOpen, setCreateOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [apiKeysOpen, setApiKeysOpen] = useState(false)
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
   const actionsMenuRef = useRef<HTMLDivElement | null>(null)
 
@@ -458,7 +472,7 @@ export default function HomeScreen({
         </svg>
 
         {/* User button — top right */}
-        <UserAvatarMenu userName={userName ?? undefined} tenantId={tenantId ?? undefined} isAuthenticated={isAuthenticated} onSignOut={isAuthenticated ? () => void signOut() : undefined} onChangePassword={isAuthenticated ? () => void changePassword() : undefined} />
+        <UserAvatarMenu userName={userName ?? undefined} tenantId={tenantId ?? undefined} isAuthenticated={isAuthenticated} onSignOut={isAuthenticated ? () => void signOut() : undefined} onChangePassword={isAuthenticated ? () => void changePassword() : undefined} onApiKeys={isAuthenticated ? () => setApiKeysOpen(true) : undefined} />
 
         <div className="relative mx-auto max-w-6xl px-5 pb-12 pt-14">
           <div className="flex items-baseline gap-3">
@@ -892,6 +906,16 @@ export default function HomeScreen({
           onUploadFramework?.(framework)
         }}
       />
+
+      {tenantId && (
+        <ApiKeysDialog
+          open={apiKeysOpen}
+          onClose={() => setApiKeysOpen(false)}
+          api={api}
+          tenantId={tenantId}
+          tokenEndpoint={`${cfg.oidcAuthority}/protocol/openid-connect/token`}
+        />
+      )}
 
       {/* Archive Confirmation Dialog (active server frameworks → soft delete) */}
       <Dialog open={Boolean(archiveConfirm)} onOpenChange={(open) => !open && setArchiveConfirm(null)}>
