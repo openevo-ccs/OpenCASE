@@ -14,7 +14,7 @@ import type {
   CaseItemNodeData,
   ExternalFrameworkNodeData,
 } from '@/ui/editor/reactflow/types'
-import type { CFDocument, CFItem, CFItemType, CFSubject } from '@/domain/case/types'
+import type { CFDocument, CFItem, CFItemType, CFSubject, CFConcept } from '@/domain/case/types'
 import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
 import type { EditorSettings } from '@/ui/editor/components/SettingsModal'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
@@ -54,6 +54,9 @@ type EditorContextValue = {
   cfSubjects: CFSubject[]
   addCfSubject: (_subject: CFSubject) => void
   ensureCfSubject: (_title: string) => CFSubject | null
+  cfConcepts: CFConcept[]
+  addCfConcept: (_concept: CFConcept) => void
+  ensureCfConcept: (_title: string) => CFConcept | null
   settings: EditorSettings
   updateSettings: (_settings: EditorSettings) => void
   onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType>
@@ -96,6 +99,7 @@ export function EditorProvider({
   initialEdgeType,
   initialCfItemTypes,
   initialCfSubjects,
+  initialCfConcepts,
 }: Readonly<{
   children: ReactNode
   initialGraph?: EditorGraph
@@ -109,6 +113,8 @@ export function EditorProvider({
   initialCfItemTypes?: CFItemType[]
   /** Seed CFSubject definitions loaded from the definitions index */
   initialCfSubjects?: CFSubject[]
+  /** Seed CFConcept definitions loaded from the definitions index */
+  initialCfConcepts?: CFConcept[]
 }>) {
   // ── CASE version ─────────────────────────────────────────────────────
   const [caseVersion, setCaseVersion] = useState<CaseVersion>(initialCaseVersion)
@@ -184,6 +190,40 @@ export function EditorProvider({
     addCfSubject(newSubject)
     return newSubject
   }, [cfSubjects, addCfSubject])
+
+  // ── CFConcept definitions ────────────────────────────────────────────
+  const [cfConcepts, setCfConcepts] = useState<CFConcept[]>(initialCfConcepts ?? [])
+  useEffect(() => { setCfConcepts(initialCfConcepts ?? []) }, [initialCfConcepts])
+
+  const addCfConcept = useCallback((concept: CFConcept) => {
+    setCfConcepts((prev) => {
+      if (prev.some((c) => c.identifier === concept.identifier)) return prev
+      return [...prev, concept]
+    })
+  }, [])
+
+  /**
+   * Ensure a CFConcept definition exists for the given title.
+   * If it doesn't exist, creates a new one with a random UUID and adds it to state.
+   * Returns the matching CFConcept (existing or newly created).
+   */
+  const ensureCfConcept = useCallback((title: string): CFConcept | null => {
+    const trimmed = title.trim()
+    if (!trimmed) return null
+    const existing = cfConcepts.find((c) => c.title === trimmed)
+    if (existing) return existing
+    const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(16).slice(2)}`
+    const newConcept: CFConcept = {
+      identifier: id,
+      uri: `/ims/case/v1p1/CFConcepts/${id}`,
+      title: trimmed,
+      description: trimmed,
+      hierarchyCode: '1',
+      lastChangeDateTime: new Date().toISOString(),
+    }
+    addCfConcept(newConcept)
+    return newConcept
+  }, [cfConcepts, addCfConcept])
 
   // ── Reducer state ────────────────────────────────────────────────────
   const seed = useMemo(() => initialGraph ?? DEFAULT_GRAPH, [initialGraph])
@@ -482,6 +522,9 @@ export function EditorProvider({
       cfSubjects,
       addCfSubject,
       ensureCfSubject,
+      cfConcepts,
+      addCfConcept,
+      ensureCfConcept,
       settings,
       updateSettings,
       onSelectionChange,
@@ -510,7 +553,8 @@ export function EditorProvider({
       selectedNode, selectedEdge, nodesWithCallbacks, frameworkInfo,
       state.layoutVersion, state.dirty, clearDirty,
       caseVersion, cfItemTypes, addCfItemType, ensureCfItemType,
-      cfSubjects, addCfSubject, ensureCfSubject, settings, updateSettings,
+      cfSubjects, addCfSubject, ensureCfSubject,
+      cfConcepts, addCfConcept, ensureCfConcept, settings, updateSettings,
       onSelectionChange, onEdgeSelectionChange, onNodesChange, onEdgesChange, onConnect,
       clearSelection, updateNodeData, updateEdgeData, flipEdge, reconnectEdge,
       addChild, addDetachedItem, addExternalFramework,

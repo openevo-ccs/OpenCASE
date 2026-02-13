@@ -142,6 +142,7 @@ export interface CFConcept {
   title?: string
   description?: string
   hierarchyCode?: string
+  lastChangeDateTime?: string
   keywords?: string[]
   extensions?: CaseExtensions
 }

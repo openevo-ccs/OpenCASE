@@ -13,7 +13,7 @@ import { loadFrameworkFromCfPackage } from '@/application/framework/services/Fra
 import { toReactFlowGraph, extractLayoutFromCfPackage, extractEditorSettingsFromCfPackage } from '@/ui/editor/reactflow/mapping'
 import type { LayoutState } from '@/ui/editor/reactflow/mapping'
 import type { CaseVersion } from '@/application/framework/mappers/case/CasePackageSnapshot'
-import type { CFItemType, CFSubject } from '@/domain/case/types'
+import type { CFItemType, CFSubject, CFConcept } from '@/domain/case/types'
 import LoginScreen from '@/ui/auth/LoginScreen'
 import { detectTopology } from '@/ui/editor/layout/detectTopology'
 import { applyInitialLayout } from '@/ui/editor/layout/applyInitialLayout'
@@ -44,6 +44,7 @@ function AppInner() {
   // Tenant-wide definitions catalogue (loaded from management endpoint)
   const [tenantCfItemTypes, setTenantCfItemTypes] = useState<CFItemType[]>([])
   const [tenantCfSubjects, setTenantCfSubjects] = useState<CFSubject[]>([])
+  const [tenantCfConcepts, setTenantCfConcepts] = useState<CFConcept[]>([])
 
   // Track which framework IDs have been published to OpenCASE
   // (either loaded from the server or successfully saved)
@@ -108,6 +109,9 @@ function AppInner() {
       }
       if (defs.CFSubjects && defs.CFSubjects.length > 0) {
         setTenantCfSubjects(defs.CFSubjects)
+      }
+      if (defs.CFConcepts && defs.CFConcepts.length > 0) {
+        setTenantCfConcepts(defs.CFConcepts)
       }
     }).catch(() => {
       // Non-fatal: editor still works, combobox just won't have seed options
@@ -382,6 +386,7 @@ function AppInner() {
       initialEdgeType={frameworkEdgeTypes[activeFramework.id] ?? autoEdgeType}
       initialCfItemTypes={tenantCfItemTypes}
       initialCfSubjects={tenantCfSubjects}
+      initialCfConcepts={tenantCfConcepts}
     >
       <EditorCanvas
         onBack={() => {

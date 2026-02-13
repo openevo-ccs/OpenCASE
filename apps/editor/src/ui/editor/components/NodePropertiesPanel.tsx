@@ -30,8 +30,10 @@ type Props = {
 }
 
 export default function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage, isPublishedToOpenCase, availableLicenses }: Readonly<Props>) {
-  const { cfItemTypes, ensureCfItemType, cfSubjects, ensureCfSubject } = useEditor()
+  const { cfItemTypes, ensureCfItemType, cfSubjects, ensureCfSubject, cfConcepts, ensureCfConcept } = useEditor()
   const [copied, setCopied] = useState<null | 'code' | 'uri' | 'opencase'>(null)
+  // Local state for the concept combobox input text (conceptKeywordsURI is a LinkURI, not a plain string)
+  const [conceptInput, setConceptInput] = useState('')
   useEffect(() => {
     if (!node) return
 
@@ -54,6 +56,11 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
   const cfDocument: CFDocument | undefined = node && isFrameworkNode(node) ? node.data.cfDocument : undefined
   const externalData: ExternalFrameworkNodeData | undefined = node && isExternalFrameworkNode(node) ? node.data : undefined
 
+  // Sync concept input with selected node's conceptKeywordsURI title
+  useEffect(() => {
+    setConceptInput(cfItem?.conceptKeywordsURI?.title ?? '')
+  }, [node?.id, cfItem?.conceptKeywordsURI?.title])
+
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—'
     const d = new Date(iso)
@@ -75,14 +82,29 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
     ] as const
   }, [node, cfItem?.lastChangeDateTime])
 
+  /** Deduplicate options by value (title). First occurrence wins. */
+  const dedup = <T extends { value: string }>(arr: T[]): T[] => {
+    const seen = new Set<string>()
+    return arr.filter((o) => {
+      if (seen.has(o.value)) return false
+      seen.add(o.value)
+      return true
+    })
+  }
+
   const cfItemTypeOptions: ComboboxOption[] = useMemo(
-    () => cfItemTypes.map((t) => ({ value: t.title ?? t.identifier, label: t.title ?? t.identifier, description: t.description })),
+    () => dedup(cfItemTypes.map((t) => ({ value: t.title ?? t.identifier, label: t.title ?? t.identifier, description: t.description }))),
     [cfItemTypes],
   )
 
   const cfSubjectOptions: TagComboboxOption[] = useMemo(
-    () => cfSubjects.map((s) => ({ value: s.title ?? s.identifier, label: s.title ?? s.identifier, description: s.description })),
+    () => dedup(cfSubjects.map((s) => ({ value: s.title ?? s.identifier, label: s.title ?? s.identifier, description: s.description }))),
     [cfSubjects],
+  )
+
+  const cfConceptOptions: ComboboxOption[] = useMemo(
+    () => dedup(cfConcepts.map((c) => ({ value: c.title ?? c.identifier, label: c.title ?? c.identifier, description: c.description }))),
+    [cfConcepts],
   )
 
   const updateItem = (patch: Partial<CFItem>) => {
@@ -483,6 +505,42 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
                     onChange={(e) => updateItem({ alternativeLabel: e.target.value })}
                     placeholder="A short, human-friendly title"
                   />
+                  </div>
+                ) : null}
+
+                {!isFramework ? (
+                  <div className="sm:col-span-2">
+                  <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-concept">
+                    Concept
+                  </label>
+                  <ComboboxInput
+                    id="node-concept"
+                    value={conceptInput}
+                    onChange={(v) => {
+                      setConceptInput(v)
+                      if (!v) {
+                        updateItem({ conceptKeywordsURI: undefined })
+                      }
+                    }}
+                    onCommit={(v) => {
+                      if (!v.trim()) {
+                        setConceptInput('')
+                        updateItem({ conceptKeywordsURI: undefined })
+                        return
+                      }
+                      const conceptDef = ensureCfConcept(v)
+                      if (conceptDef) {
+                        setConceptInput(conceptDef.title ?? v)
+                        updateItem({
+                          conceptKeywordsURI: { title: conceptDef.title ?? '', identifier: conceptDef.identifier, uri: conceptDef.uri },
+                        })
+                      }
+                    }}
+                    options={cfConceptOptions}
+                    placeholder="Select or type a concept…"
+                    className="w-full"
+                  />
+                  <div className="mt-1 text-xs text-slate-500">Formal concept from a taxonomy (e.g., Bloom&apos;s).</div>
                   </div>
                 ) : null}
 

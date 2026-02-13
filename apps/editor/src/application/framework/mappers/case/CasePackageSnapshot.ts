@@ -52,6 +52,8 @@ export type CaseItemSnapshot = {
   CFItemTypeURI?: { title?: string; identifier: string; uri: string }
   educationLevel?: string[]
   conceptKeywords?: string[]
+  /** conceptKeywordsURI reference linking to a CFConcept definition */
+  conceptKeywordsURI?: { title?: string; identifier: string; uri: string }
   notes?: string
   /** Item language (e.g., "en") */
   language?: string

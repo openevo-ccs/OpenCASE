@@ -64,6 +64,7 @@ export function mapCaseSnapshotToDomainFramework(snapshot: CasePackageSnapshot):
         subjectURI: it.subjectURI,
         educationLevel: it.educationLevel,
         conceptKeywords: it.conceptKeywords,
+        conceptKeywordsURI: it.conceptKeywordsURI,
         notes: it.notes,
         caseUri: it.uri,
         lastChangeDateTime: it.lastChangeDateTime,

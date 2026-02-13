@@ -1,4 +1,4 @@
-import type { CFAssociation, CFDefinition, CFDocument, CFItem, CFItemType, CFSubject, CFPackage, CaseExtensions, LinkURI } from '@/domain/case/types'
+import type { CFAssociation, CFConcept, CFDefinition, CFDocument, CFItem, CFItemType, CFSubject, CFPackage, CaseExtensions, LinkURI } from '@/domain/case/types'
 import type { Framework } from '@/domain/framework/model/types'
 import type { CaseVersion } from './CasePackageSnapshot'
 import type { LayoutState, NodeLayout } from '@/ui/editor/reactflow/mapping/types'
@@ -232,7 +232,7 @@ function itemToCfItem(
     CFItemTypeURI: (md.CFItemTypeURI as LinkURI | undefined) ?? undefined,
     listEnumeration: s('listEnumeration'),
     conceptKeywords: a('conceptKeywords'),
-    conceptKeywordsURI: undefined,
+    conceptKeywordsURI: (md.conceptKeywordsURI as LinkURI | undefined) ?? undefined,
     notes: s('notes'),
     subject: a('subject'),
     subjectURI: (md.subjectURI as LinkURI[] | undefined) ?? undefined,
@@ -348,8 +348,10 @@ export function frameworkToCfPackage(params: {
   cfItemTypes?: CFItemType[]
   /** CFSubject definitions to include in CFDefinitions (from editor state) */
   cfSubjects?: CFSubject[]
+  /** CFConcept definitions to include in CFDefinitions (from editor state) */
+  cfConcepts?: CFConcept[]
 }): CFPackage {
-  const { framework, caseVersion, layout, incrementVersion, edgeType, cfItemTypes, cfSubjects } = params
+  const { framework, caseVersion, layout, incrementVersion, edgeType, cfItemTypes, cfSubjects, cfConcepts } = params
   const fwId = String(framework.id)
 
   // Build CFDocument
@@ -369,19 +371,56 @@ export function frameworkToCfPackage(params: {
     associationToCfAssociation(framework, assocId)
   )
 
-  // Build CFDefinitions (only include categories that have entries)
-  // Ensure every definition has all fields required by the CASE v1.1 schema
+  // Build CFDefinitions — only include definitions actually referenced by items.
+  // This mirrors the backend GetCFPackage filtering for spec compliance.
+  // Ensure every definition has all fields required by the CASE v1.1 schema.
   let cfDefinitions: CFDefinition | undefined
   const now = nowIso()
 
-  const hasItemTypes = cfItemTypes && cfItemTypes.length > 0
-  const hasSubjects = cfSubjects && cfSubjects.length > 0
+  // Collect referenced identifiers and titles from the built CFItems
+  const refItemTypeIds = new Set<string>()
+  const refItemTypeTitles = new Set<string>()
+  const refSubjectIds = new Set<string>()
+  const refSubjectTitles = new Set<string>()
+  const refConceptIds = new Set<string>()
 
-  if (hasItemTypes || hasSubjects) {
+  for (const item of items) {
+    // CFItemType: match by CFItemTypeURI.identifier or by CFItemType title string
+    if (item.CFItemTypeURI?.identifier) refItemTypeIds.add(item.CFItemTypeURI.identifier)
+    if (item.CFItemType) refItemTypeTitles.add(item.CFItemType)
+
+    // CFSubject: match by subjectURI[].identifier or by subject[] title string
+    if (Array.isArray(item.subjectURI)) {
+      for (const s of item.subjectURI) {
+        if (s.identifier) refSubjectIds.add(s.identifier)
+      }
+    }
+    if (Array.isArray(item.subject)) {
+      for (const s of item.subject) {
+        if (s) refSubjectTitles.add(s)
+      }
+    }
+
+    // CFConcept: match by conceptKeywordsURI.identifier
+    if (item.conceptKeywordsURI?.identifier) refConceptIds.add(item.conceptKeywordsURI.identifier)
+  }
+
+  // Filter each category to only referenced definitions
+  const filteredItemTypes = cfItemTypes?.filter(
+    (t) => refItemTypeIds.has(t.identifier) || refItemTypeTitles.has(t.title ?? ''),
+  ) ?? []
+  const filteredSubjects = cfSubjects?.filter(
+    (s) => refSubjectIds.has(s.identifier) || refSubjectTitles.has(s.title ?? ''),
+  ) ?? []
+  const filteredConcepts = cfConcepts?.filter(
+    (c) => refConceptIds.has(c.identifier),
+  ) ?? []
+
+  if (filteredItemTypes.length > 0 || filteredSubjects.length > 0 || filteredConcepts.length > 0) {
     cfDefinitions = {}
 
-    if (hasItemTypes) {
-      cfDefinitions.CFItemTypes = cfItemTypes.map((t) => ({
+    if (filteredItemTypes.length > 0) {
+      cfDefinitions.CFItemTypes = filteredItemTypes.map((t) => ({
         ...t,
         description: t.description || t.title || '',
         hierarchyCode: t.hierarchyCode || '1',
@@ -389,12 +428,21 @@ export function frameworkToCfPackage(params: {
       }))
     }
 
-    if (hasSubjects) {
-      cfDefinitions.CFSubjects = cfSubjects.map((s) => ({
+    if (filteredSubjects.length > 0) {
+      cfDefinitions.CFSubjects = filteredSubjects.map((s) => ({
         ...s,
         description: s.description || s.title || '',
         hierarchyCode: s.hierarchyCode || '1',
         lastChangeDateTime: s.lastChangeDateTime || now,
+      }))
+    }
+
+    if (filteredConcepts.length > 0) {
+      cfDefinitions.CFConcepts = filteredConcepts.map((c) => ({
+        ...c,
+        description: c.description || c.title || '',
+        hierarchyCode: c.hierarchyCode || '1',
+        lastChangeDateTime: c.lastChangeDateTime || now,
       }))
     }
   }

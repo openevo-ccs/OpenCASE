@@ -239,6 +239,7 @@ export function normalizeCasePackageResponse(res: unknown): CasePackageSnapshot 
         CFItemTypeURI: extractLinkURISingle(r.CFItemTypeURI),
         educationLevel: asStringArray(r.educationLevel),
         conceptKeywords: asStringArray(r.conceptKeywords),
+        conceptKeywordsURI: extractLinkURISingle(r.conceptKeywordsURI),
         notes: asString(r.notes),
         language: asString(r.language),
         lastChangeDateTime: asString(r.lastChangeDateTime),

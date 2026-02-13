@@ -233,7 +233,7 @@ export function TagComboboxInput({
             const highlighted = idx === highlightIdx
             return (
               <div
-                key={opt.value}
+                key={`${idx}-${opt.value}`}
                 role="option"
                 aria-selected={false}
                 tabIndex={-1}

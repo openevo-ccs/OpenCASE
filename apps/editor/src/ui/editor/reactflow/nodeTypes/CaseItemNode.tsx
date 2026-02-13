@@ -156,9 +156,9 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
 
         {keywords.length ? (
           <div className="mt-2 flex flex-wrap gap-1">
-            {keywords.map((k) => (
+            {keywords.map((k, idx) => (
               <div
-                key={k}
+                key={`${idx}-${k}`}
                 className="rounded-full border border-[#662F90]/15 bg-[#662F90]/5 px-2 py-0.5 text-[10px] font-medium text-[#662F90]"
                 title={k}
               >

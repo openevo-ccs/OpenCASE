@@ -38,13 +38,23 @@ export default function AddItemDialog({ open, parentLabel, draft, onChange, onCa
   const { cfItemTypes, cfSubjects } = useEditor()
   const [touched, setTouched] = useState(false)
 
+  /** Deduplicate options by value (title). First occurrence wins. */
+  const dedup = <T extends { value: string }>(arr: T[]): T[] => {
+    const seen = new Set<string>()
+    return arr.filter((o) => {
+      if (seen.has(o.value)) return false
+      seen.add(o.value)
+      return true
+    })
+  }
+
   const cfItemTypeOptions: ComboboxOption[] = useMemo(
-    () => cfItemTypes.map((t) => ({ value: t.title ?? t.identifier, label: t.title ?? t.identifier, description: t.description })),
+    () => dedup(cfItemTypes.map((t) => ({ value: t.title ?? t.identifier, label: t.title ?? t.identifier, description: t.description }))),
     [cfItemTypes],
   )
 
   const cfSubjectOptions: TagComboboxOption[] = useMemo(
-    () => cfSubjects.map((s) => ({ value: s.title ?? s.identifier, label: s.title ?? s.identifier, description: s.description })),
+    () => dedup(cfSubjects.map((s) => ({ value: s.title ?? s.identifier, label: s.title ?? s.identifier, description: s.description }))),
     [cfSubjects],
   )
 

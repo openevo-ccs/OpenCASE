@@ -172,7 +172,7 @@ export function ComboboxInput({ value, onChange, onCommit, options, placeholder,
             const highlighted = idx === highlightIdx
             return (
               <div
-                key={opt.value}
+                key={`${idx}-${opt.value}`}
                 role="option"
                 aria-selected={selected}
                 tabIndex={-1}
