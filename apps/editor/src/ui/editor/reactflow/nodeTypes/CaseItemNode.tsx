@@ -38,7 +38,9 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
   const altLabel = typedData?.cfItem?.alternativeLabel
   const code = typedData?.cfItem?.humanCodingScheme
   const itemType = typedData?.cfItem?.CFItemType
-  const subject = typedData?.cfItem?.subject?.[0]
+  const subjects = typedData?.cfItem?.subject ?? []
+  const subject = subjects[0]
+  const extraSubjectCount = subjects.length > 1 ? subjects.length - 1 : 0
   const educationLevel = typedData?.cfItem?.educationLevel?.slice(0, 2) ?? []
   const keywords = typedData?.cfItem?.conceptKeywords?.slice(0, 3) ?? []
 
@@ -50,8 +52,16 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
         isValidTarget ? 'border-emerald-400 ring-2 ring-emerald-400/30 shadow-lg shadow-emerald-100' : '',
       ].join(' ')}
     >
-      {/* Subtle gradient accent at top */}
-      <div className="h-[3px] w-full rounded-t-lg bg-linear-to-r from-[#000072]/50 to-[#662F90]/50" />
+      {/* Header bar — thicker with type label when present, thin accent otherwise */}
+      {itemType ? (
+        <div className="flex w-full items-center justify-end rounded-t-lg bg-linear-to-r from-[#000072]/70 to-[#662F90]/70 px-2.5 py-1">
+          <span className="truncate text-[11px] font-semibold leading-tight text-white/90">
+            {itemType}
+          </span>
+        </div>
+      ) : (
+        <div className="h-[3px] w-full rounded-t-lg bg-linear-to-r from-[#000072]/50 to-[#662F90]/50" />
+      )}
 
       <NodeResizer
         isVisible={Boolean(selected)}
@@ -116,14 +126,9 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
                   {code}
                 </div>
               ) : null}
-              {itemType ? (
-                <div className="rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-[#2E2F2F]">
-                  {itemType}
-                </div>
-              ) : null}
               {subject ? (
                 <div className="rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-                  {subject}
+                  {subject}{extraSubjectCount > 0 ? ` +${extraSubjectCount}` : ''}
                 </div>
               ) : null}
               {educationLevel.length ? (

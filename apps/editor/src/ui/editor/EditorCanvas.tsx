@@ -54,6 +54,7 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
     reconnectEdge: reconnectEdgeAction,
     layoutVersion,
     cfItemTypes,
+    cfSubjects,
     addItemDialog,
     setAddItemDraft,
     cancelAddItem,
@@ -112,11 +113,12 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
       incrementVersion: false,
       edgeType: settings.edgeType,
       cfItemTypes,
+      cfSubjects,
     })
     
     setGeneratedCfPackage(cfPackage)
     setCfPackageDialogOpen(true)
-  }, [nodes, editorEdges, caseVersion, settings.edgeType, cfItemTypes])
+  }, [nodes, editorEdges, caseVersion, settings.edgeType, cfItemTypes, cfSubjects])
 
   // Save: Generate CFPackage with version increment and POST to server
   const handleSave = useCallback(async () => {
@@ -132,6 +134,7 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
       incrementVersion: true,
       edgeType: settings.edgeType,
       cfItemTypes,
+      cfSubjects,
     })
     
     // Convert to OpenCASE REST API format
@@ -164,7 +167,7 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
       // No server callback - just show the dialog for manual validation
       setCfPackageDialogOpen(true)
     }
-  }, [nodes, editorEdges, caseVersion, onSaveToServer, clearDirty, settings.edgeType, cfItemTypes])
+  }, [nodes, editorEdges, caseVersion, onSaveToServer, clearDirty, settings.edgeType, cfItemTypes, cfSubjects])
 
   // Apply the custom labeled edge type to all edges, passing the path style in data.
   // Per-edge edgeType (e.g. from hierarchy layout) takes priority over the framework-level setting.

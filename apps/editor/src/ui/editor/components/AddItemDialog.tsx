@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
 import { ComboboxInput } from '@/ui/shared/components/ui/combobox-input'
 import type { ComboboxOption } from '@/ui/shared/components/ui/combobox-input'
+import { TagComboboxInput } from '@/ui/shared/components/ui/tag-combobox-input'
+import type { TagComboboxOption } from '@/ui/shared/components/ui/tag-combobox-input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/shared/components/ui/dialog'
 import { Input } from '@/ui/shared/components/ui/input'
 import { Label } from '@/ui/shared/components/ui/label'
@@ -14,7 +16,10 @@ export type AddItemDraft = {
   alternativeLabel?: string
   humanCodingScheme?: string
   CFItemType?: string
+  /** @deprecated Use subjects array instead */
   subjectCsv?: string
+  /** Subjects as a string array (preferred over subjectCsv) */
+  subjects?: string[]
   educationLevelCsv?: string
   conceptKeywordsCsv?: string
   notes?: string
@@ -30,12 +35,17 @@ type Props = {
 }
 
 export default function AddItemDialog({ open, parentLabel, draft, onChange, onCancel, onCreate }: Readonly<Props>) {
-  const { cfItemTypes } = useEditor()
+  const { cfItemTypes, cfSubjects } = useEditor()
   const [touched, setTouched] = useState(false)
 
   const cfItemTypeOptions: ComboboxOption[] = useMemo(
     () => cfItemTypes.map((t) => ({ value: t.title ?? t.identifier, label: t.title ?? t.identifier, description: t.description })),
     [cfItemTypes],
+  )
+
+  const cfSubjectOptions: TagComboboxOption[] = useMemo(
+    () => cfSubjects.map((s) => ({ value: s.title ?? s.identifier, label: s.title ?? s.identifier, description: s.description })),
+    [cfSubjects],
   )
 
   const statementError = useMemo(() => {
@@ -129,12 +139,14 @@ export default function AddItemDialog({ open, parentLabel, draft, onChange, onCa
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="add-item-subject">Subject (comma-separated)</Label>
-                <Input
+                <Label htmlFor="add-item-subject">Subject(s)</Label>
+                <TagComboboxInput
                   id="add-item-subject"
-                  value={draft.subjectCsv ?? ''}
-                  onChange={(e) => onChange({ subjectCsv: e.target.value })}
-                  placeholder="e.g. Math, Algebra"
+                  values={draft.subjects ?? []}
+                  onChange={(vals) => onChange({ subjects: vals, subjectCsv: vals.join(', ') })}
+                  options={cfSubjectOptions}
+                  placeholder="Select or type subjects…"
+                  className="w-full"
                 />
               </div>
               <div className="grid gap-2">

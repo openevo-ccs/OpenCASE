@@ -1,4 +1,4 @@
-import type { CFAssociation, CFDefinition, CFDocument, CFItem, CFItemType, CFPackage, CaseExtensions } from '@/domain/case/types'
+import type { CFAssociation, CFDefinition, CFDocument, CFItem, CFItemType, CFSubject, CFPackage, CaseExtensions, LinkURI } from '@/domain/case/types'
 import type { Framework } from '@/domain/framework/model/types'
 import type { CaseVersion } from './CasePackageSnapshot'
 import type { LayoutState, NodeLayout } from '@/ui/editor/reactflow/mapping/types'
@@ -229,13 +229,13 @@ function itemToCfItem(
     alternativeLabel: s('alternativeLabel'),
     humanCodingScheme: s('humanCodingScheme'),
     CFItemType: s('CFItemType') ?? item.type,
-    CFItemTypeURI: undefined,
+    CFItemTypeURI: (md.CFItemTypeURI as LinkURI | undefined) ?? undefined,
     listEnumeration: s('listEnumeration'),
     conceptKeywords: a('conceptKeywords'),
     conceptKeywordsURI: undefined,
     notes: s('notes'),
     subject: a('subject'),
-    subjectURI: undefined,
+    subjectURI: (md.subjectURI as LinkURI[] | undefined) ?? undefined,
     language: s('language'),
     educationLevel: a('educationLevel'),
     licenseURI: undefined,
@@ -346,8 +346,10 @@ export function frameworkToCfPackage(params: {
   edgeType?: string
   /** CFItemType definitions to include in CFDefinitions (from editor state) */
   cfItemTypes?: CFItemType[]
+  /** CFSubject definitions to include in CFDefinitions (from editor state) */
+  cfSubjects?: CFSubject[]
 }): CFPackage {
-  const { framework, caseVersion, layout, incrementVersion, edgeType, cfItemTypes } = params
+  const { framework, caseVersion, layout, incrementVersion, edgeType, cfItemTypes, cfSubjects } = params
   const fwId = String(framework.id)
 
   // Build CFDocument
@@ -368,18 +370,32 @@ export function frameworkToCfPackage(params: {
   )
 
   // Build CFDefinitions (only include categories that have entries)
-  // Ensure every CFItemType has all fields required by the CASE v1.1 schema:
-  // identifier, uri, title, description, hierarchyCode, lastChangeDateTime
+  // Ensure every definition has all fields required by the CASE v1.1 schema
   let cfDefinitions: CFDefinition | undefined
-  if (cfItemTypes && cfItemTypes.length > 0) {
-    const now = nowIso()
-    const normalizedTypes: CFItemType[] = cfItemTypes.map((t) => ({
-      ...t,
-      description: t.description || t.title || '',
-      hierarchyCode: t.hierarchyCode || '1',
-      lastChangeDateTime: t.lastChangeDateTime || now,
-    }))
-    cfDefinitions = { CFItemTypes: normalizedTypes }
+  const now = nowIso()
+
+  const hasItemTypes = cfItemTypes && cfItemTypes.length > 0
+  const hasSubjects = cfSubjects && cfSubjects.length > 0
+
+  if (hasItemTypes || hasSubjects) {
+    cfDefinitions = {}
+
+    if (hasItemTypes) {
+      cfDefinitions.CFItemTypes = cfItemTypes.map((t) => ({
+        ...t,
+        description: t.description || t.title || '',
+        hierarchyCode: t.hierarchyCode || '1',
+        lastChangeDateTime: t.lastChangeDateTime || now,
+      }))
+    }
+
+    if (hasSubjects) {
+      cfDefinitions.CFSubjects = cfSubjects.map((s) => ({
+        ...s,
+        description: s.description || s.title || '',
+        hierarchyCode: s.hierarchyCode || '1',
+      }))
+    }
   }
 
   const cfPackage: CFPackage = {

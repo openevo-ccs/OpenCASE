@@ -46,6 +46,10 @@ export type CaseItemSnapshot = {
    */
   listEnumeration?: string
   subject?: string[]
+  /** Subject URI references linking to CFSubject definitions */
+  subjectURI?: Array<{ title?: string; identifier: string; uri: string }>
+  /** CFItemTypeURI reference linking to a CFItemType definition */
+  CFItemTypeURI?: { title?: string; identifier: string; uri: string }
   educationLevel?: string[]
   conceptKeywords?: string[]
   notes?: string

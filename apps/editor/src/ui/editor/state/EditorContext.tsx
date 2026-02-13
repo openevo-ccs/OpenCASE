@@ -14,7 +14,7 @@ import type {
   CaseItemNodeData,
   ExternalFrameworkNodeData,
 } from '@/ui/editor/reactflow/types'
-import type { CFDocument, CFItem, CFItemType } from '@/domain/case/types'
+import type { CFDocument, CFItem, CFItemType, CFSubject } from '@/domain/case/types'
 import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
 import type { EditorSettings } from '@/ui/editor/components/SettingsModal'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
@@ -51,6 +51,9 @@ type EditorContextValue = {
   cfItemTypes: CFItemType[]
   addCfItemType: (_itemType: CFItemType) => void
   ensureCfItemType: (_title: string) => CFItemType | null
+  cfSubjects: CFSubject[]
+  addCfSubject: (_subject: CFSubject) => void
+  ensureCfSubject: (_title: string) => CFSubject | null
   settings: EditorSettings
   updateSettings: (_settings: EditorSettings) => void
   onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType>
@@ -92,6 +95,7 @@ export function EditorProvider({
   skipAutoLayout = false,
   initialEdgeType,
   initialCfItemTypes,
+  initialCfSubjects,
 }: Readonly<{
   children: ReactNode
   initialGraph?: EditorGraph
@@ -103,6 +107,8 @@ export function EditorProvider({
   initialEdgeType?: string
   /** Seed CFItemType definitions loaded from the CFPackage / definitions index */
   initialCfItemTypes?: CFItemType[]
+  /** Seed CFSubject definitions loaded from the definitions index */
+  initialCfSubjects?: CFSubject[]
 }>) {
   // ── CASE version ─────────────────────────────────────────────────────
   const [caseVersion, setCaseVersion] = useState<CaseVersion>(initialCaseVersion)
@@ -144,6 +150,39 @@ export function EditorProvider({
     addCfItemType(newType)
     return newType
   }, [cfItemTypes, addCfItemType])
+
+  // ── CFSubject definitions ──────────────────────────────────────────
+  const [cfSubjects, setCfSubjects] = useState<CFSubject[]>(initialCfSubjects ?? [])
+  useEffect(() => { setCfSubjects(initialCfSubjects ?? []) }, [initialCfSubjects])
+
+  const addCfSubject = useCallback((subject: CFSubject) => {
+    setCfSubjects((prev) => {
+      if (prev.some((s) => s.identifier === subject.identifier)) return prev
+      return [...prev, subject]
+    })
+  }, [])
+
+  /**
+   * Ensure a CFSubject definition exists for the given title.
+   * If it doesn't exist, creates a new one with a random UUID and adds it to state.
+   * Returns the matching CFSubject (existing or newly created).
+   */
+  const ensureCfSubject = useCallback((title: string): CFSubject | null => {
+    const trimmed = title.trim()
+    if (!trimmed) return null
+    const existing = cfSubjects.find((s) => s.title === trimmed)
+    if (existing) return existing
+    const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(16).slice(2)}`
+    const newSubject: CFSubject = {
+      identifier: id,
+      uri: `/ims/case/v1p1/CFSubjects/${id}`,
+      title: trimmed,
+      description: trimmed,
+      hierarchyCode: '1',
+    }
+    addCfSubject(newSubject)
+    return newSubject
+  }, [cfSubjects, addCfSubject])
 
   // ── Reducer state ────────────────────────────────────────────────────
   const seed = useMemo(() => initialGraph ?? DEFAULT_GRAPH, [initialGraph])
@@ -293,13 +332,24 @@ export function EditorProvider({
     const typeName = addItemDialog.draft.CFItemType?.trim() || undefined
     const typeDefinition = typeName ? ensureCfItemType(typeName) : null
 
+    // Auto-create CFSubject definitions for each subject and build subjectURI
+    // Prefer the subjects array (from TagComboboxInput) over the legacy CSV string
+    const subjectStrings = addItemDialog.draft.subjects?.length
+      ? addItemDialog.draft.subjects
+      : parseCsv(addItemDialog.draft.subjectCsv)
+    const subjectURIs = subjectStrings
+      .map((s) => ensureCfSubject(s))
+      .filter((s): s is CFSubject => s !== null)
+      .map((s) => ({ title: s.title ?? '', identifier: s.identifier, uri: s.uri }))
+
     const cfItemExtras: Partial<CFItem> = {
       abbreviatedStatement: addItemDialog.draft.abbreviatedStatement?.trim() || undefined,
       alternativeLabel: addItemDialog.draft.alternativeLabel?.trim() || undefined,
       humanCodingScheme: addItemDialog.draft.humanCodingScheme?.trim() || undefined,
       CFItemType: typeName,
       CFItemTypeURI: typeDefinition ? { title: typeDefinition.title ?? '', identifier: typeDefinition.identifier, uri: typeDefinition.uri } : undefined,
-      subject: parseCsv(addItemDialog.draft.subjectCsv),
+      subject: subjectStrings,
+      subjectURI: subjectURIs.length > 0 ? subjectURIs : undefined,
       educationLevel: parseCsv(addItemDialog.draft.educationLevelCsv),
       conceptKeywords: parseCsv(addItemDialog.draft.conceptKeywordsCsv),
       notes: addItemDialog.draft.notes?.trim() || undefined,
@@ -314,7 +364,7 @@ export function EditorProvider({
     }
 
     setAddItemDialog({ open: false, parentId: null, viewportCenter: undefined, draft: { fullStatement: '' } })
-  }, [addItemDialog, ensureCfItemType])
+  }, [addItemDialog, ensureCfItemType, ensureCfSubject])
 
   const deleteElements = useCallback(
     (params: { nodeIds: string[]; edgeIds: string[]; reattachChildren: boolean }) => dispatch({ type: 'graph/delete', ...params }),
@@ -428,6 +478,9 @@ export function EditorProvider({
       cfItemTypes,
       addCfItemType,
       ensureCfItemType,
+      cfSubjects,
+      addCfSubject,
+      ensureCfSubject,
       settings,
       updateSettings,
       onSelectionChange,
@@ -455,7 +508,8 @@ export function EditorProvider({
       state.nodes, state.edges, state.selectedNodeId, state.selectedEdgeId,
       selectedNode, selectedEdge, nodesWithCallbacks, frameworkInfo,
       state.layoutVersion, state.dirty, clearDirty,
-      caseVersion, cfItemTypes, addCfItemType, ensureCfItemType, settings, updateSettings,
+      caseVersion, cfItemTypes, addCfItemType, ensureCfItemType,
+      cfSubjects, addCfSubject, ensureCfSubject, settings, updateSettings,
       onSelectionChange, onEdgeSelectionChange, onNodesChange, onEdgesChange, onConnect,
       clearSelection, updateNodeData, updateEdgeData, flipEdge, reconnectEdge,
       addChild, addDetachedItem, addExternalFramework,

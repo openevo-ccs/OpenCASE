@@ -37,6 +37,25 @@ const asNumber = (v: unknown): number | undefined => (typeof v === 'number' ? v 
 
 const asStringArray = (v: unknown): string[] | undefined => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined)
 
+/** Extract a single LinkURI ({title, identifier, uri}) from a raw value */
+const extractLinkURISingle = (v: unknown): { title?: string; identifier: string; uri: string } | undefined => {
+  const obj = asRecord(v)
+  if (!obj) return undefined
+  const identifier = asString(obj.identifier) ?? asString(obj.sourcedId)
+  const uri = asString(obj.uri)
+  if (!identifier || !uri) return undefined
+  return { title: asString(obj.title), identifier, uri }
+}
+
+/** Extract an array of LinkURI objects from a raw value */
+const extractLinkURIArray = (v: unknown): Array<{ title?: string; identifier: string; uri: string }> | undefined => {
+  if (!Array.isArray(v)) return undefined
+  const result = v
+    .map((item) => extractLinkURISingle(item))
+    .filter((x): x is NonNullable<typeof x> => x !== undefined)
+  return result.length > 0 ? result : undefined
+}
+
 /**
  * Detect the CASE version from the document metadata.
  *
@@ -216,6 +235,8 @@ export function normalizeCasePackageResponse(res: unknown): CasePackageSnapshot 
         // v1p0: listEnumeration is sometimes used for ordering
         listEnumeration: asString(r.listEnumeration),
         subject: asStringArray(r.subject),
+        subjectURI: extractLinkURIArray(r.subjectURI),
+        CFItemTypeURI: extractLinkURISingle(r.CFItemTypeURI),
         educationLevel: asStringArray(r.educationLevel),
         conceptKeywords: asStringArray(r.conceptKeywords),
         notes: asString(r.notes),

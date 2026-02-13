@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
 import { ComboboxInput } from '@/ui/shared/components/ui/combobox-input'
+import { TagComboboxInput } from '@/ui/shared/components/ui/tag-combobox-input'
+import type { TagComboboxOption } from '@/ui/shared/components/ui/tag-combobox-input'
 import { ADOPTION_STATUS_OPTIONS } from '@/domain/framework/model/adoptionStatus'
 import type {
   CaseEditorNodeDataPatch,
@@ -28,7 +30,7 @@ type Props = {
 }
 
 export default function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage, isPublishedToOpenCase, availableLicenses }: Readonly<Props>) {
-  const { cfItemTypes, ensureCfItemType } = useEditor()
+  const { cfItemTypes, ensureCfItemType, cfSubjects, ensureCfSubject } = useEditor()
   const [copied, setCopied] = useState<null | 'code' | 'uri' | 'opencase'>(null)
   useEffect(() => {
     if (!node) return
@@ -76,6 +78,11 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
   const cfItemTypeOptions: ComboboxOption[] = useMemo(
     () => cfItemTypes.map((t) => ({ value: t.title ?? t.identifier, label: t.title ?? t.identifier, description: t.description })),
     [cfItemTypes],
+  )
+
+  const cfSubjectOptions: TagComboboxOption[] = useMemo(
+    () => cfSubjects.map((s) => ({ value: s.title ?? s.identifier, label: s.title ?? s.identifier, description: s.description })),
+    [cfSubjects],
   )
 
   const updateItem = (patch: Partial<CFItem>) => {
@@ -405,15 +412,39 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
                   <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-subject">
                     {isFramework ? 'Framework type' : 'Subject(s)'}
                   </label>
-                  <input
-                    id="node-subject"
-                    className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
-                    value={isFramework ? cfDocument?.frameworkType ?? '' : joinCsv(cfItem?.subject)}
-                    onChange={(e) =>
-                      isFramework ? updateDocument({ frameworkType: e.target.value }) : updateItem({ subject: parseCsv(e.target.value) })
-                    }
-                    placeholder={isFramework ? 'Example: K-12' : 'Example: Mathematics, Algebra'}
-                  />
+                  {isFramework ? (
+                    <input
+                      id="node-subject"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.frameworkType ?? ''}
+                      onChange={(e) => updateDocument({ frameworkType: e.target.value })}
+                      placeholder="Example: K-12"
+                    />
+                  ) : (
+                    <TagComboboxInput
+                      id="node-subject"
+                      values={cfItem?.subject ?? []}
+                      onChange={(vals) => updateItem({ subject: vals })}
+                      onCommit={(addedValue) => {
+                        const subDef = ensureCfSubject(addedValue)
+                        if (subDef) {
+                          // Rebuild the full subjectURI array from current subjects + the new one
+                          const currentSubjects = cfItem?.subject ?? []
+                          const allSubjects = currentSubjects.includes(addedValue) ? currentSubjects : [...currentSubjects, addedValue]
+                          const uris = allSubjects
+                            .map((s) => {
+                              const def = ensureCfSubject(s)
+                              return def ? { title: def.title ?? '', identifier: def.identifier, uri: def.uri } : null
+                            })
+                            .filter((u): u is NonNullable<typeof u> => u !== null)
+                          updateItem({ subjectURI: uris.length > 0 ? uris : undefined })
+                        }
+                      }}
+                      options={cfSubjectOptions}
+                      placeholder="Select or type subjects…"
+                      className="w-full"
+                    />
+                  )}
                 </div>
 
                 <div>
