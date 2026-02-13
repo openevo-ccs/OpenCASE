@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
+import { ComboboxInput } from '@/ui/shared/components/ui/combobox-input'
+import type { ComboboxOption } from '@/ui/shared/components/ui/combobox-input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/shared/components/ui/dialog'
 import { Input } from '@/ui/shared/components/ui/input'
 import { Label } from '@/ui/shared/components/ui/label'
 import { Textarea } from '@/ui/shared/components/ui/textarea'
+import { useEditor } from '@/ui/editor/state/EditorContext'
 
 export type AddItemDraft = {
   fullStatement: string
@@ -27,7 +30,13 @@ type Props = {
 }
 
 export default function AddItemDialog({ open, parentLabel, draft, onChange, onCancel, onCreate }: Readonly<Props>) {
+  const { cfItemTypes } = useEditor()
   const [touched, setTouched] = useState(false)
+
+  const cfItemTypeOptions: ComboboxOption[] = useMemo(
+    () => cfItemTypes.map((t) => ({ value: t.title ?? t.identifier, label: t.title ?? t.identifier, description: t.description })),
+    [cfItemTypes],
+  )
 
   const statementError = useMemo(() => {
     if (!touched) return null
@@ -89,11 +98,13 @@ export default function AddItemDialog({ open, parentLabel, draft, onChange, onCa
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="add-item-type">Type</Label>
-                <Input
+                <ComboboxInput
                   id="add-item-type"
                   value={draft.CFItemType ?? ''}
-                  onChange={(e) => onChange({ CFItemType: e.target.value })}
-                  placeholder="e.g. Standard, Skill…"
+                  onChange={(v) => onChange({ CFItemType: v })}
+                  options={cfItemTypeOptions}
+                  placeholder="Select or type a type…"
+                  className="w-full"
                 />
               </div>
               <div className="grid gap-2">

@@ -377,6 +377,34 @@ export function registerManagementRoutes (app: Express, deps: ManagementDeps): v
         }
       }
     )
+
+    // All tenant definitions endpoint (non-CASE extension)
+    // Returns the full set of available definitions (seeds + framework-contributed)
+    // for use by the editor's combobox / picker UI.
+    app.get(
+      '/management/tenants/:tenantId/definitions',
+      (req: Request, res: Response) => {
+        try {
+          const tenantId = (req as any).tenantId ?? req.params.tenantId
+          const urlTenantId = req.params.tenantId
+          if (urlTenantId && urlTenantId !== tenantId) {
+            res.status(403).json({ error: 'Tenant mismatch' })
+            return
+          }
+          const caseVersion = (req.query.caseVersion === '1.0' ? '1.0' : '1.1') as '1.0' | '1.1'
+          const defs = deps.store!.getTenantDefinitions(tenantId, caseVersion)
+          res.status(200).json({
+            CFConcepts: defs.CFConcepts ?? [],
+            CFSubjects: defs.CFSubjects ?? [],
+            CFLicenses: defs.CFLicenses ?? [],
+            CFItemTypes: defs.CFItemTypes ?? [],
+            CFAssociationGroupings: defs.CFAssociationGroupings ?? [],
+          })
+        } catch (error: any) {
+          res.status(400).json({ error: error.message || 'Failed to list definitions' })
+        }
+      }
+    )
   }
 
   // API key management endpoints (require case.owner or case.admin scope)

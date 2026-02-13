@@ -44,7 +44,10 @@ export class GetCFPackage {
       CFAssociations: pkg.associations.map(a => a.toJSON())
     }
 
-    // Add CFDefinitions (optional field [0..1]) using tenant defaults, overridden by per-framework definitions.
+    // ── Build CFDefinitions (optional [0..1]) ────────────────────
+    // Merge tenant-wide seed definitions with per-framework definitions,
+    // then filter each category to only those actually referenced by
+    // this package's document, items, and associations.
     const tenantDefs = this.store.getTenantDefinitions(query.tenantId, query.caseVersion)
     const frameworkDefs = pkg.definitions ?? null
     const mergeById = (tenantList: any[], frameworkList: any[]) => {
@@ -60,30 +63,82 @@ export class GetCFPackage {
       return Array.from(map.values())
     }
 
-    // Collect license identifiers actually referenced by this package's document and items
-    const referencedLicenseIds = new Set<string>()
-    const docLicenseId = documentJSON.licenseURI?.identifier as string | undefined
-    if (docLicenseId) referencedLicenseIds.add(docLicenseId)
-    for (const item of result.CFItems ?? []) {
-      const itemLicenseId = (item as any)?.licenseURI?.identifier as string | undefined
-      if (itemLicenseId) referencedLicenseIds.add(itemLicenseId)
+    const filterByIds = (merged: any[], ids: Set<string>) => {
+      if (ids.size === 0) return []
+      return merged.filter((v: any) => {
+        const id = (v?.identifier ?? v?.sourcedId) as string | undefined
+        return id != null && ids.has(id)
+      })
     }
 
-    // Merge all available licenses, then filter to only those referenced by this package
-    const allLicenses = mergeById(tenantDefs.CFLicenses, frameworkDefs?.CFLicenses ?? [])
-    const packageLicenses = referencedLicenseIds.size > 0
-      ? allLicenses.filter((lic: any) => {
-        const id = (lic?.identifier ?? lic?.sourcedId) as string | undefined
-        return id != null && referencedLicenseIds.has(id)
-      })
-      : []
+    // --- Collect referenced identifiers from the package ---
 
+    // CFLicenses: CFDocument.licenseURI + CFItem[].licenseURI
+    const refLicenseIds = new Set<string>()
+    const docLicenseId = documentJSON.licenseURI?.identifier as string | undefined
+    if (docLicenseId) refLicenseIds.add(docLicenseId)
+
+    // CFItemTypes: CFItem[].CFItemTypeURI.identifier
+    const refItemTypeIds = new Set<string>()
+
+    // CFSubjects: CFDocument.subjectURI[].identifier + CFItem[].subjectURI[].identifier
+    const refSubjectIds = new Set<string>()
+    const docSubjectURIs = documentJSON.subjectURI as any[] | undefined
+    if (Array.isArray(docSubjectURIs)) {
+      for (const s of docSubjectURIs) {
+        const id = s?.identifier as string | undefined
+        if (id) refSubjectIds.add(id)
+      }
+    }
+
+    // CFConcepts: CFItem[].conceptKeywordsURI.identifier
+    const refConceptIds = new Set<string>()
+
+    for (const item of result.CFItems ?? []) {
+      const it = item as any
+      // licenseURI
+      const licId = it?.licenseURI?.identifier as string | undefined
+      if (licId) refLicenseIds.add(licId)
+      // CFItemTypeURI
+      const typeId = it?.CFItemTypeURI?.identifier as string | undefined
+      if (typeId) refItemTypeIds.add(typeId)
+      // subjectURI (array)
+      if (Array.isArray(it?.subjectURI)) {
+        for (const s of it.subjectURI) {
+          const id = s?.identifier as string | undefined
+          if (id) refSubjectIds.add(id)
+        }
+      }
+      // conceptKeywordsURI (single link or array)
+      const ckUri = it?.conceptKeywordsURI
+      if (ckUri) {
+        if (Array.isArray(ckUri)) {
+          for (const c of ckUri) {
+            const id = c?.identifier as string | undefined
+            if (id) refConceptIds.add(id)
+          }
+        } else {
+          const id = ckUri?.identifier as string | undefined
+          if (id) refConceptIds.add(id)
+        }
+      }
+    }
+
+    // CFAssociationGroupings: CFAssociation[].CFAssociationGroupingURI.identifier
+    const refGroupingIds = new Set<string>()
+    for (const assoc of result.CFAssociations ?? []) {
+      const a = assoc as any
+      const groupId = a?.CFAssociationGroupingURI?.identifier as string | undefined
+      if (groupId) refGroupingIds.add(groupId)
+    }
+
+    // --- Merge then filter to referenced only ---
     const mergedDefinitions: any = {
-      CFConcepts: mergeById(tenantDefs.CFConcepts, frameworkDefs?.CFConcepts ?? []),
-      CFSubjects: mergeById(tenantDefs.CFSubjects, frameworkDefs?.CFSubjects ?? []),
-      CFLicenses: packageLicenses,
-      CFItemTypes: mergeById(tenantDefs.CFItemTypes, frameworkDefs?.CFItemTypes ?? []),
-      CFAssociationGroupings: mergeById(tenantDefs.CFAssociationGroupings, frameworkDefs?.CFAssociationGroupings ?? [])
+      CFConcepts: filterByIds(mergeById(tenantDefs.CFConcepts, frameworkDefs?.CFConcepts ?? []), refConceptIds),
+      CFSubjects: filterByIds(mergeById(tenantDefs.CFSubjects, frameworkDefs?.CFSubjects ?? []), refSubjectIds),
+      CFLicenses: filterByIds(mergeById(tenantDefs.CFLicenses, frameworkDefs?.CFLicenses ?? []), refLicenseIds),
+      CFItemTypes: filterByIds(mergeById(tenantDefs.CFItemTypes, frameworkDefs?.CFItemTypes ?? []), refItemTypeIds),
+      CFAssociationGroupings: filterByIds(mergeById(tenantDefs.CFAssociationGroupings, frameworkDefs?.CFAssociationGroupings ?? []), refGroupingIds),
     }
 
     // CASE 1.1 supports extensions on CFDefinition; do not emit for CASE 1.0.

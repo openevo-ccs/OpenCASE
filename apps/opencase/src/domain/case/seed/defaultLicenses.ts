@@ -134,23 +134,31 @@ export function isPublicLicense (licenseId: string | undefined): boolean {
   return !!licenseId && PUBLIC_LICENSE_IDS.has(licenseId)
 }
 
+import {
+  DEFAULT_CONCEPTS,
+  DEFAULT_SUBJECTS,
+  DEFAULT_ITEM_TYPES,
+  DEFAULT_ASSOCIATION_GROUPINGS,
+} from './defaultDefinitions'
+
 /**
- * Build a definitions index object containing the default licenses,
+ * Build a definitions index object containing all default seed definitions,
  * ready to be written as `definitions.json`.
  */
-export function buildDefaultDefinitionsIndex(): Record<string, Record<string, { docSourcedId: string; value: SeedCFLicense }>> {
-  const cfLicenses: Record<string, { docSourcedId: string; value: SeedCFLicense }> = {}
-  for (const lic of DEFAULT_LICENSES) {
-    cfLicenses[lic.identifier] = {
-      docSourcedId: '__seed__',
-      value: lic,
+export function buildDefaultDefinitionsIndex(): Record<string, Record<string, { docSourcedId: string; value: any }>> {
+  const seed = (items: Array<{ identifier: string }>): Record<string, { docSourcedId: string; value: any }> => {
+    const map: Record<string, { docSourcedId: string; value: any }> = {}
+    for (const item of items) {
+      map[item.identifier] = { docSourcedId: '__seed__', value: item }
     }
+    return map
   }
+
   return {
-    CFConcepts: {},
-    CFSubjects: {},
-    CFLicenses: cfLicenses,
-    CFItemTypes: {},
-    CFAssociationGroupings: {},
+    CFConcepts: seed(DEFAULT_CONCEPTS),
+    CFSubjects: seed(DEFAULT_SUBJECTS),
+    CFLicenses: seed(DEFAULT_LICENSES),
+    CFItemTypes: seed(DEFAULT_ITEM_TYPES),
+    CFAssociationGroupings: seed(DEFAULT_ASSOCIATION_GROUPINGS),
   }
 }

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { type CaseVersion, type TenantId } from '../../../domain/case/value-objects/Identifiers'
 import { logger } from '../../logging/Logger'
 import { DEFAULT_LICENSES, isPublicLicense } from '../../../domain/case/seed/defaultLicenses'
+import { DEFAULT_CONCEPTS, DEFAULT_SUBJECTS, DEFAULT_ITEM_TYPES, DEFAULT_ASSOCIATION_GROUPINGS } from '../../../domain/case/seed/defaultDefinitions'
 
 export interface FileFrameworkStoreConfig {
   baseDataDir: string
@@ -252,13 +253,27 @@ export class FileFrameworkStore {
       // ignore missing
     }
 
-    // Backfill: inject default seed licenses if no CFLicenses exist yet
-    const licensesMap = result.get('CFLicenses')!
-    if (licensesMap.size === 0) {
-      for (const lic of DEFAULT_LICENSES) {
-        licensesMap.set(lic.identifier, { docSourcedId: '__seed__', value: lic })
+    // Always merge seed defaults into every category.
+    // Existing (framework-supplied) entries take precedence; seeds fill gaps.
+    const backfillMap: Array<[DefinitionCategory, Array<{ identifier: string }>]> = [
+      ['CFLicenses', DEFAULT_LICENSES],
+      ['CFConcepts', DEFAULT_CONCEPTS],
+      ['CFSubjects', DEFAULT_SUBJECTS],
+      ['CFItemTypes', DEFAULT_ITEM_TYPES],
+      ['CFAssociationGroupings', DEFAULT_ASSOCIATION_GROUPINGS],
+    ]
+    for (const [category, defaults] of backfillMap) {
+      const map = result.get(category)!
+      let added = 0
+      for (const item of defaults) {
+        if (!map.has(item.identifier)) {
+          map.set(item.identifier, { docSourcedId: '__seed__', value: item })
+          added++
+        }
       }
-      logger.info({ idxDir }, 'Backfilled default seed licenses into definitions index')
+      if (added > 0) {
+        logger.info({ idxDir, category, added }, 'Merged seed definitions')
+      }
     }
 
     return result

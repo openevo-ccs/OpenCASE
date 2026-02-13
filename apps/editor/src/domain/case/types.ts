@@ -170,6 +170,9 @@ export interface CFItemType {
   title?: string
   description?: string
   hierarchyCode?: string
+  /** A code used for type identification (CASE v1.1) */
+  typeCode?: string
+  lastChangeDateTime?: string
   extensions?: CaseExtensions
 }
 

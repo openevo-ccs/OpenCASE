@@ -1,4 +1,4 @@
-import type { CFAssociation, CFDocument, CFItem, CFPackage, CaseExtensions } from '@/domain/case/types'
+import type { CFAssociation, CFDefinition, CFDocument, CFItem, CFItemType, CFPackage, CaseExtensions } from '@/domain/case/types'
 import type { Framework } from '@/domain/framework/model/types'
 import type { CaseVersion } from './CasePackageSnapshot'
 import type { LayoutState, NodeLayout } from '@/ui/editor/reactflow/mapping/types'
@@ -344,8 +344,10 @@ export function frameworkToCfPackage(params: {
   incrementVersion?: boolean
   /** Edge rendering style to persist with this framework */
   edgeType?: string
+  /** CFItemType definitions to include in CFDefinitions (from editor state) */
+  cfItemTypes?: CFItemType[]
 }): CFPackage {
-  const { framework, caseVersion, layout, incrementVersion, edgeType } = params
+  const { framework, caseVersion, layout, incrementVersion, edgeType, cfItemTypes } = params
   const fwId = String(framework.id)
 
   // Build CFDocument
@@ -365,10 +367,26 @@ export function frameworkToCfPackage(params: {
     associationToCfAssociation(framework, assocId)
   )
 
+  // Build CFDefinitions (only include categories that have entries)
+  // Ensure every CFItemType has all fields required by the CASE v1.1 schema:
+  // identifier, uri, title, description, hierarchyCode, lastChangeDateTime
+  let cfDefinitions: CFDefinition | undefined
+  if (cfItemTypes && cfItemTypes.length > 0) {
+    const now = nowIso()
+    const normalizedTypes: CFItemType[] = cfItemTypes.map((t) => ({
+      ...t,
+      description: t.description || t.title || '',
+      hierarchyCode: t.hierarchyCode || '1',
+      lastChangeDateTime: t.lastChangeDateTime || now,
+    }))
+    cfDefinitions = { CFItemTypes: normalizedTypes }
+  }
+
   const cfPackage: CFPackage = {
     CFDocument: document,
     CFItems: items.length > 0 ? items : undefined,
     CFAssociations: associations.length > 0 ? associations : undefined,
+    CFDefinitions: cfDefinitions,
   }
 
   return cfPackage
@@ -583,6 +601,7 @@ export function toOpenCaseFormat(cfPackage: CFPackage): CaseV1p1Package {
     CFDocument: document,
     CFItems: items?.length ? items : undefined,
     CFAssociations: associations?.length ? associations : undefined,
+    CFDefinitions: cfPackage.CFDefinitions,
   }
 }
 

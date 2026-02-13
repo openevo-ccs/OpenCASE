@@ -12,6 +12,8 @@ export type ComboboxInputProps = Readonly<{
   value: string
   /** Called when the value changes (from selection or typing) */
   onChange: (value: string) => void
+  /** Called when the user commits a value (blur or option select). Use for side-effects like auto-creating definitions. */
+  onCommit?: (value: string) => void
   /** Predefined options to show in the dropdown */
   options: readonly ComboboxOption[]
   /** Placeholder text when empty */
@@ -33,7 +35,7 @@ const LISTBOX_ID_SUFFIX = '-listbox'
  * - The user can always clear the selection and type freely
  * - Clicking outside or pressing Escape closes the dropdown
  */
-export function ComboboxInput({ value, onChange, options, placeholder, id, className }: ComboboxInputProps) {
+export function ComboboxInput({ value, onChange, onCommit, options, placeholder, id, className }: ComboboxInputProps) {
   const [open, setOpen] = React.useState(false)
   const [highlightIdx, setHighlightIdx] = React.useState(-1)
   const wrapperRef = React.useRef<HTMLDivElement>(null)
@@ -41,6 +43,17 @@ export function ComboboxInput({ value, onChange, options, placeholder, id, class
   const listboxRef = React.useRef<HTMLDivElement>(null)
 
   const listboxId = id ? `${id}${LISTBOX_ID_SUFFIX}` : undefined
+
+  // Filter options by case-insensitive substring match on the current value
+  const filtered = React.useMemo(() => {
+    const q = value.trim().toLowerCase()
+    if (!q) return options as ComboboxOption[]
+    return (options as ComboboxOption[]).filter(
+      (o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
+    )
+  }, [options, value])
+
+  const isMatch = options.some((o) => o.value === value)
 
   // Close when clicking outside
   React.useEffect(() => {
@@ -60,6 +73,11 @@ export function ComboboxInput({ value, onChange, options, placeholder, id, class
     el?.scrollIntoView({ block: 'nearest' })
   }, [highlightIdx, open])
 
+  // Reset highlight when the filtered list changes
+  React.useEffect(() => {
+    setHighlightIdx(-1)
+  }, [filtered.length])
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setOpen(false)
@@ -69,32 +87,35 @@ export function ComboboxInput({ value, onChange, options, placeholder, id, class
         setOpen(true)
         setHighlightIdx(0)
       } else {
-        setHighlightIdx((prev) => (prev + 1) % options.length)
+        setHighlightIdx((prev) => (prev + 1) % filtered.length)
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       if (open) {
-        setHighlightIdx((prev) => (prev - 1 + options.length) % options.length)
+        setHighlightIdx((prev) => (prev - 1 + filtered.length) % filtered.length)
       }
     } else if (e.key === 'Enter' && open && highlightIdx >= 0) {
       e.preventDefault()
-      const opt = options[highlightIdx]
+      const opt = filtered[highlightIdx]
       if (opt) {
         onChange(opt.value)
+        onCommit?.(opt.value)
         setOpen(false)
         setHighlightIdx(-1)
       }
+    } else if (e.key === 'Enter' && !open && value.trim()) {
+      // Commit free-text on Enter when dropdown is closed
+      onCommit?.(value)
     }
   }
 
   const selectOption = (opt: ComboboxOption) => {
     onChange(opt.value)
+    onCommit?.(opt.value)
     setOpen(false)
     setHighlightIdx(-1)
     inputRef.current?.focus()
   }
-
-  const isMatch = options.some((o) => o.value === value)
 
   return (
     <div ref={wrapperRef} className={cn('relative', className)}>
@@ -114,6 +135,11 @@ export function ComboboxInput({ value, onChange, options, placeholder, id, class
             if (!open) setOpen(true)
           }}
           onFocus={() => setOpen(true)}
+          onBlur={() => {
+            // Fire onCommit when the user leaves the field (unless they clicked a dropdown option,
+            // which already called onCommit via selectOption and prevented blur).
+            if (value.trim()) onCommit?.(value)
+          }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="flex h-9 w-full rounded-md border border-input bg-background py-1 pl-3 pr-8 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -134,14 +160,14 @@ export function ComboboxInput({ value, onChange, options, placeholder, id, class
         </button>
       </div>
 
-      {open && options.length > 0 && (
+      {open && (filtered.length > 0 || (!isMatch && value.trim())) && (
         <div
           ref={listboxRef}
           id={listboxId}
           role="listbox"
           className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
         >
-          {options.map((opt, idx) => {
+          {filtered.map((opt, idx) => {
             const selected = opt.value === value
             const highlighted = idx === highlightIdx
             return (

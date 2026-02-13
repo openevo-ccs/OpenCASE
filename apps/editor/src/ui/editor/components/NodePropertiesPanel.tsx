@@ -11,6 +11,8 @@ import type {
   ExternalFrameworkNodeData,
 } from '../reactflow/types'
 import type { CFDocument, CFItem, CFLicense } from '@/domain/case/types'
+import type { ComboboxOption } from '@/ui/shared/components/ui/combobox-input'
+import { useEditor } from '@/ui/editor/state/EditorContext'
 import { getAppConfig } from '@/app/config'
 
 type Props = {
@@ -26,6 +28,7 @@ type Props = {
 }
 
 export default function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage, isPublishedToOpenCase, availableLicenses }: Readonly<Props>) {
+  const { cfItemTypes, ensureCfItemType } = useEditor()
   const [copied, setCopied] = useState<null | 'code' | 'uri' | 'opencase'>(null)
   useEffect(() => {
     if (!node) return
@@ -69,6 +72,11 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
       ['Last updated', formatDateTime(cfItem?.lastChangeDateTime)],
     ] as const
   }, [node, cfItem?.lastChangeDateTime])
+
+  const cfItemTypeOptions: ComboboxOption[] = useMemo(
+    () => cfItemTypes.map((t) => ({ value: t.title ?? t.identifier, label: t.title ?? t.identifier, description: t.description })),
+    [cfItemTypes],
+  )
 
   const updateItem = (patch: Partial<CFItem>) => {
     if (!node) return
@@ -364,13 +372,33 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
                   <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-type">
                     {isFramework ? 'Creator' : 'Type'}
                   </label>
-                  <input
-                    id="node-type"
-                    className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
-                    value={isFramework ? cfDocument?.creator ?? '' : cfItem?.CFItemType ?? ''}
-                    onChange={(e) => (isFramework ? updateDocument({ creator: e.target.value }) : updateItem({ CFItemType: e.target.value }))}
-                    placeholder={isFramework ? 'Who authored this framework' : 'Example: Standard'}
-                  />
+                  {isFramework ? (
+                    <input
+                      id="node-type"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.creator ?? ''}
+                      onChange={(e) => updateDocument({ creator: e.target.value })}
+                      placeholder="Who authored this framework"
+                    />
+                  ) : (
+                    <ComboboxInput
+                      id="node-type"
+                      value={cfItem?.CFItemType ?? ''}
+                      onChange={(v) => updateItem({ CFItemType: v })}
+                      onCommit={(v) => {
+                        const typeDef = ensureCfItemType(v)
+                        if (typeDef) {
+                          updateItem({
+                            CFItemType: v,
+                            CFItemTypeURI: { title: typeDef.title ?? '', identifier: typeDef.identifier, uri: typeDef.uri },
+                          })
+                        }
+                      }}
+                      options={cfItemTypeOptions}
+                      placeholder="Select or type a type…"
+                      className="w-full"
+                    />
+                  )}
                 </div>
 
                 <div>

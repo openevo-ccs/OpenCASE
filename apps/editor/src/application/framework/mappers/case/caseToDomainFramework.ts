@@ -58,11 +58,13 @@ export function mapCaseSnapshotToDomainFramework(snapshot: CasePackageSnapshot):
         abbreviatedStatement: it.abbreviatedStatement,
         alternativeLabel: it.alternativeLabel,
         humanCodingScheme: it.humanCodingScheme,
+        CFItemType: it.CFItemType,
         subject: it.subject,
         educationLevel: it.educationLevel,
         conceptKeywords: it.conceptKeywords,
         notes: it.notes,
         caseUri: it.uri,
+        lastChangeDateTime: it.lastChangeDateTime,
         ...it.extensions,
       },
     }

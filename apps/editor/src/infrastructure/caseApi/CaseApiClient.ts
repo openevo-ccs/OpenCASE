@@ -1,4 +1,4 @@
-import type { CFDocument, CFLicense, CFPackage } from '@/domain/case/types'
+import type { CFDocument, CFLicense, CFPackage, CFDefinition } from '@/domain/case/types'
 import type { HttpClient } from './http'
 
 export type OpenCaseCfPackageResponse = { CFPackage: CFPackage }
@@ -65,7 +65,14 @@ export class CaseApiClient {
   async getCfPackage(params: { docId: string; caseVersion?: 'v1p0' | 'v1p1' }): Promise<CFPackage> {
     const v = params.caseVersion ?? 'v1p1'
     const res = (await this._http.get(`/ims/case/${v}/CFPackages/${encodeURIComponent(params.docId)}`)) as unknown
-    if (res && typeof res === 'object' && 'CFPackage' in res) {
+    if (!res || typeof res !== 'object') throw new Error('Unexpected CFPackage response shape')
+
+    // New format (CASE v1.1 spec-compliant): top-level { CFDocument, CFItems, ... }
+    if ('CFDocument' in res) {
+      return res as CFPackage
+    }
+    // Legacy format: { CFPackage: { CFDocument, CFItems, ... } }
+    if ('CFPackage' in res) {
       return (res as OpenCaseCfPackageResponse).CFPackage
     }
     throw new Error('Unexpected CFPackage response shape')
@@ -224,6 +231,23 @@ export class CaseApiClient {
     }
 
     return []
+  }
+
+  /**
+   * List all available definitions (seeds + framework-contributed) for a tenant.
+   *
+   * Uses the management endpoint: GET /management/tenants/{tenantId}/definitions
+   * Returns the full catalogue for populating comboboxes / pickers in the editor.
+   */
+  async listDefinitions(params: { tenantId: string; caseVersion?: '1.0' | '1.1' }): Promise<CFDefinition> {
+    const v = params.caseVersion ?? '1.1'
+    const url = `/management/tenants/${encodeURIComponent(params.tenantId)}/definitions?caseVersion=${encodeURIComponent(v)}`
+    const res = (await this._http.get(url)) as unknown
+
+    if (res && typeof res === 'object') {
+      return res as CFDefinition
+    }
+    return {}
   }
 
   /**

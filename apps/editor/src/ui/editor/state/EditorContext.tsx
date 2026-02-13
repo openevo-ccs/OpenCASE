@@ -14,7 +14,7 @@ import type {
   CaseItemNodeData,
   ExternalFrameworkNodeData,
 } from '@/ui/editor/reactflow/types'
-import type { CFDocument, CFItem } from '@/domain/case/types'
+import type { CFDocument, CFItem, CFItemType } from '@/domain/case/types'
 import type { AddItemDraft } from '@/ui/editor/components/AddItemDialog'
 import type { EditorSettings } from '@/ui/editor/components/SettingsModal'
 import type { EditorGraph } from '@/ui/editor/state/editorFactories'
@@ -48,6 +48,9 @@ type EditorContextValue = {
   isDirty: boolean
   clearDirty: () => void
   caseVersion: CaseVersion
+  cfItemTypes: CFItemType[]
+  addCfItemType: (_itemType: CFItemType) => void
+  ensureCfItemType: (_title: string) => CFItemType | null
   settings: EditorSettings
   updateSettings: (_settings: EditorSettings) => void
   onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType>
@@ -88,6 +91,7 @@ export function EditorProvider({
   caseVersion: initialCaseVersion = '1.1',
   skipAutoLayout = false,
   initialEdgeType,
+  initialCfItemTypes,
 }: Readonly<{
   children: ReactNode
   initialGraph?: EditorGraph
@@ -97,10 +101,49 @@ export function EditorProvider({
   skipAutoLayout?: boolean
   /** Edge type stored in the framework's CFDocument ext:opencase — overrides localStorage default */
   initialEdgeType?: string
+  /** Seed CFItemType definitions loaded from the CFPackage / definitions index */
+  initialCfItemTypes?: CFItemType[]
 }>) {
   // ── CASE version ─────────────────────────────────────────────────────
   const [caseVersion, setCaseVersion] = useState<CaseVersion>(initialCaseVersion)
   useEffect(() => { setCaseVersion(initialCaseVersion) }, [initialCaseVersion])
+
+  // ── CFItemType definitions ──────────────────────────────────────────
+  const [cfItemTypes, setCfItemTypes] = useState<CFItemType[]>(initialCfItemTypes ?? [])
+  useEffect(() => { setCfItemTypes(initialCfItemTypes ?? []) }, [initialCfItemTypes])
+
+  const addCfItemType = useCallback((itemType: CFItemType) => {
+    setCfItemTypes((prev) => {
+      if (prev.some((t) => t.identifier === itemType.identifier)) return prev
+      return [...prev, itemType]
+    })
+  }, [])
+
+  /**
+   * Ensure a CFItemType definition exists for the given title.
+   * If it doesn't exist, creates a new one with a random UUID and adds it to state.
+   * Returns the matching CFItemType (existing or newly created).
+   */
+  const ensureCfItemType = useCallback((title: string): CFItemType | null => {
+    const trimmed = title.trim()
+    if (!trimmed) return null
+    // Check if a type with this title already exists
+    const existing = cfItemTypes.find((t) => t.title === trimmed)
+    if (existing) return existing
+    // Auto-create a new definition with all fields required by the CASE v1.1 schema:
+    // identifier, uri, title, description, hierarchyCode, lastChangeDateTime
+    const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(16).slice(2)}`
+    const newType: CFItemType = {
+      identifier: id,
+      uri: `/ims/case/v1p1/CFItemTypes/${id}`,
+      title: trimmed,
+      description: trimmed,
+      hierarchyCode: '1',
+      lastChangeDateTime: new Date().toISOString(),
+    }
+    addCfItemType(newType)
+    return newType
+  }, [cfItemTypes, addCfItemType])
 
   // ── Reducer state ────────────────────────────────────────────────────
   const seed = useMemo(() => initialGraph ?? DEFAULT_GRAPH, [initialGraph])
@@ -246,11 +289,16 @@ export function EditorProvider({
     const parseCsv = (raw?: string) =>
       (raw ?? '').split(',').map((x) => x.trim()).filter(Boolean)
 
+    // Auto-create CFItemType definition if it's a new value
+    const typeName = addItemDialog.draft.CFItemType?.trim() || undefined
+    const typeDefinition = typeName ? ensureCfItemType(typeName) : null
+
     const cfItemExtras: Partial<CFItem> = {
       abbreviatedStatement: addItemDialog.draft.abbreviatedStatement?.trim() || undefined,
       alternativeLabel: addItemDialog.draft.alternativeLabel?.trim() || undefined,
       humanCodingScheme: addItemDialog.draft.humanCodingScheme?.trim() || undefined,
-      CFItemType: addItemDialog.draft.CFItemType?.trim() || undefined,
+      CFItemType: typeName,
+      CFItemTypeURI: typeDefinition ? { title: typeDefinition.title ?? '', identifier: typeDefinition.identifier, uri: typeDefinition.uri } : undefined,
       subject: parseCsv(addItemDialog.draft.subjectCsv),
       educationLevel: parseCsv(addItemDialog.draft.educationLevelCsv),
       conceptKeywords: parseCsv(addItemDialog.draft.conceptKeywordsCsv),
@@ -266,7 +314,7 @@ export function EditorProvider({
     }
 
     setAddItemDialog({ open: false, parentId: null, viewportCenter: undefined, draft: { fullStatement: '' } })
-  }, [addItemDialog])
+  }, [addItemDialog, ensureCfItemType])
 
   const deleteElements = useCallback(
     (params: { nodeIds: string[]; edgeIds: string[]; reattachChildren: boolean }) => dispatch({ type: 'graph/delete', ...params }),
@@ -377,6 +425,9 @@ export function EditorProvider({
       isDirty: state.dirty,
       clearDirty,
       caseVersion,
+      cfItemTypes,
+      addCfItemType,
+      ensureCfItemType,
       settings,
       updateSettings,
       onSelectionChange,
@@ -404,7 +455,7 @@ export function EditorProvider({
       state.nodes, state.edges, state.selectedNodeId, state.selectedEdgeId,
       selectedNode, selectedEdge, nodesWithCallbacks, frameworkInfo,
       state.layoutVersion, state.dirty, clearDirty,
-      caseVersion, settings, updateSettings,
+      caseVersion, cfItemTypes, addCfItemType, ensureCfItemType, settings, updateSettings,
       onSelectionChange, onEdgeSelectionChange, onNodesChange, onEdgesChange, onConnect,
       clearSelection, updateNodeData, updateEdgeData, flipEdge, reconnectEdge,
       addChild, addDetachedItem, addExternalFramework,
