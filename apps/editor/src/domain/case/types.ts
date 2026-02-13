@@ -152,6 +152,7 @@ export interface CFSubject {
   title?: string
   description?: string
   hierarchyCode?: string
+  lastChangeDateTime?: string
   extensions?: CaseExtensions
 }
 

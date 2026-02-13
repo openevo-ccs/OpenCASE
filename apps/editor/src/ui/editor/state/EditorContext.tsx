@@ -179,6 +179,7 @@ export function EditorProvider({
       title: trimmed,
       description: trimmed,
       hierarchyCode: '1',
+      lastChangeDateTime: new Date().toISOString(),
     }
     addCfSubject(newSubject)
     return newSubject

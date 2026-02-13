@@ -394,6 +394,7 @@ export function frameworkToCfPackage(params: {
         ...s,
         description: s.description || s.title || '',
         hierarchyCode: s.hierarchyCode || '1',
+        lastChangeDateTime: s.lastChangeDateTime || now,
       }))
     }
   }
