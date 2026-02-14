@@ -182,6 +182,9 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const signOut = useCallback(async () => {
     setStatus('loading')
     setError(null)
+    // Clear all localStorage so cached frameworks, settings, and tokens don't persist across sessions.
+    try { globalThis.localStorage?.clear() } catch { /* ignore */ }
+    try { globalThis.sessionStorage?.clear() } catch { /* ignore */ }
     try {
       await userManager.signoutRedirect({
         post_logout_redirect_uri: `${globalThis.location?.origin ?? ''}/#/login`,

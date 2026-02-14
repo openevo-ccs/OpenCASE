@@ -153,19 +153,18 @@ export default function CaseItemNode({ id, data, selected }: NodeProps<CaseItemN
             </div>
           </div>
 
-          <div className="text-[12px] leading-snug text-[#2E2F2F]">
-            {statement ? (
-              <div className="line-clamp-5">{statement}</div>
-            ) : (
-              <div className="text-gray-400">No statement yet</div>
-            )}
-          </div>
-
           {altLabel ? (
-            <div className="mt-1 text-[11px] text-gray-600">
-              <span className="font-semibold text-[#2E2F2F]">Label:</span> <span className="line-clamp-1">{altLabel}</span>
+            /* Short label takes priority — larger and prominent */
+            <div className="text-sm font-medium leading-snug text-[#2E2F2F]">
+              <div className="line-clamp-4">{altLabel}</div>
             </div>
-          ) : null}
+          ) : statement ? (
+            <div className="text-sm leading-snug text-[#2E2F2F]">
+              <div className="line-clamp-5">{statement}</div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-400">No statement yet</div>
+          )}
 
           {keywords.length ? (
             <div className="mt-2 flex flex-wrap gap-1">
