@@ -186,7 +186,7 @@ export default function CanvasHeader({
   frameworkTitle,
   frameworkSubtitle,
   userName,
-  tenantId,
+  tenantId: _tenantId,
   reserveRightForPanel,
   showSettings,
   isDirty,

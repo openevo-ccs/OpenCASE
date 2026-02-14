@@ -122,7 +122,7 @@ export default memo(function NodePropertiesPanel({
       const base = opencaseBaseUrl.replace(/\/+$/, '')
       return `${base}/ims/case/v1p1/CFPackages/${cfDocument.identifier}`
     } catch { return null }
-  }, [cfDocument?.identifier])
+  }, [cfDocument])
 
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—'

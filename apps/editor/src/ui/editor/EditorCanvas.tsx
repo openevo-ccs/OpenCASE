@@ -359,7 +359,7 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
     )
   }, [reconnectEdgeAction])
   
-  const onReconnectEnd = useCallback((_: unknown, edge: Edge) => {
+  const onReconnectEnd = useCallback((_: unknown, _edge: Edge) => {
     // If reconnection wasn't successful (dropped in empty space), optionally remove the edge
     // For now, we'll keep the edge if reconnection fails (user just cancels)
     if (!edgeReconnectSuccessful.current) {

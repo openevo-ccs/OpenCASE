@@ -33,7 +33,7 @@ import {
 } from '@/ui/shared/components/ui/dialog'
 
 /** Minimal user avatar dropdown for the hero */
-function UserAvatarMenu({ userName, tenantId, isAuthenticated, onSignOut, onChangePassword, onApiKeys }: Readonly<{ userName?: string; tenantId?: string; isAuthenticated: boolean; onSignOut?: () => void; onChangePassword?: () => void; onApiKeys?: () => void }>) {
+function UserAvatarMenu({ userName, tenantId: _tenantId, isAuthenticated, onSignOut, onChangePassword, onApiKeys }: Readonly<{ userName?: string; tenantId?: string; isAuthenticated: boolean; onSignOut?: () => void; onChangePassword?: () => void; onApiKeys?: () => void }>) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const avatarText = useMemo(() => initials(userName), [userName])
@@ -479,13 +479,12 @@ export default function HomeScreen({
             <h1 className="font-[Outfit] text-[44px] font-extrabold tracking-[0.04em] text-white drop-shadow-sm sm:text-[52px]">
               Open<span className="uppercase">case</span>
             </h1>
-            <span className="hidden rounded-full border border-white/25 bg-white/10 px-2.5 py-0.5 text-[11px] font-medium tracking-wider text-white/70 backdrop-blur-sm sm:inline-block">
+            {/* <span className="hidden rounded-full border border-white/25 bg-white/10 px-2.5 py-0.5 text-[11px] font-medium tracking-wider text-white/70 backdrop-blur-sm sm:inline-block">
               1EdTech CASE&reg;
-            </span>
+            </span> */}
           </div>
-          <p className="mt-3 max-w-lg text-[15px] leading-relaxed tracking-wide text-white/80 sm:text-base">
-            Author, manage, and publish interoperable competency frameworks
-            &mdash; built on the 1EdTech CASE&reg; standard.
+          <p className="mt-3 max-w-xlg text-white/80 sm:text-base  text-[15px] leading-relaxed tracking-wide">
+          Build clear, connected frameworks for courses, competencies, and skills.
           </p>
         </div>
       </div>

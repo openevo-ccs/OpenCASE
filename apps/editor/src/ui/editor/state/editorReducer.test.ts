@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { editorReducer, type EditorState } from './editorReducer'
-import { makeFrameworkNode, makeItemNode, makeEdge, makeSeqEdge } from '@/__tests__/fixtures'
+import { makeFrameworkNode, makeItemNode, makeEdge } from '@/__tests__/fixtures'
 
 // ── Helpers ────────────────────────────────────────────────────────────
 

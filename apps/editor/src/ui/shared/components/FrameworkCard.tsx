@@ -108,7 +108,6 @@ export function FrameworkCard({
   const statusInfo = adoptionStatus ? STATUS_STYLE[adoptionStatus] : undefined
 
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       onClick={clickable ? onClick : undefined}
       className={cn(

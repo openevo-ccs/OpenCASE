@@ -30,7 +30,7 @@ type LabeledEdgeData = {
   parallelCount?: number
 }
 
-export type LabeledEdge = Edge<LabeledEdgeData, 'labeled'>
+export type LabeledEdgeType = Edge<LabeledEdgeData, 'labeled'>
 
 /**
  * Custom edge that renders a rich label with sequence number prominently displayed

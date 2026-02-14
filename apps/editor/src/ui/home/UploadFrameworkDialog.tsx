@@ -82,6 +82,16 @@ export default function UploadFrameworkDialog({
     }
   }, [title])
 
+  const resetForm = useCallback(() => {
+    setFile(null)
+    setParseResult(null)
+    setParsing(false)
+    setTitle('')
+    setFrameworkType('K-12')
+    setAdoptionStatus('Draft')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [])
+
   const handleUpload = useCallback(() => {
     if (!canUpload || !parseResult) return
 
@@ -93,17 +103,7 @@ export default function UploadFrameworkDialog({
 
     onUpload(framework)
     resetForm()
-  }, [canUpload, parseResult, title, frameworkType, adoptionStatus, onUpload])
-
-  const resetForm = useCallback(() => {
-    setFile(null)
-    setParseResult(null)
-    setParsing(false)
-    setTitle('')
-    setFrameworkType('K-12')
-    setAdoptionStatus('Draft')
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [])
+  }, [canUpload, parseResult, title, frameworkType, adoptionStatus, onUpload, resetForm])
 
   const handleCancel = useCallback(() => {
     resetForm()

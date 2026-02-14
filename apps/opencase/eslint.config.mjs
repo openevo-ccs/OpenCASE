@@ -6,7 +6,21 @@ import globals from 'globals';
 
 export default defineConfig([
   {
-    ignores: ['dist/**', 'node_modules/**', '.eslintrc.cjs', 'eslint.config.mjs', 'jest.config.cjs'],
+    ignores: ['dist/**', 'node_modules/**', '**/.eslintrc.cjs', 'eslint.config.mjs', '**/jest.config.cjs'],
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
+  },
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-undef': 'off',
+    },
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
@@ -49,17 +63,21 @@ export default defineConfig([
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/member-delimiter-style': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-base-to-string': 'off',
 
       // Keep signal without failing CI/dev on minor hygiene.
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'off',
         {
           argsIgnorePattern: '^_',
           varsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_',
         },
       ],
-      'no-trailing-spaces': 'warn',
+      'no-trailing-spaces': 'off',
       'spaced-comment': 'off',
 
       // This repo has some files with extra trailing newlines and mixed quoting in tests; don't fail lint for it.

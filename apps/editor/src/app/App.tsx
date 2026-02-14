@@ -164,7 +164,7 @@ function AppInner() {
           }
         }, 500)
       })
-  }, [completeSignIn])
+  }, [completeSignIn, getRoute])
 
   // Force unauthenticated users onto the login route.
   useEffect(() => {
@@ -418,7 +418,7 @@ function AppInner() {
       
       console.log('[App] Saved successfully')
     },
-    [api, tenantId, caseApiVersion],
+    [api, tenantId, caseApiVersion, activeFrameworkId],
   )
 
   if (authCallbackState === 'processing') {

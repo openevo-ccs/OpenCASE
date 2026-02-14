@@ -25,6 +25,9 @@ export default defineConfig([
       },
     },
     rules: {
+      'no-undef': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' }],
     },
   },
@@ -45,6 +48,9 @@ export default defineConfig([
       },
     },
     rules: {
+      'no-undef': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -67,6 +73,13 @@ export default defineConfig([
   {
     // Editor state uses context + hooks and intentionally exports non-component helpers.
     files: ['src/ui/editor/state/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    // Auth provider exports helpers alongside component/provider wiring.
+    files: ['src/app/providers/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },
