@@ -22,9 +22,11 @@ type Props = {
   onChange: (color: string | undefined) => void
   /** Label displayed above the picker. Defaults to "Color band" */
   label?: string
+  /** CSS class for the label. Defaults to "text-xs font-medium text-slate-700" */
+  labelClassName?: string
 }
 
-export default function ColorBandPicker({ value, onChange, label = 'Color band' }: Readonly<Props>) {
+export default function ColorBandPicker({ value, onChange, label = 'Color band', labelClassName }: Readonly<Props>) {
   const [hexInput, setHexInput] = useState(value ?? '')
 
   const handlePresetClick = useCallback(
@@ -60,7 +62,7 @@ export default function ColorBandPicker({ value, onChange, label = 'Color band' 
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium text-slate-700">{label}</label>
+      {label ? <label className={labelClassName ?? 'text-xs font-medium text-slate-700'}>{label}</label> : null}
 
       {/* Preset palette */}
       <div className="flex flex-wrap gap-1.5">

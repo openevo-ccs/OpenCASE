@@ -18,6 +18,27 @@ import LoginScreen from '@/ui/auth/LoginScreen'
 import { detectTopology } from '@/ui/editor/layout/detectTopology'
 import { applyInitialLayout } from '@/ui/editor/layout/applyInitialLayout'
 
+/** Extract CFDefinitions from a raw CFPackage response and merge into tenant state */
+function extractCfDefinitions(pkg: unknown): {
+  CFItemTypes?: CFItemType[]
+  CFSubjects?: CFSubject[]
+  CFConcepts?: CFConcept[]
+  CFAssociationGroupings?: CFAssociationGrouping[]
+} {
+  const p = pkg as Record<string, unknown> | null
+  if (!p) return {}
+  // Handle both wrapped { CFPackage: { ... } } and unwrapped formats
+  const inner = (p.CFPackage ?? p) as Record<string, unknown>
+  const defs = inner.CFDefinitions as Record<string, unknown[]> | undefined
+  if (!defs) return {}
+  return {
+    CFItemTypes: Array.isArray(defs.CFItemTypes) ? (defs.CFItemTypes as CFItemType[]) : undefined,
+    CFSubjects: Array.isArray(defs.CFSubjects) ? (defs.CFSubjects as CFSubject[]) : undefined,
+    CFConcepts: Array.isArray(defs.CFConcepts) ? (defs.CFConcepts as CFConcept[]) : undefined,
+    CFAssociationGroupings: Array.isArray(defs.CFAssociationGroupings) ? (defs.CFAssociationGroupings as CFAssociationGrouping[]) : undefined,
+  }
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -50,6 +71,39 @@ function AppInner() {
   // Track which framework IDs have been published to OpenCASE
   // (either loaded from the server or successfully saved)
   const [publishedFrameworkIds, setPublishedFrameworkIds] = useState<Set<string>>(new Set())
+
+  /** Merge CFDefinitions from a loaded CFPackage into the tenant state (additive, no overwrites) */
+  const mergeCfDefinitions = useCallback((pkg: unknown) => {
+    const defs = extractCfDefinitions(pkg)
+    if (defs.CFItemTypes?.length) {
+      setTenantCfItemTypes((prev) => {
+        const ids = new Set(prev.map((d) => d.identifier))
+        const newOnes = defs.CFItemTypes!.filter((d) => !ids.has(d.identifier))
+        return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+      })
+    }
+    if (defs.CFSubjects?.length) {
+      setTenantCfSubjects((prev) => {
+        const ids = new Set(prev.map((d) => d.identifier))
+        const newOnes = defs.CFSubjects!.filter((d) => !ids.has(d.identifier))
+        return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+      })
+    }
+    if (defs.CFConcepts?.length) {
+      setTenantCfConcepts((prev) => {
+        const ids = new Set(prev.map((d) => d.identifier))
+        const newOnes = defs.CFConcepts!.filter((d) => !ids.has(d.identifier))
+        return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+      })
+    }
+    if (defs.CFAssociationGroupings?.length) {
+      setTenantCfAssociationGroupings((prev) => {
+        const ids = new Set(prev.map((d) => d.identifier))
+        const newOnes = defs.CFAssociationGroupings!.filter((d) => !ids.has(d.identifier))
+        return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+      })
+    }
+  }, [])
 
   const [authCallbackState, setAuthCallbackState] = useState<'idle' | 'processing' | 'error'>('idle')
   const [remoteOpenState, setRemoteOpenState] = useState<'idle' | 'loading'>('idle')
@@ -103,8 +157,15 @@ function AppInner() {
   useEffect(() => {
     if (authStatus !== 'authenticated' || !tenantId) return
     let cancelled = false
+    console.log('[App] Fetching definitions catalogue for tenant:', tenantId)
     api.listDefinitions({ tenantId }).then((defs) => {
       if (cancelled) return
+      console.log('[App] Definitions loaded:', {
+        CFItemTypes: defs.CFItemTypes?.length ?? 0,
+        CFSubjects: defs.CFSubjects?.length ?? 0,
+        CFConcepts: defs.CFConcepts?.length ?? 0,
+        CFAssociationGroupings: defs.CFAssociationGroupings?.length ?? 0,
+      })
       if (defs.CFItemTypes && defs.CFItemTypes.length > 0) {
         setTenantCfItemTypes(defs.CFItemTypes)
       }
@@ -117,8 +178,8 @@ function AppInner() {
       if (defs.CFAssociationGroupings && defs.CFAssociationGroupings.length > 0) {
         setTenantCfAssociationGroupings(defs.CFAssociationGroupings)
       }
-    }).catch(() => {
-      // Non-fatal: editor still works, combobox just won't have seed options
+    }).catch((err) => {
+      console.warn('[App] Failed to load definitions catalogue:', err)
     })
     return () => { cancelled = true }
   }, [authStatus, tenantId, api])
@@ -200,6 +261,9 @@ function AppInner() {
         // Fetch the CASE package from the API
         const pkg = await api.getCfPackage({ docId, caseVersion: 'v1p1' })
 
+        // Extract CFDefinitions (item types, subjects, concepts, groupings) from the package
+        mergeCfDefinitions(pkg)
+
         // Extract layout and editor settings from CASE extensions before converting to domain model
         const layout = extractLayoutFromCfPackage(pkg)
         const editorSettings = extractEditorSettingsFromCfPackage(pkg)
@@ -249,7 +313,7 @@ function AppInner() {
         setRemoteOpenState('idle')
       }
     },
-    [api],
+    [api, mergeCfDefinitions],
   )
 
   // Derive the graph from the active framework

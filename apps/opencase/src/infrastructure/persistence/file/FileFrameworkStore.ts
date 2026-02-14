@@ -1042,10 +1042,25 @@ export class FileFrameworkStore {
   ): Record<DefinitionCategory, any[]> {
     const categories: DefinitionCategory[] = ['CFConcepts', 'CFSubjects', 'CFLicenses', 'CFItemTypes', 'CFAssociationGroupings']
     const versionMap = this.definitionsIndex.get(tenantId)?.get(version)
+
+    // Always merge seed defaults so the catalogue is complete
+    // even if the server hasn't been restarted after seed expansion.
+    const seedMap: Array<[DefinitionCategory, Array<{ identifier: string }>]> = [
+      ['CFLicenses', DEFAULT_LICENSES],
+      ['CFConcepts', DEFAULT_CONCEPTS],
+      ['CFSubjects', DEFAULT_SUBJECTS],
+      ['CFItemTypes', DEFAULT_ITEM_TYPES],
+      ['CFAssociationGroupings', DEFAULT_ASSOCIATION_GROUPINGS],
+    ]
+    const seedLookup = new Map(seedMap)
+
     const result: any = {}
     for (const c of categories) {
       const catMap = versionMap?.get(c)
-      result[c] = catMap ? Array.from(catMap.values()).map(e => e.value) : []
+      const existing = catMap ? Array.from(catMap.values()).map(e => e.value) : []
+      const existingIds = new Set(existing.map((e: any) => e.identifier))
+      const seeds = (seedLookup.get(c) ?? []).filter(s => !existingIds.has(s.identifier))
+      result[c] = [...existing, ...seeds]
     }
     return result
   }

@@ -22,6 +22,8 @@ export type TagComboboxInputProps = Readonly<{
   id?: string
   /** Additional CSS classes on the wrapper */
   className?: string
+  /** CSS class for individual tag chips. Defaults to violet pill style. */
+  tagClassName?: string
 }>
 
 const LISTBOX_ID_SUFFIX = '-listbox'
@@ -44,6 +46,7 @@ export function TagComboboxInput({
   placeholder,
   id,
   className,
+  tagClassName,
 }: TagComboboxInputProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
@@ -57,17 +60,21 @@ export function TagComboboxInput({
   // Set of current values for quick lookup
   const valuesSet = React.useMemo(() => new Set(values), [values])
 
-  // Filter options: exclude already-selected, match by case-insensitive substring
-  const filtered = React.useMemo(() => {
+  const MAX_VISIBLE = 5
+
+  // Filter options: exclude already-selected, match by case-insensitive substring, cap to MAX_VISIBLE
+  const { filtered, totalCount } = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    return (options as TagComboboxOption[]).filter((o) => {
+    const all = (options as TagComboboxOption[]).filter((o) => {
       if (valuesSet.has(o.value)) return false
       if (!q) return true
       return o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q)
     })
+    return { filtered: all.slice(0, MAX_VISIBLE), totalCount: all.length }
   }, [options, query, valuesSet])
 
   const isExactMatch = options.some((o) => o.value.toLowerCase() === query.trim().toLowerCase())
+  const hasMore = totalCount > MAX_VISIBLE
 
   // Close when clicking outside
   React.useEffect(() => {
@@ -148,7 +155,7 @@ export function TagComboboxInput({
   }
 
   return (
-    <div ref={wrapperRef} className={cn('relative', className)}>
+    <div ref={wrapperRef} className={cn('', className)}>
       {/* Tags + input area */}
       <div
         className="flex min-h-[36px] flex-wrap items-center gap-1 rounded-md border border-input bg-background px-2 py-1 shadow-xs transition-colors focus-within:ring-[3px] focus-within:ring-ring/50"
@@ -157,7 +164,7 @@ export function TagComboboxInput({
         {values.map((v) => (
           <span
             key={v}
-            className="inline-flex items-center gap-0.5 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700"
+            className={tagClassName ?? 'inline-flex items-center gap-0.5 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700'}
           >
             {v}
             <button
@@ -199,6 +206,26 @@ export function TagComboboxInput({
           placeholder={values.length === 0 ? placeholder : undefined}
           className="min-w-[80px] flex-1 border-0 bg-transparent py-0.5 text-sm outline-none placeholder:text-muted-foreground"
         />
+        {/* Clear all button — visible when values exist */}
+        {values.length > 0 && (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Clear all"
+            onClick={(e) => {
+              e.stopPropagation()
+              onChange([])
+              setQuery('')
+              setOpen(false)
+              inputRef.current?.focus()
+            }}
+            className="flex shrink-0 items-center justify-center text-slate-300 hover:text-slate-500"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
         <button
           type="button"
           tabIndex={-1}
@@ -227,7 +254,7 @@ export function TagComboboxInput({
           ref={listboxRef}
           id={listboxId}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          className="mt-1 max-h-[280px] w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-sm"
         >
           {filtered.map((opt, idx) => {
             const highlighted = idx === highlightIdx
@@ -255,11 +282,16 @@ export function TagComboboxInput({
               </div>
             )
           })}
-          {!isExactMatch && query.trim() && (
-            <div className="border-t border-slate-100 px-3 py-2 text-xs text-slate-400">
-              Press Enter to add: &ldquo;{query.trim()}&rdquo;
-            </div>
-          )}
+          {/* Footer hints */}
+          <div className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-relaxed text-slate-400">
+            {!isExactMatch && query.trim() ? (
+              <span>Press Enter to add &ldquo;{query.trim()}&rdquo;</span>
+            ) : hasMore ? (
+              <span>Type to search {totalCount - MAX_VISIBLE} more…</span>
+            ) : (
+              <span>Type to search or add new</span>
+            )}
+          </div>
         </div>
       )}
     </div>

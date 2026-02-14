@@ -44,16 +44,21 @@ export function ComboboxInput({ value, onChange, onCommit, options, placeholder,
 
   const listboxId = id ? `${id}${LISTBOX_ID_SUFFIX}` : undefined
 
-  // Filter options by case-insensitive substring match on the current value
-  const filtered = React.useMemo(() => {
+  const MAX_VISIBLE = 5
+
+  // Filter options by case-insensitive substring match on the current value, capped to MAX_VISIBLE
+  const { filtered, totalCount } = React.useMemo(() => {
     const q = value.trim().toLowerCase()
-    if (!q) return options as ComboboxOption[]
-    return (options as ComboboxOption[]).filter(
-      (o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
-    )
+    const all = !q
+      ? (options as ComboboxOption[])
+      : (options as ComboboxOption[]).filter(
+          (o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
+        )
+    return { filtered: all.slice(0, MAX_VISIBLE), totalCount: all.length }
   }, [options, value])
 
   const isMatch = options.some((o) => o.value === value)
+  const hasMore = totalCount > MAX_VISIBLE
 
   // Close when clicking outside
   React.useEffect(() => {
@@ -118,7 +123,7 @@ export function ComboboxInput({ value, onChange, onCommit, options, placeholder,
   }
 
   return (
-    <div ref={wrapperRef} className={cn('relative', className)}>
+    <div ref={wrapperRef} className={cn('', className)}>
       <div className="relative">
         <input
           ref={inputRef}
@@ -142,8 +147,30 @@ export function ComboboxInput({ value, onChange, onCommit, options, placeholder,
           }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex h-9 w-full rounded-md border border-input bg-background py-1 pl-3 pr-8 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className={cn(
+            'flex h-9 w-full rounded-md border border-input bg-background py-1 pl-3 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+            value.trim() ? 'pr-14' : 'pr-8',
+          )}
         />
+        {/* Clear button — visible when a value is set */}
+        {value.trim() && (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Clear value"
+            onClick={() => {
+              onChange('')
+              onCommit?.('')
+              setOpen(false)
+              inputRef.current?.focus()
+            }}
+            className="absolute inset-y-0 right-7 flex w-7 items-center justify-center text-slate-300 hover:text-slate-500"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
         <button
           type="button"
           tabIndex={-1}
@@ -165,7 +192,7 @@ export function ComboboxInput({ value, onChange, onCommit, options, placeholder,
           ref={listboxRef}
           id={listboxId}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          className="mt-1 max-h-[280px] w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-sm"
         >
           {filtered.map((opt, idx) => {
             const selected = opt.value === value
@@ -202,11 +229,16 @@ export function ComboboxInput({ value, onChange, onCommit, options, placeholder,
               </div>
             )
           })}
-          {!isMatch && value.trim() && (
-            <div className="border-t border-slate-100 px-3 py-2 text-xs text-slate-400">
-              Using custom value: &ldquo;{value}&rdquo;
-            </div>
-          )}
+          {/* Footer hints */}
+          <div className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-relaxed text-slate-400">
+            {!isMatch && value.trim() ? (
+              <span>Create &ldquo;{value}&rdquo;</span>
+            ) : hasMore ? (
+              <span>Type to search {totalCount - MAX_VISIBLE} more…</span>
+            ) : (
+              <span>Type to search or create new</span>
+            )}
+          </div>
         </div>
       )}
     </div>
