@@ -7,6 +7,8 @@ export interface GetCFItemAssociationsQuery {
   tenantId: TenantId
   caseVersion: CaseVersion
   sourcedId: SourcedId
+  /** When set, load data from this version's storage but serialize using caseVersion semantics. */
+  loadVersion?: CaseVersion
 }
 
 export class GetCFItemAssociations {
@@ -18,12 +20,15 @@ export class GetCFItemAssociations {
   async execute (query: GetCFItemAssociationsQuery) {
     // logger.info({ query }, 'Executing GetCFItemAssociations')
 
+    // Use loadVersion for storage access if provided
+    const storageVersion = query.loadVersion ?? query.caseVersion
+
     // Find which document contains this item
-    const docId = this.store.getDocumentIdForItem(query.tenantId, query.caseVersion, query.sourcedId)
+    const docId = this.store.getDocumentIdForItem(query.tenantId, storageVersion, query.sourcedId)
     if (!docId) return null
 
     // Load the package containing this item
-    const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, docId)
+    const pkg = await this.pkgRepo.load(query.tenantId, storageVersion, docId)
     if (!pkg) return null
 
     // Verify the item exists
@@ -40,9 +45,11 @@ export class GetCFItemAssociations {
       return originId === query.sourcedId || destId === query.sourcedId
     })
 
+    // Pass caseVersion to toJSON for correct field stripping when downconverting
+    const serializeAs = query.loadVersion ? query.caseVersion : undefined
     return {
-      CFItem: item.toJSON(),
-      CFAssociations: associations.map(a => a.toJSON())
+      CFItem: item.toJSON(serializeAs),
+      CFAssociations: associations.map(a => a.toJSON(serializeAs))
     }
   }
 }

@@ -33,6 +33,17 @@ export class GetAllCFDocuments {
       documents = this.store.getAllDocumentsGlobal().map(d => ({ meta: d.metadata, caseVersion: d.caseVersion }))
     }
 
+    // Deduplicate: if the same docId exists in both v1p0 and v1p1, prefer v1p1.
+    // This can happen when a v1p0 framework is re-saved via the editor (which always saves as v1p1).
+    const docMap = new Map<string, typeof documents[0]>()
+    for (const doc of documents) {
+      const existing = docMap.get(doc.meta.sourcedId)
+      if (!existing || doc.caseVersion === '1.1') {
+        docMap.set(doc.meta.sourcedId, doc)
+      }
+    }
+    documents = Array.from(docMap.values())
+
     // Filter server-level archived documents unless includeArchived is true
     if (!query.includeArchived) {
       documents = documents.filter(doc => doc.meta.archived !== true)

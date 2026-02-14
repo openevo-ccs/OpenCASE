@@ -175,8 +175,9 @@ export class CFItem {
 
   get sourcedId(): SourcedId { return this.props.sourcedId; }
 
-  toJSON() {
+  toJSON(serializeAs?: CaseVersion) {
     const { tenantId, caseVersion, sourcedId, ...rest } = this.props;
+    const effectiveVersion = serializeAs ?? caseVersion;
     const result: any = {
       identifier: sourcedId, // Map sourcedId to identifier for spec compliance
       ...rest,
@@ -189,7 +190,7 @@ export class CFItem {
     delete result.sourcedId;
 
     // CASE 1.0 strictness: do not emit CASE 1.1-only fields
-    if (caseVersion === '1.0') {
+    if (effectiveVersion === '1.0') {
       delete result.subject
       delete result.subjectURI
       delete result.extensions

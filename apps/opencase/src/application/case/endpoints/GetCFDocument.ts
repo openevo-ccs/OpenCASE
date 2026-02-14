@@ -7,6 +7,8 @@ export interface GetCFDocumentQuery {
   tenantId: TenantId
   caseVersion: CaseVersion
   sourcedId: SourcedId
+  /** When set, load data from this version's storage but serialize using caseVersion semantics. */
+  loadVersion?: CaseVersion
 }
 
 export class GetCFDocument {
@@ -15,13 +17,14 @@ export class GetCFDocument {
   async execute (query: GetCFDocumentQuery) {
     //logger.info({ query }, 'Executing GetCFDocument')
     
-    // Load the package containing this document
-    const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, query.sourcedId)
+    // Load the package — use loadVersion for storage access if provided
+    const storageVersion = query.loadVersion ?? query.caseVersion
+    const pkg = await this.pkgRepo.load(query.tenantId, storageVersion, query.sourcedId)
     if (!pkg) return null
 
     // Note: Get by ID returns archived documents regardless - filtering only applies to list endpoints
 
-    // Generate CFPackageURI for the document
+    // Generate CFPackageURI — uses caseVersion for URI generation
     const basePath = query.caseVersion === '1.1' ? '/ims/case/v1p1' : '/ims/case/v1p0'
     const packageURI: LinkData = {
       title: 'CFPackage',
@@ -29,7 +32,9 @@ export class GetCFDocument {
       uri: `${basePath}/CFPackages/${query.sourcedId}`
     }
 
-    const documentJSON = pkg.document.toJSON()
+    // Pass caseVersion to toJSON for correct field stripping when downconverting
+    const serializeAs = query.loadVersion ? query.caseVersion : undefined
+    const documentJSON = pkg.document.toJSON(serializeAs)
     // Add CFPackageURI if not already present
     if (!documentJSON.CFPackageURI) {
       documentJSON.CFPackageURI = packageURI

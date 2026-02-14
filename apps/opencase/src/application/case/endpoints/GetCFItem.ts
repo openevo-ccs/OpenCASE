@@ -7,6 +7,8 @@ export interface GetCFItemQuery {
   tenantId: TenantId
   caseVersion: CaseVersion
   sourcedId: SourcedId
+  /** When set, load data from this version's storage but serialize using caseVersion semantics. */
+  loadVersion?: CaseVersion
 }
 
 export class GetCFItem {
@@ -18,19 +20,24 @@ export class GetCFItem {
   async execute (query: GetCFItemQuery) {
     logger.info({ query }, 'Executing GetCFItem')
 
+    // Use loadVersion for storage access if provided
+    const storageVersion = query.loadVersion ?? query.caseVersion
+
     // Find which document contains this item
-    const docId = this.store.getDocumentIdForItem(query.tenantId, query.caseVersion, query.sourcedId)
+    const docId = this.store.getDocumentIdForItem(query.tenantId, storageVersion, query.sourcedId)
     if (!docId) return null
 
     // Load the package containing this item
-    const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, docId)
+    const pkg = await this.pkgRepo.load(query.tenantId, storageVersion, docId)
     if (!pkg) return null
 
     // Find the specific item
     const item = pkg.items.find(i => i.sourcedId === query.sourcedId)
     if (!item) return null
 
-    return item.toJSON()
+    // Pass caseVersion to toJSON for correct field stripping when downconverting
+    const serializeAs = query.loadVersion ? query.caseVersion : undefined
+    return item.toJSON(serializeAs)
   }
 }
 

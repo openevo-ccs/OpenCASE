@@ -369,8 +369,10 @@ function AppInner() {
         ?? '1.1') as CaseVersion)
     : '1.1'
   
-  // Determine CASE API version for requests
-  const caseApiVersion: 'v1p0' | 'v1p1' = activeCaseVersion === '1.0' ? 'v1p0' : 'v1p1'
+  // Always save/archive via v1p1 management endpoints.
+  // The backend serves frameworks transparently over both v1p0 and v1p1 public APIs
+  // via on-the-fly downconversion, so a single v1p1 store is sufficient.
+  const caseApiVersion: 'v1p0' | 'v1p1' = 'v1p1'
 
   // Handler to archive the active framework on the server
   // Must be defined before early returns (React hooks rules)

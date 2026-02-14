@@ -146,8 +146,9 @@ export class CFDocument {
   get caseVersion(): CaseVersion { return this.props.caseVersion; }
   get sourcedId(): SourcedId { return this.props.sourcedId; }
 
-  toJSON() {
+  toJSON(serializeAs?: CaseVersion) {
     const { tenantId, caseVersion, sourcedId, licenceUri, ...rest } = this.props;
+    const effectiveVersion = serializeAs ?? caseVersion;
     const result: any = {
       identifier: sourcedId, // Map sourcedId to identifier for spec compliance
       ...rest,
@@ -170,7 +171,7 @@ export class CFDocument {
     }
 
     // CASE 1.0 strictness: do not emit CASE 1.1-only fields
-    if (caseVersion === '1.0') {
+    if (effectiveVersion === '1.0') {
       delete result.frameworkType
       delete result.extensions
     }

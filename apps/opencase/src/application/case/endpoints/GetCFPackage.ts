@@ -8,6 +8,8 @@ export interface GetCFPackageQuery {
   tenantId: TenantId
   caseVersion: CaseVersion
   docId: SourcedId
+  /** When set, load data from this version's storage but serialize using caseVersion semantics. */
+  loadVersion?: CaseVersion
 }
 
 export class GetCFPackage {
@@ -17,14 +19,15 @@ export class GetCFPackage {
   ) {}
 
   async execute(query: GetCFPackageQuery) {
-    logger.info({ query }, 'Executing GetCFPackage')
-    const pkg = await this.pkgRepo.load(query.tenantId, query.caseVersion, query.docId)
+    const storageVersion = query.loadVersion ?? query.caseVersion
+    logger.info({ query, storageVersion }, 'Executing GetCFPackage')
+    const pkg = await this.pkgRepo.load(query.tenantId, storageVersion, query.docId)
     logger.info({ pkg }, 'Loaded CFPackage')
     if (!pkg) return null
 
     // Note: Get by ID returns archived packages regardless - filtering only applies to list endpoints
 
-    // Generate CFPackageURI for the document
+    // Generate CFPackageURI for the document — uses caseVersion for URI generation
     const basePath = query.caseVersion === '1.1' ? '/ims/case/v1p1' : '/ims/case/v1p0'
     const packageURI: LinkData = {
       title: 'CFPackage',
@@ -32,7 +35,9 @@ export class GetCFPackage {
       uri: `${basePath}/CFPackages/${query.docId}`
     }
 
-    const documentJSON = pkg.document.toJSON()
+    // Pass caseVersion to toJSON for correct field stripping (e.g. v1.0 omits v1.1-only fields)
+    const serializeAs = query.loadVersion ? query.caseVersion : undefined
+    const documentJSON = pkg.document.toJSON(serializeAs)
     // Add CFPackageURI if not already present
     if (!documentJSON.CFPackageURI) {
       documentJSON.CFPackageURI = packageURI
@@ -40,15 +45,15 @@ export class GetCFPackage {
 
     const result: any = {
       CFDocument: documentJSON,
-      CFItems: pkg.items.map(i => i.toJSON()),
-      CFAssociations: pkg.associations.map(a => a.toJSON())
+      CFItems: pkg.items.map(i => i.toJSON(serializeAs)),
+      CFAssociations: pkg.associations.map(a => a.toJSON(serializeAs))
     }
 
     // ── Build CFDefinitions (optional [0..1]) ────────────────────
     // Merge tenant-wide seed definitions with per-framework definitions,
     // then filter each category to only those actually referenced by
     // this package's document, items, and associations.
-    const tenantDefs = this.store.getTenantDefinitions(query.tenantId, query.caseVersion)
+    const tenantDefs = this.store.getTenantDefinitions(query.tenantId, storageVersion)
     const frameworkDefs = pkg.definitions ?? null
     const mergeById = (tenantList: any[], frameworkList: any[]) => {
       const map = new Map<string, any>()
@@ -161,7 +166,7 @@ export class GetCFPackage {
 
     // Add CFRubrics if present (optional field [0..*])
     if (pkg.rubrics && pkg.rubrics.length > 0) {
-      result.CFRubrics = pkg.rubrics.map(r => r.toJSON())
+      result.CFRubrics = pkg.rubrics.map(r => r.toJSON(serializeAs))
     }
 
     // Add extensions if present (optional field [0..1])

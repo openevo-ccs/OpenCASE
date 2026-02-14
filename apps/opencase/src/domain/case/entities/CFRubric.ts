@@ -62,8 +62,9 @@ export class CFRubric {
   get tenantId(): TenantId { return this.props.tenantId }
   get caseVersion(): CaseVersion { return this.props.caseVersion }
 
-  toJSON() {
+  toJSON(serializeAs?: CaseVersion) {
     const { tenantId, caseVersion, ...rest } = this.props
+    const effectiveVersion = serializeAs ?? caseVersion
     const result: any = {
       ...rest,
       lastChangeDateTime: this.props.lastChangeDateTime.toISOString()
@@ -74,7 +75,7 @@ export class CFRubric {
     delete result.caseVersion
     
     // CASE 1.0 strictness: do not emit CASE 1.1-only fields
-    if (caseVersion === '1.0') {
+    if (effectiveVersion === '1.0') {
       delete result.extensions
     }
     

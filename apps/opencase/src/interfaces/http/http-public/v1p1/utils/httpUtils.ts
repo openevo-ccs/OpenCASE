@@ -61,9 +61,20 @@ function isRelativeCasePath (uri: unknown): uri is string {
 }
 
 /**
+ * Normalize the version segment in a relative CASE path to match the target caseVersion.
+ * e.g. '/ims/case/v1p1/CFItems/abc' → '/ims/case/v1p0/CFItems/abc' when caseVersion is '1.0'
+ */
+function normalizeCaseVersionInPath (path: string, caseVersion: CaseVersion): string {
+  const targetSegment = caseVersion === '1.0' ? 'v1p0' : 'v1p1'
+  return path.replace(/\/ims\/case\/v1p[01]\//, `/ims/case/${targetSegment}/`)
+}
+
+/**
  * Normalize outgoing payloads so any CASE `uri` fields (and LinkData `.uri`) are absolute.
  * We only rewrite known relative CASE paths to avoid mangling external URLs.
  * Also handles URN Case URIs as defense-in-depth (though they should be transformed on input).
+ * When the stored data's version differs from the target caseVersion, URI version segments
+ * are normalized (e.g. v1p1 → v1p0) before absolutizing.
  */
 export function absolutizeCaseUris<T> (payload: T, baseUrl: string, caseVersion: CaseVersion = '1.1'): T {
   const seen = new WeakSet<object>()
@@ -80,9 +91,9 @@ export function absolutizeCaseUris<T> (payload: T, baseUrl: string, caseVersion:
         }
         return `${baseUrl}${relativePath}`
       }
-      // Handle relative CASE paths
+      // Handle relative CASE paths — normalize version segment before absolutizing
       if (isRelativeCasePath(value)) {
-        return `${baseUrl}${value}`
+        return `${baseUrl}${normalizeCaseVersionInPath(value, caseVersion)}`
       }
       return value
     }
@@ -108,7 +119,7 @@ export function absolutizeCaseUris<T> (payload: T, baseUrl: string, caseVersion:
               out[k] = `${baseUrl}${relativePath}`
             }
           } else if (isRelativeCasePath(v)) {
-            out[k] = `${baseUrl}${v}`
+            out[k] = `${baseUrl}${normalizeCaseVersionInPath(v, caseVersion)}`
           } else {
             out[k] = v
           }

@@ -28,23 +28,19 @@ export class CFItemsControllerV1p0 {
         return res.status(404).json(StatusInfoFormatter.notFound('The requested CFItem was not found.'))
       }
 
-      if (resolved.version !== '1.0') {
-        return res.status(409).json(StatusInfoFormatter.internalError(
-          `CFItem '${sourcedId}' exists in CASE v1p1. Use GET /ims/case/v1p1/CFItems/${sourcedId} (and related v1p1 endpoints).`
-        ))
-      }
-
       // Access control: check parent framework's license
       if (!(req as any).isAuthenticated) {
-        if (!this.store.isDocumentPublic(resolved.tenantId, '1.0', resolved.docSourcedId)) {
+        if (!this.store.isDocumentPublic(resolved.tenantId, resolved.version, resolved.docSourcedId)) {
           return res.status(401).json(StatusInfoFormatter.unauthorized('Authentication required to access this item.'))
         }
       }
 
+      // On-the-fly downconversion: if stored as v1p1, load from there but serialize as v1p0
       const result = await this.getCFItem.execute({
         tenantId: resolved.tenantId,
         caseVersion: '1.0',
-        sourcedId
+        sourcedId,
+        loadVersion: resolved.version !== '1.0' ? resolved.version : undefined
       })
 
       if (!result) {

@@ -28,21 +28,17 @@ export class CFPackagesControllerV1p0 {
         return res.status(404).json(StatusInfoFormatter.notFound('The requested CFPackage was not found.'))
       }
 
-      if (resolved.version !== '1.0') {
-        return res.status(409).json(StatusInfoFormatter.internalError(
-          `CFPackage '${docId}' exists in CASE v1p1. Use GET /ims/case/v1p1/CFPackages/${docId} (and related v1p1 endpoints).`
-        ))
-      }
-
       // Access control: unauthenticated requests only see public frameworks
-      if (!(req as any).isAuthenticated && !this.store.isDocumentPublic(resolved.tenantId, '1.0', docId)) {
+      if (!(req as any).isAuthenticated && !this.store.isDocumentPublic(resolved.tenantId, resolved.version, docId)) {
         return res.status(401).json(StatusInfoFormatter.unauthorized('Authentication required to access this framework.'))
       }
 
+      // On-the-fly downconversion: if stored as v1p1, load from there but serialize as v1p0
       const result = await this.getCFPackage.execute({
         tenantId: resolved.tenantId,
         caseVersion: '1.0',
-        docId
+        docId,
+        loadVersion: resolved.version !== '1.0' ? resolved.version : undefined
       })
 
       if (!result) {
