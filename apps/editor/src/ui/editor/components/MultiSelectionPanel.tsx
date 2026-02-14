@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
 import { ComboboxInput } from '@/ui/shared/components/ui/combobox-input'
 import type { ComboboxOption } from '@/ui/shared/components/ui/combobox-input'
 import type { CaseEditorEdge, CaseEditorNodeType, CaseEdgeDataPatch, CaseEditorNodeDataPatch } from '../reactflow/types'
 import { CASE_ASSOCIATION_TYPES, FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '../reactflow/types'
 import ColorBandPicker from '@/ui/editor/components/ColorBandPicker'
-import { useEditor } from '@/ui/editor/state/EditorContext'
+import type { CFAssociationGrouping } from '@/domain/case/types'
 
 /** Human-friendly labels for CASE association types */
 const ASSOCIATION_TYPE_LABELS: Record<string, string> = {
@@ -28,9 +28,12 @@ type Props = {
   onDeleteSelected?: () => void
   onChangeEdge?: (_edgeId: string, _patch: CaseEdgeDataPatch) => void
   onChangeNode?: (_nodeId: string, _patch: CaseEditorNodeDataPatch) => void
+  /** Definition data — passed as props to avoid useEditor() context subscription */
+  cfAssociationGroupings?: CFAssociationGrouping[]
+  ensureCfAssociationGrouping?: (_title: string) => CFAssociationGrouping | null
 }
 
-export default function MultiSelectionPanel({
+export default memo(function MultiSelectionPanel({
   selectedNodeIds,
   selectedEdgeIds,
   nodes,
@@ -39,6 +42,8 @@ export default function MultiSelectionPanel({
   onDeleteSelected,
   onChangeEdge,
   onChangeNode,
+  cfAssociationGroupings = [],
+  ensureCfAssociationGrouping,
 }: Readonly<Props>) {
   const nodeCount = selectedNodeIds.length
   const edgeCount = selectedEdgeIds.length
@@ -108,7 +113,6 @@ export default function MultiSelectionPanel({
   }
 
   // ── Association Grouping bulk editing ──────────────────────────────
-  const { cfAssociationGroupings, ensureCfAssociationGrouping } = useEditor()
 
   const groupingOptions: ComboboxOption[] = useMemo(
     () => cfAssociationGroupings.map((g) => ({ value: g.title ?? g.identifier, label: g.title ?? g.identifier, description: g.description })),
@@ -163,7 +167,7 @@ export default function MultiSelectionPanel({
     >
       <div className="flex items-center justify-between border-b border-black/10 bg-white/70 px-4 py-3 backdrop-blur">
         <div>
-          <div className="text-sm font-bold">Selection</div>
+          <div className="text-sm font-bold">Multi-selection</div>
           <div className="text-xs text-slate-500">
             {totalCount} items selected
           </div>
@@ -318,4 +322,4 @@ export default function MultiSelectionPanel({
       </div>
     </aside>
   )
-}
+})

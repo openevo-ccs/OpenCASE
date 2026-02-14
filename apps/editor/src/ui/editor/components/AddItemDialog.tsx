@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
 import { ComboboxInput } from '@/ui/shared/components/ui/combobox-input'
 import type { ComboboxOption } from '@/ui/shared/components/ui/combobox-input'
@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/ui/shared/components/ui/input'
 import { Label } from '@/ui/shared/components/ui/label'
 import { Textarea } from '@/ui/shared/components/ui/textarea'
-import { useEditor } from '@/ui/editor/state/EditorContext'
+import type { CFItemType, CFSubject } from '@/domain/case/types'
 import { EDUCATION_LEVEL_OPTIONS } from '@/ui/editor/terminology/educationLevels'
 import type { EducationLevelOption } from '@/ui/editor/terminology/educationLevels'
 
@@ -37,10 +37,12 @@ type Props = {
   onChange: (patch: Partial<AddItemDraft>) => void
   onCancel: () => void
   onCreate: () => void
+  /** Definition data — passed as props to avoid useEditor() context subscription */
+  cfItemTypes?: CFItemType[]
+  cfSubjects?: CFSubject[]
 }
 
-export default function AddItemDialog({ open, parentLabel, draft, onChange, onCancel, onCreate }: Readonly<Props>) {
-  const { cfItemTypes, cfSubjects } = useEditor()
+export default memo(function AddItemDialog({ open, parentLabel, draft, onChange, onCancel, onCreate, cfItemTypes = [], cfSubjects = [] }: Readonly<Props>) {
   const [touched, setTouched] = useState(false)
 
   /** Deduplicate options by value (title). First occurrence wins. */
@@ -222,5 +224,4 @@ export default function AddItemDialog({ open, parentLabel, draft, onChange, onCa
       </DialogContent>
     </Dialog>
   )
-}
-
+})

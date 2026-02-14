@@ -271,7 +271,7 @@ export default function CanvasHeader({
         right: reserveRightForPanel ? 'calc(min(460px, 92vw) + 12px)' : 12,
       }}
     >
-      <div className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/70 px-3 py-2 shadow-sm backdrop-blur">
+      <div className="pointer-events-auto flex select-none items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/70 px-3 py-2 shadow-sm backdrop-blur">
         <div className="flex min-w-0 items-center gap-3">
           {onBack ? (
             <button

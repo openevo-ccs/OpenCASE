@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
 import { ComboboxInput } from '@/ui/shared/components/ui/combobox-input'
 import { TagComboboxInput } from '@/ui/shared/components/ui/tag-combobox-input'
@@ -12,9 +12,8 @@ import type {
   ExternalFrameworkNodeType,
   ExternalFrameworkNodeData,
 } from '../reactflow/types'
-import type { CFDocument, CFItem, CFLicense } from '@/domain/case/types'
+import type { CFConcept, CFDocument, CFItem, CFItemType, CFLicense, CFSubject } from '@/domain/case/types'
 import type { ComboboxOption } from '@/ui/shared/components/ui/combobox-input'
-import { useEditor } from '@/ui/editor/state/EditorContext'
 import { EDUCATION_LEVEL_OPTIONS } from '@/ui/editor/terminology/educationLevels'
 import type { EducationLevelOption } from '@/ui/editor/terminology/educationLevels'
 import { getAppConfig } from '@/app/config'
@@ -30,10 +29,16 @@ type Props = {
   isPublishedToOpenCase?: boolean
   /** Available license options fetched from OpenCASE */
   availableLicenses?: CFLicense[]
+  /** Definition data — passed as props to avoid useEditor() context subscription */
+  cfItemTypes?: CFItemType[]
+  ensureCfItemType?: (_title: string) => CFItemType | null
+  cfSubjects?: CFSubject[]
+  ensureCfSubject?: (_title: string) => CFSubject | null
+  cfConcepts?: CFConcept[]
+  ensureCfConcept?: (_title: string) => CFConcept | null
 }
 
-export default function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage, isPublishedToOpenCase, availableLicenses }: Readonly<Props>) {
-  const { cfItemTypes, ensureCfItemType, cfSubjects, ensureCfSubject, cfConcepts, ensureCfConcept } = useEditor()
+export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, onViewCFPackage, isPublishedToOpenCase, availableLicenses, cfItemTypes = [], ensureCfItemType, cfSubjects = [], ensureCfSubject, cfConcepts = [], ensureCfConcept }: Readonly<Props>) {
   const [copied, setCopied] = useState<null | 'code' | 'uri' | 'opencase'>(null)
   // Local state for the concept combobox input text (conceptKeywordsURI is a LinkURI, not a plain string)
   const [conceptInput, setConceptInput] = useState('')
@@ -795,5 +800,4 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
       ) : null}
     </aside>
   )
-}
-
+})

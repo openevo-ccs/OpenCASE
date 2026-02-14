@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/ui/shared/components/ui/button'
 import { ComboboxInput } from '@/ui/shared/components/ui/combobox-input'
 import type { ComboboxOption } from '@/ui/shared/components/ui/combobox-input'
 import type { CaseEdgeDataPatch, CaseEditorEdge, CaseAssociationType } from '../reactflow/types'
 import { CASE_ASSOCIATION_TYPES, FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '../reactflow/types'
 import type { CaseEditorNodeType, CaseItemNodeType, CaseFrameworkNodeType } from '../reactflow/types'
-import { useEditor } from '@/ui/editor/state/EditorContext'
+import type { CFAssociationGrouping } from '@/domain/case/types'
 
 type Props = {
   edge: CaseEditorEdge | null
@@ -13,6 +13,9 @@ type Props = {
   onClose?: () => void
   onChangeEdge?: (_edgeId: string, _patch: CaseEdgeDataPatch) => void
   onFlipEdge?: (_edgeId: string) => void
+  /** Definition data — passed as props to avoid useEditor() context subscription */
+  cfAssociationGroupings?: CFAssociationGrouping[]
+  ensureCfAssociationGrouping?: (_title: string) => CFAssociationGrouping | null
 }
 
 /** Human-friendly labels for CASE association types */
@@ -39,8 +42,7 @@ const ASSOCIATION_TYPE_DESCRIPTIONS: Record<string, string> = {
   isTranslationOf: 'The destination item is a translation of the origin item',
 }
 
-export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge, onFlipEdge }: Readonly<Props>) {
-  const { cfAssociationGroupings, ensureCfAssociationGrouping } = useEditor()
+export default memo(function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge, onFlipEdge, cfAssociationGroupings = [], ensureCfAssociationGrouping }: Readonly<Props>) {
   const [copied, setCopied] = useState<null | 'uri'>(null)
   const [customType, setCustomType] = useState('')
   const [groupingInput, setGroupingInput] = useState('')
@@ -519,4 +521,4 @@ export default function EdgePropertiesPanel({ edge, nodes, onClose, onChangeEdge
       ) : null}
     </aside>
   )
-}
+})

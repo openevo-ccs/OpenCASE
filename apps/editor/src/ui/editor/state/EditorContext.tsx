@@ -11,7 +11,9 @@ import type {
   CaseEditorEdge,
   CaseEditorNodeDataPatch,
   CaseEditorNodeType,
+  CaseFrameworkNodeType,
   CaseItemNodeData,
+  CaseItemNodeType,
   ExternalFrameworkNodeData,
 } from '@/ui/editor/reactflow/types'
 import type { CFAssociationGrouping, CFDocument, CFItem, CFItemType, CFSubject, CFConcept } from '@/domain/case/types'
@@ -320,24 +322,45 @@ export function EditorProvider({
 
   // ── Computed values ──────────────────────────────────────────────────
 
-  // Derive multi-selection IDs from React Flow's `selected` flags on nodes/edges.
-  // This avoids a second reducer dispatch (and re-render) on every selection change.
-  const selectedNodeIds = useMemo(
-    () => state.nodes.filter((n) => n.selected).map((n) => n.id),
-    [state.nodes],
-  )
-  const selectedEdgeIds = useMemo(
-    () => state.edges.filter((e) => e.selected).map((e) => e.id),
-    [state.edges],
-  )
+  // ALL selection state is derived purely from the `selected` flags that React
+  // Flow manages via onNodesChange / onEdgesChange + applyNodeChanges / applyEdgeChanges.
+  // This eliminates the async `onSelectionChange` callback as a source of truth,
+  // which was causing stale/out-of-sync selection during rapid interactions.
 
+  const prevNodeIdsRef = useRef<string[]>([])
+  const selectedNodeIds = useMemo(() => {
+    const ids = state.nodes.filter((n) => n.selected).map((n) => n.id)
+    // Structural equality: return same array ref if contents unchanged (avoids
+    // cascading context updates during drag where only position changes).
+    if (ids.length === prevNodeIdsRef.current.length && ids.every((id, i) => id === prevNodeIdsRef.current[i])) {
+      return prevNodeIdsRef.current
+    }
+    prevNodeIdsRef.current = ids
+    return ids
+  }, [state.nodes])
+
+  const prevEdgeIdsRef = useRef<string[]>([])
+  const selectedEdgeIds = useMemo(() => {
+    const ids = state.edges.filter((e) => e.selected).map((e) => e.id)
+    if (ids.length === prevEdgeIdsRef.current.length && ids.every((id, i) => id === prevEdgeIdsRef.current[i])) {
+      return prevEdgeIdsRef.current
+    }
+    prevEdgeIdsRef.current = ids
+    return ids
+  }, [state.edges])
+
+  // Single-selection: exactly one item selected total → show properties panel
   const selectedNode = useMemo(
-    () => (state.selectedNodeId ? state.nodes.find((n) => n.id === state.selectedNodeId) ?? null : null),
-    [state.nodes, state.selectedNodeId],
+    () => (selectedNodeIds.length === 1 && selectedEdgeIds.length === 0
+      ? state.nodes.find((n) => n.id === selectedNodeIds[0]) ?? null
+      : null),
+    [state.nodes, selectedNodeIds, selectedEdgeIds],
   )
   const selectedEdge = useMemo(
-    () => (state.selectedEdgeId ? state.edges.find((e) => e.id === state.selectedEdgeId) ?? null : null),
-    [state.edges, state.selectedEdgeId],
+    () => (selectedEdgeIds.length === 1 && selectedNodeIds.length === 0
+      ? state.edges.find((e) => e.id === selectedEdgeIds[0]) ?? null
+      : null),
+    [state.edges, selectedNodeIds, selectedEdgeIds],
   )
   const frameworkInfo = useMemo(() => {
     const fw = state.nodes.find(isFrameworkNode)
@@ -500,35 +523,54 @@ export function EditorProvider({
   )
 
   // ── Nodes with callbacks ─────────────────────────────────────────────
-  // Reuse node objects when callbacks are already attached (avoids creating
-  // new objects on selection changes, which would cause React Flow to
-  // re-render every node).
+  // Per-element cache: only create new objects for nodes whose *data* actually
+  // changed. Selection/position-only changes reuse the previous output's data
+  // so React Flow's internal memo skips re-rendering those node components.
+
+  const nodesCacheRef = useRef(new Map<string, { input: CaseEditorNodeType; output: CaseEditorNodeType }>())
 
   const nodesWithCallbacks = useMemo(() => {
-    return state.nodes.map((n) => {
+    const prev = nodesCacheRef.current
+    const next = new Map<string, { input: CaseEditorNodeType; output: CaseEditorNodeType }>()
+
+    const result = state.nodes.map((n) => {
+      const cached = prev.get(n.id)
+
+      // Fast path: exact same input node → reuse entire output (nothing changed)
+      if (cached && cached.input === n) {
+        next.set(n.id, cached)
+        return cached.output
+      }
+
       if (isItemNode(n)) {
-        if (n.className === WRAPPER_NODE_CLASS && n.data.onAddChild === addChild && n.data.onUpdateItem === updateItem) {
-          return n
-        }
-        return { ...n, className: WRAPPER_NODE_CLASS, data: { ...n.data, onAddChild: addChild, onUpdateItem: updateItem } }
+        // If only selected/position changed (data ref is same), reuse output data
+        const reuseData = cached && (cached.input as CaseItemNodeType).data === n.data
+        const data = reuseData
+          ? (cached!.output as CaseItemNodeType).data
+          : { ...n.data, onAddChild: addChild, onUpdateItem: updateItem }
+        const output: CaseEditorNodeType = { ...n, className: WRAPPER_NODE_CLASS, data }
+        next.set(n.id, { input: n, output })
+        return output
       }
 
       if (isFrameworkNode(n)) {
-        if (n.className === WRAPPER_NODE_CLASS && n.data.onAddChild === addChild && n.data.onUpdateDocument === updateDocument) {
-          return n
-        }
-        return { ...n, className: WRAPPER_NODE_CLASS, data: { ...n.data, onAddChild: addChild, onUpdateDocument: updateDocument } }
+        const reuseData = cached && (cached.input as CaseFrameworkNodeType).data === n.data
+        const data = reuseData
+          ? (cached!.output as CaseFrameworkNodeType).data
+          : { ...n.data, onAddChild: addChild, onUpdateDocument: updateDocument }
+        const output: CaseEditorNodeType = { ...n, className: WRAPPER_NODE_CLASS, data }
+        next.set(n.id, { input: n, output })
+        return output
       }
 
       return n
     })
+
+    nodesCacheRef.current = next
+    return result
   }, [state.nodes, addChild, updateItem, updateDocument])
 
   // ── React Flow event handlers ────────────────────────────────────────
-
-  // Refs to avoid redundant dispatches from onSelectionChange
-  const singleSelRef = useRef<{ nodeId: string | null; edgeId: string | null }>({ nodeId: null, edgeId: null })
-  singleSelRef.current = { nodeId: state.selectedNodeId, edgeId: state.selectedEdgeId }
 
   // Refs for clearSelection (keeps the callback stable without state deps)
   const nodesRef = useRef(state.nodes)
@@ -536,36 +578,12 @@ export function EditorProvider({
   const edgesRef = useRef(state.edges)
   edgesRef.current = state.edges
 
-  const onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType> = useCallback(({ nodes, edges }) => {
-    const nodeCount = nodes?.length ?? 0
-    const edgeCount = edges?.length ?? 0
-    const totalCount = nodeCount + edgeCount
-
-    // Only track single-selection for the properties panel.
-    // Multi-selection IDs are derived from node/edge `selected` flags (no extra dispatch).
-    if (totalCount === 1 && nodeCount === 1) {
-      if (singleSelRef.current.nodeId !== nodes[0].id) {
-        dispatch({ type: 'selection/setNode', nodeId: nodes[0].id })
-      }
-    } else if (totalCount === 1 && edgeCount === 1) {
-      if (singleSelRef.current.edgeId !== edges[0].id) {
-        dispatch({ type: 'selection/setEdge', edgeId: edges[0].id })
-      }
-    } else if (singleSelRef.current.nodeId !== null || singleSelRef.current.edgeId !== null) {
-      // Clear single-selection IDs (multi or empty) — only dispatch when needed
-      dispatch({ type: 'selection/clear' })
-    }
-    // For multi → multi transitions, no dispatch needed — derived state handles it.
-  }, [])
-
-  const onEdgeSelectionChange = useCallback((edgeId: string | null) => {
-    if (edgeId) {
-      if (singleSelRef.current.edgeId !== edgeId) {
-        dispatch({ type: 'selection/setEdge', edgeId })
-      }
-    } else if (singleSelRef.current.edgeId !== null) {
-      dispatch({ type: 'selection/clear' })
-    }
+  // onSelectionChange no longer dispatches anything — selection state is
+  // derived purely from `selected` flags managed by onNodesChange/onEdgesChange.
+  // This callback is only used for the auto-pan-to-node behavior in EditorCanvas.
+  const onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType> = useCallback(() => {
+    // No-op: selection tracking is fully derived. EditorCanvas wraps this with
+    // onSelectionChangeWithPan for the auto-scroll behaviour.
   }, [])
 
   const onNodesChange = useCallback(
@@ -584,8 +602,8 @@ export function EditorProvider({
   )
 
   const clearSelection = useCallback(() => {
-    dispatch({ type: 'selection/clear' })
-    // Programmatically deselect all nodes/edges through React Flow's change system
+    // Programmatically deselect all nodes/edges through React Flow's change system.
+    // Selection state is derived, so deselecting via applyChanges is all that's needed.
     const nodeDeselects: NodeChange<CaseEditorNodeType>[] = nodesRef.current
       .filter((n) => n.selected)
       .map((n) => ({ type: 'select' as const, id: n.id, selected: false }))
@@ -607,8 +625,8 @@ export function EditorProvider({
     () => ({
       nodes: state.nodes,
       edges: state.edges,
-      selectedNodeId: state.selectedNodeId,
-      selectedEdgeId: state.selectedEdgeId,
+      selectedNodeId: selectedNodeIds.length === 1 ? selectedNodeIds[0] : null,
+      selectedEdgeId: selectedEdgeIds.length === 1 ? selectedEdgeIds[0] : null,
       selectedNodeIds,
       selectedEdgeIds,
       selectedNode,
@@ -636,7 +654,7 @@ export function EditorProvider({
       settings,
       updateSettings,
       onSelectionChange,
-      onEdgeSelectionChange,
+      onEdgeSelectionChange: onSelectionChange, // unused — kept for type compat
       onNodesChange,
       onEdgesChange,
       onConnect,
@@ -657,7 +675,7 @@ export function EditorProvider({
       applyStarLayout,
     }),
     [
-      state.nodes, state.edges, state.selectedNodeId, state.selectedEdgeId, selectedNodeIds, selectedEdgeIds,
+      state.nodes, state.edges, selectedNodeIds, selectedEdgeIds,
       selectedNode, selectedEdge, nodesWithCallbacks, frameworkInfo,
       state.layoutVersion, state.dirty, clearDirty,
       caseVersion, cfItemTypes, addCfItemType, ensureCfItemType,
@@ -666,7 +684,7 @@ export function EditorProvider({
       cfAssociationGroupings, addCfAssociationGrouping, ensureCfAssociationGrouping,
       activeGroupingFilter, setActiveGroupingFilter,
       settings, updateSettings,
-      onSelectionChange, onEdgeSelectionChange, onNodesChange, onEdgesChange, onConnect,
+      onSelectionChange, onNodesChange, onEdgesChange, onConnect,
       clearSelection, updateNodeData, updateEdgeData, flipEdge, reconnectEdge,
       addChild, addDetachedItem, addExternalFramework,
       addItemDialog, setAddItemDraft, cancelAddItem, confirmAddItem,

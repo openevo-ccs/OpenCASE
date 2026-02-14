@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactFlowInstance, Connection, Edge } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import type { ReactFlowInstance, Connection, Edge, NodeChange, EdgeChange } from '@xyflow/react'
 import type { OnBeforeDelete } from '@xyflow/react'
 import type { OnSelectionChangeFunc } from '@xyflow/react'
 import { Background, BackgroundVariant, ConnectionMode, Controls, MiniMap, ReactFlow, SelectionMode } from '@xyflow/react'
@@ -44,7 +44,6 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
     onNodesChange,
     onEdgesChange,
     onConnect,
-    onSelectionChange,
     selectedNode,
     selectedEdge,
     selectedNodeIds,
@@ -57,9 +56,13 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
     reconnectEdge: reconnectEdgeAction,
     layoutVersion,
     cfItemTypes,
+    ensureCfItemType,
     cfSubjects,
+    ensureCfSubject,
     cfConcepts,
+    ensureCfConcept,
     cfAssociationGroupings,
+    ensureCfAssociationGrouping,
     activeGroupingFilter,
     setActiveGroupingFilter,
     addItemDialog,
@@ -104,13 +107,31 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
     })
   }, [tenantId, getAccessToken])
   
-  // Track Shift key for selection cursor (DOM-only, no re-renders)
+  // Track Shift key for selection cursor styling only (DOM class, no React state).
+  const shiftHeldRef = useRef(false)
+  const [shiftHeldForInteractions, setShiftHeldForInteractions] = useState(false)
   useEffect(() => {
     const el = reactFlowWrapRef.current
     if (!el) return
-    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') el.classList.add('shift-select-mode') }
-    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') el.classList.remove('shift-select-mode') }
-    const onBlur = () => el.classList.remove('shift-select-mode')
+    const onDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        shiftHeldRef.current = true
+        setShiftHeldForInteractions(true)
+        el.classList.add('shift-select-mode')
+      }
+    }
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        shiftHeldRef.current = false
+        setShiftHeldForInteractions(false)
+        el.classList.remove('shift-select-mode')
+      }
+    }
+    const onBlur = () => {
+      shiftHeldRef.current = false
+      setShiftHeldForInteractions(false)
+      el.classList.remove('shift-select-mode')
+    }
     globalThis.addEventListener('keydown', onDown)
     globalThis.addEventListener('keyup', onUp)
     globalThis.addEventListener('blur', onBlur)
@@ -124,57 +145,42 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
   // Track the edge being reconnected
   const edgeReconnectSuccessful = useRef(true)
 
+  // ── Refs for save/export (keeps callbacks stable, avoids re-renders) ──
+  const graphRef = useRef({ nodes, edges: editorEdges })
+  graphRef.current = { nodes, edges: editorEdges }
+  const saveCtxRef = useRef({ caseVersion, edgeType: settings.edgeType, cfItemTypes, cfSubjects, cfConcepts, cfAssociationGroupings })
+  saveCtxRef.current = { caseVersion, edgeType: settings.edgeType, cfItemTypes, cfSubjects, cfConcepts, cfAssociationGroupings }
+
   // Generate CFPackage from current editor state and open the viewer
   const handleViewCFPackage = useCallback(() => {
-    // Convert editor graph to domain Framework + layout
-    const { framework, layout } = fromEditorGraph({ graph: { nodes, edges: editorEdges } })
-    
-    // Convert domain Framework to CFPackage with layout in extensions (no version increment for view)
+    const { nodes: n, edges: e } = graphRef.current
+    const ctx = saveCtxRef.current
+    const { framework, layout } = fromEditorGraph({ graph: { nodes: n, edges: e } })
     const cfPackage = frameworkToCfPackage({
-      framework,
-      caseVersion,
-      layout,
-      incrementVersion: false,
-      edgeType: settings.edgeType,
-      cfItemTypes,
-      cfSubjects,
-      cfConcepts,
-      cfAssociationGroupings,
+      framework, layout, incrementVersion: false,
+      caseVersion: ctx.caseVersion, edgeType: ctx.edgeType,
+      cfItemTypes: ctx.cfItemTypes, cfSubjects: ctx.cfSubjects,
+      cfConcepts: ctx.cfConcepts, cfAssociationGroupings: ctx.cfAssociationGroupings,
     })
-    
     setGeneratedCfPackage(cfPackage)
     setCfPackageDialogOpen(true)
-  }, [nodes, editorEdges, caseVersion, settings.edgeType, cfItemTypes, cfSubjects, cfConcepts, cfAssociationGroupings])
+  }, [])
 
   // Save: Generate CFPackage with version increment and POST to server
   const handleSave = useCallback(async () => {
-    // Convert editor graph to domain Framework + layout
-    const { framework, layout } = fromEditorGraph({ graph: { nodes, edges: editorEdges } })
-    
-    // Convert domain Framework to CFPackage with layout in extensions
-    // Increment version on save
+    const { nodes: n, edges: e } = graphRef.current
+    const ctx = saveCtxRef.current
+    const { framework, layout } = fromEditorGraph({ graph: { nodes: n, edges: e } })
     const cfPackage = frameworkToCfPackage({
-      framework,
-      caseVersion,
-      layout,
-      incrementVersion: true,
-      edgeType: settings.edgeType,
-      cfItemTypes,
-      cfSubjects,
-      cfConcepts,
-      cfAssociationGroupings,
+      framework, layout, incrementVersion: true,
+      caseVersion: ctx.caseVersion, edgeType: ctx.edgeType,
+      cfItemTypes: ctx.cfItemTypes, cfSubjects: ctx.cfSubjects,
+      cfConcepts: ctx.cfConcepts, cfAssociationGroupings: ctx.cfAssociationGroupings,
     })
-    
-    // Convert to OpenCASE REST API format
     const openCasePackage = toOpenCaseFormat(cfPackage)
-    
-    // Log to console for debugging
     console.log('[Save] Generated OpenCASE package:', openCasePackage)
-    
-    // Store for viewing
     setGeneratedCfPackage(cfPackage)
-    
-    // If server save callback is provided, save to server
+
     if (onSaveToServer) {
       setSaveStatus('saving')
       setSaveError(null)
@@ -182,20 +188,17 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         await onSaveToServer(openCasePackage)
         setSaveStatus('success')
         clearDirty()
-        // Reset status after a brief delay
         setTimeout(() => setSaveStatus('idle'), 2000)
       } catch (err) {
         console.error('[Save] Failed to save to server:', err)
         setSaveStatus('error')
         setSaveError(err instanceof Error ? err.message : 'Failed to save')
-        // Show the generated CFPackage for manual copy/paste as fallback
         setCfPackageDialogOpen(true)
       }
     } else {
-      // No server callback - just show the dialog for manual validation
       setCfPackageDialogOpen(true)
     }
-  }, [nodes, editorEdges, caseVersion, onSaveToServer, clearDirty, settings.edgeType, cfItemTypes, cfSubjects, cfConcepts, cfAssociationGroupings])
+  }, [onSaveToServer, clearDirty])
 
   // Compute in-use groupings from actual edges (for filter dropdown)
   const inUseGroupings = useMemo(() => {
@@ -221,39 +224,66 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
     : null
 
   // Apply the custom labeled edge type to all edges, passing the path style in data.
-  // Per-edge edgeType (e.g. from hierarchy layout) takes priority over the framework-level setting.
-  const edgesWithType = useMemo<CaseEditorEdge[]>(
-    () => editorEdges.map((edge) => {
-      const baseData = { ...edge.data, edgeType: edge.data?.edgeType ?? settings.edgeType }
+  // Per-element cache: only create new objects for edges whose data actually changed.
+  // Selection-only changes reuse the previous output so React Flow skips re-rendering.
+  const edgesCacheRef = useRef(new Map<string, { input: CaseEditorEdge; edgeType: string; filter: string | null; output: CaseEditorEdge }>())
+
+  const edgesWithType = useMemo<CaseEditorEdge[]>(() => {
+    const prev = edgesCacheRef.current
+    const next = new Map<string, { input: CaseEditorEdge; edgeType: string; filter: string | null; output: CaseEditorEdge }>()
+    const globalEdgeType = settings.edgeType
+
+    const result = editorEdges.map((edge) => {
+      const cached = prev.get(edge.id)
+
+      // Fast path: exact same input + same global params → reuse entire output
+      if (cached && cached.input === edge && cached.edgeType === globalEdgeType && cached.filter === effectiveGroupingFilter) {
+        next.set(edge.id, cached)
+        return cached.output
+      }
+
+      // If only selected/position changed (data ref is same) and global params unchanged,
+      // reuse the output's data/style but merge the new edge shell
+      if (cached && edge.data === cached.input.data && cached.edgeType === globalEdgeType && cached.filter === effectiveGroupingFilter) {
+        const output: CaseEditorEdge = { ...edge, type: 'labeled' as const, data: cached.output.data, style: cached.output.style }
+        next.set(edge.id, { input: edge, edgeType: globalEdgeType, filter: effectiveGroupingFilter, output })
+        return output
+      }
+
+      // Full recompute
+      const baseData = { ...edge.data, edgeType: edge.data?.edgeType ?? globalEdgeType }
       let style = edge.style
 
-      // Apply highlight/fade when grouping filter is active
       if (effectiveGroupingFilter) {
         const edgeGroupId = edge.data?.cfAssociation?.CFAssociationGroupingURI?.identifier
         const isRootEdge = edge.data?.isFrameworkRootConnection
         const matches = edgeGroupId === effectiveGroupingFilter
 
         if (matches) {
-          // Highlighted: bold stroke in teal
           style = { ...style, stroke: '#0d9488', strokeWidth: 3, opacity: 1, transition: 'all 0.2s ease' }
         } else if (isRootEdge) {
-          // Root edges stay visible but neutral
           style = { ...style, opacity: 0.35, transition: 'all 0.2s ease' }
         } else {
-          // Non-matching: heavily faded
           style = { ...style, opacity: 0.1, transition: 'all 0.2s ease' }
         }
       }
 
-      return { ...edge, type: 'labeled', data: baseData, style }
-    }),
-    [editorEdges, settings.edgeType, effectiveGroupingFilter],
-  )
+      const output: CaseEditorEdge = { ...edge, type: 'labeled' as const, data: baseData, style }
+      next.set(edge.id, { input: edge, edgeType: globalEdgeType, filter: effectiveGroupingFilter, output })
+      return output
+    })
+
+    edgesCacheRef.current = next
+    return result
+  }, [editorEdges, settings.edgeType, effectiveGroupingFilter])
   
   // Validate connections - prevent framework-to-framework connections
+  const nodesWithCallbacksRef = useRef(nodesWithCallbacks)
+  nodesWithCallbacksRef.current = nodesWithCallbacks
+
   const isValidConnection = useCallback((connection: Connection) => {
-    const sourceNode = nodesWithCallbacks.find((n) => n.id === connection.source)
-    const targetNode = nodesWithCallbacks.find((n) => n.id === connection.target)
+    const sourceNode = nodesWithCallbacksRef.current.find((n) => n.id === connection.source)
+    const targetNode = nodesWithCallbacksRef.current.find((n) => n.id === connection.target)
     
     const isSourceFramework = 
       sourceNode?.type === 'caseFrameworkNode' || 
@@ -262,13 +292,12 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
       targetNode?.type === 'caseFrameworkNode' || 
       targetNode?.type === 'externalFrameworkNode'
     
-    // Reject framework-to-framework connections
     if (isSourceFramework && isTargetFramework) {
       return false
     }
     
     return true
-  }, [nodesWithCallbacks])
+  }, [])
   
   // Handle edge reconnection - when user drags an edge endpoint to a new handle/node
   const onReconnectStart = useCallback(() => {
@@ -301,6 +330,387 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
     }
     edgeReconnectSuccessful.current = true
   }, [])
+
+  // During Shift-click toggles we apply the intended node select change directly
+  // and ignore conflicting select-change echoes from React Flow for a short window.
+  const suppressSelectEchoRef = useRef<null | { until: number }>(null)
+  const preserveSelectionDuringDragRef = useRef<null | { until: number }>(null)
+  const lastNodeClickAtRef = useRef(0)
+  const lastEdgeClickAtRef = useRef(0)
+  const lastPointerDownRef = useRef<{
+    clientX: number
+    clientY: number
+    shiftKey: boolean
+    at: number
+  } | null>(null)
+  const selectionDebugEnabledRef = useRef(false)
+
+  useEffect(() => {
+    try {
+      const fromStorage = globalThis.localStorage?.getItem('case.debugSelection') === '1'
+      const fromQuery = new URLSearchParams(globalThis.location.search).get('debugSelection') === '1'
+      selectionDebugEnabledRef.current = fromStorage || fromQuery
+      if (selectionDebugEnabledRef.current) {
+        console.log('[selection-debug] enabled')
+      }
+    } catch {
+      // best-effort debug toggle
+    }
+  }, [])
+
+  const logSelectionDebug = useCallback((event: string, details: Record<string, unknown> = {}) => {
+    if (!selectionDebugEnabledRef.current) return
+    console.log(`[selection-debug] ${event}`, {
+      t: Number(globalThis.performance.now().toFixed(1)),
+      selectedNodeIds: [...selectedNodeIds],
+      selectedEdgeIds: [...selectedEdgeIds],
+      ...details,
+    })
+  }, [selectedNodeIds, selectedEdgeIds])
+
+  const onCanvasPointerDownCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    lastPointerDownRef.current = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      shiftKey: event.shiftKey,
+      at: Date.now(),
+    }
+  }, [])
+
+  const onNodeClick = useCallback((event: ReactMouseEvent, node: CaseEditorNodeType) => {
+    lastNodeClickAtRef.current = Date.now()
+    logSelectionDebug('onNodeClick', {
+      nodeId: node.id,
+      shiftKey: event.shiftKey,
+      button: event.button,
+    })
+
+    if (!event.shiftKey) {
+      suppressSelectEchoRef.current = null
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const wasSelected = selectedNodeIds.includes(node.id)
+    const intendedNodeIds = wasSelected
+      ? selectedNodeIds.filter((id) => id !== node.id)
+      : [...selectedNodeIds, node.id]
+    const nodeChanges: NodeChange<CaseEditorNodeType>[] = [
+      ...selectedNodeIds.map((id) => ({ type: 'select' as const, id, selected: id !== node.id })),
+      ...(!selectedNodeIds.includes(node.id) ? [{ type: 'select' as const, id: node.id, selected: true }] : []),
+    ]
+    const edgeChanges: EdgeChange[] = selectedEdgeIds.map((id) => ({ type: 'select' as const, id, selected: true }))
+    onNodesChange(nodeChanges)
+    if (edgeChanges.length > 0) onEdgesChange(edgeChanges)
+    suppressSelectEchoRef.current = { until: Date.now() + 250 }
+    logSelectionDebug('onNodeClick/manualToggle', {
+      nodeId: node.id,
+      wasSelected,
+      nextSelected: !wasSelected,
+      intendedSelectedNodeIds: intendedNodeIds,
+      reassertedEdgeCount: edgeChanges.length,
+      suppressEchoMs: 250,
+    })
+  }, [logSelectionDebug, onEdgesChange, onNodesChange, selectedEdgeIds, selectedNodeIds])
+
+  const onNodeDragStart = useCallback((_: ReactMouseEvent, node: CaseEditorNodeType) => {
+    const preserve = selectedNodeIds.length > 1 && selectedNodeIds.includes(node.id)
+    if (!preserve) return
+    preserveSelectionDuringDragRef.current = { until: Date.now() + 1200 }
+    logSelectionDebug('onNodeDragStart/preserveMultiSelection', {
+      nodeId: node.id,
+      selectedCount: selectedNodeIds.length,
+      preserveMs: 1200,
+    })
+  }, [logSelectionDebug, selectedNodeIds])
+
+  const onNodeDragStop = useCallback(() => {
+    preserveSelectionDuringDragRef.current = null
+    logSelectionDebug('onNodeDragStop/clearPreserveWindow')
+  }, [logSelectionDebug])
+
+  const onEdgeClick = useCallback((event: ReactMouseEvent, edge: Edge) => {
+    lastEdgeClickAtRef.current = Date.now()
+    logSelectionDebug('onEdgeClick', {
+      edgeId: edge.id,
+      shiftKey: event.shiftKey,
+      button: event.button,
+    })
+
+    if (!event.shiftKey) {
+      suppressSelectEchoRef.current = null
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const wasSelected = selectedEdgeIds.includes(edge.id)
+    const intendedEdgeIds = wasSelected
+      ? selectedEdgeIds.filter((id) => id !== edge.id)
+      : [...selectedEdgeIds, edge.id]
+    const edgeChanges: EdgeChange[] = [
+      ...selectedEdgeIds.map((id) => ({ type: 'select' as const, id, selected: id !== edge.id })),
+      ...(!selectedEdgeIds.includes(edge.id) ? [{ type: 'select' as const, id: edge.id, selected: true }] : []),
+    ]
+    const nodeChanges: NodeChange<CaseEditorNodeType>[] = selectedNodeIds.map((id) => ({ type: 'select' as const, id, selected: true }))
+    onEdgesChange(edgeChanges)
+    if (nodeChanges.length > 0) onNodesChange(nodeChanges)
+    suppressSelectEchoRef.current = { until: Date.now() + 250 }
+    logSelectionDebug('onEdgeClick/manualToggle', {
+      edgeId: edge.id,
+      wasSelected,
+      nextSelected: !wasSelected,
+      intendedSelectedEdgeIds: intendedEdgeIds,
+      reassertedNodeCount: nodeChanges.length,
+      suppressEchoMs: 250,
+    })
+  }, [logSelectionDebug, onEdgesChange, onNodesChange, selectedEdgeIds, selectedNodeIds])
+
+  const onNodesChangeWithSelectionGuard = useCallback((changes: NodeChange<CaseEditorNodeType>[]) => {
+    const suppressEcho = suppressSelectEchoRef.current
+    const preserveDuringDrag = preserveSelectionDuringDragRef.current
+    const hasSelectChanges = changes.some((c) => c.type === 'select')
+    const selectChanges = changes.filter((c): c is Extract<NodeChange<CaseEditorNodeType>, { type: 'select' }> => c.type === 'select')
+    logSelectionDebug('onNodesChange/received', {
+      hasSelectChanges,
+      suppressActive: Boolean(suppressEcho && Date.now() <= suppressEcho.until),
+      preserveDuringDragActive: Boolean(preserveDuringDrag && Date.now() <= preserveDuringDrag.until),
+      shiftHeld: shiftHeldRef.current,
+      changes: changes.map((c) => c.type === 'select'
+        ? { type: c.type, id: c.id, selected: c.selected }
+        : { type: c.type, id: 'id' in c ? c.id : undefined }),
+    })
+
+    if (
+      !shiftHeldRef.current &&
+      preserveDuringDrag &&
+      Date.now() <= preserveDuringDrag.until &&
+      hasSelectChanges
+    ) {
+      const nonSelectChanges = changes.filter((c) => c.type !== 'select')
+      const reassertSelected = selectedNodeIds.map((id) => ({ type: 'select' as const, id, selected: true }))
+      logSelectionDebug('onNodesChange/preserveMultiSelectionDuringDrag', {
+        selectCount: selectChanges.length,
+        forwardedNonSelectCount: nonSelectChanges.length,
+        reassertCount: reassertSelected.length,
+      })
+      onNodesChange([...reassertSelected, ...nonSelectChanges])
+      return
+    }
+
+    // Defensive guard for intermittent React Flow race:
+    // while Shift is held, we sometimes receive a batch that deselects all
+    // currently selected nodes (multi false) after marquee selection + rapid click.
+    // Ignore only those suspicious select changes.
+    if (
+      shiftHeldRef.current &&
+      selectChanges.length > 1 &&
+      selectChanges.every((c) => c.selected === false)
+    ) {
+      // If this came from a Shift click on a selected node, convert the blocked
+      // deselect-all batch into deselecting only the clicked node.
+      const pointer = lastPointerDownRef.current
+      if (pointer && pointer.shiftKey && Date.now() - pointer.at <= 500) {
+        const instance = reactFlowRef.current
+        const wrap = reactFlowWrapRef.current
+        if (instance && wrap) {
+          const viewport = instance.getViewport()
+          const rect = wrap.getBoundingClientRect()
+          const flowX = (pointer.clientX - rect.left - viewport.x) / viewport.zoom
+          const flowY = (pointer.clientY - rect.top - viewport.y) / viewport.zoom
+          const hitSelectedNodeId = selectedNodeIds.find((id) => {
+            const node = nodes.find((n) => n.id === id)
+            if (!node) return false
+            const anyNode = node as unknown as {
+              measured?: { width?: number; height?: number }
+              width?: number
+              height?: number
+              style?: { width?: number | string; height?: number | string }
+            }
+            const w =
+              anyNode.measured?.width ??
+              (typeof anyNode.width === 'number' ? anyNode.width : undefined) ??
+              (typeof anyNode.style?.width === 'number' ? anyNode.style?.width : undefined) ??
+              360
+            const h =
+              anyNode.measured?.height ??
+              (typeof anyNode.height === 'number' ? anyNode.height : undefined) ??
+              (typeof anyNode.style?.height === 'number' ? anyNode.style?.height : undefined) ??
+              220
+            return flowX >= node.position.x && flowX <= node.position.x + w && flowY >= node.position.y && flowY <= node.position.y + h
+          })
+          if (hitSelectedNodeId) {
+            const targetChanges: NodeChange<CaseEditorNodeType>[] = selectedNodeIds.map((id) => ({
+              type: 'select' as const,
+              id,
+              selected: id !== hitSelectedNodeId,
+            }))
+            suppressSelectEchoRef.current = { until: Date.now() + 300 }
+            logSelectionDebug('onNodesChange/convertedBlockedBatchToSingleDeselect', {
+              hitSelectedNodeId,
+              selectedCount: selectedNodeIds.length,
+              suppressEchoMs: 300,
+            })
+            onNodesChange(targetChanges)
+            return
+          }
+        }
+      }
+
+      const nonSelectChanges = changes.filter((c) => c.type !== 'select')
+      const reassertSelected = selectedNodeIds.map((id) => ({ type: 'select' as const, id, selected: true }))
+      suppressSelectEchoRef.current = { until: Date.now() + 300 }
+      logSelectionDebug('onNodesChange/blockedShiftDeselectAllBatch', {
+        blockedCount: selectChanges.length,
+        forwardedNonSelectCount: nonSelectChanges.length,
+        reassertCount: reassertSelected.length,
+        suppressEchoMs: 300,
+      })
+      if (reassertSelected.length > 0) onNodesChange(reassertSelected)
+      if (nonSelectChanges.length > 0) onNodesChange(nonSelectChanges)
+      return
+    }
+
+    // Another intermittent Shift race: React Flow may emit a "replace selection"
+    // batch (one selected:true + many selected:false). Under Shift interactions we
+    // normalize this into additive behavior by dropping only the false entries.
+    if (
+      shiftHeldRef.current &&
+      selectChanges.some((c) => c.selected === true) &&
+      selectChanges.some((c) => c.selected === false)
+    ) {
+      const nonSelectChanges = changes.filter((c) => c.type !== 'select') as NodeChange<CaseEditorNodeType>[]
+      suppressSelectEchoRef.current = { until: Date.now() + 300 }
+      logSelectionDebug('onNodesChange/ignoredShiftMixedBatch', {
+        originalCount: changes.length,
+        selectCount: selectChanges.length,
+        forwardedNonSelectCount: nonSelectChanges.length,
+        suppressEchoMs: 300,
+      })
+      if (nonSelectChanges.length > 0) onNodesChange(nonSelectChanges)
+      return
+    }
+
+    if (suppressEcho && Date.now() <= suppressEcho.until && hasSelectChanges) {
+      const nonSelectChanges = changes.filter((c) => c.type !== 'select')
+      logSelectionDebug('onNodesChange/suppressedSelectEcho', { forwardedNonSelectCount: nonSelectChanges.length })
+      if (nonSelectChanges.length > 0) onNodesChange(nonSelectChanges)
+      return
+    }
+
+    onNodesChange(changes)
+    logSelectionDebug('onNodesChange/forwarded', { changeCount: changes.length })
+  }, [logSelectionDebug, nodes, onNodesChange, selectedNodeIds])
+
+  const onEdgesChangeWithSelectionGuard = useCallback((changes: EdgeChange[]) => {
+    const suppressEcho = suppressSelectEchoRef.current
+    const preserveDuringDrag = preserveSelectionDuringDragRef.current
+    const selectChanges = changes.filter((c): c is Extract<EdgeChange, { type: 'select' }> => c.type === 'select')
+    const hasSelectChanges = selectChanges.length > 0
+    logSelectionDebug('onEdgesChange/received', {
+      hasSelectChanges,
+      shiftHeld: shiftHeldRef.current,
+      suppressActive: Boolean(suppressEcho && Date.now() <= suppressEcho.until),
+      preserveDuringDragActive: Boolean(preserveDuringDrag && Date.now() <= preserveDuringDrag.until),
+      changes: changes.map((c) => c.type === 'select'
+        ? { type: c.type, id: c.id, selected: c.selected }
+        : { type: c.type, id: 'id' in c ? c.id : undefined }),
+    })
+
+    if (
+      !shiftHeldRef.current &&
+      preserveDuringDrag &&
+      Date.now() <= preserveDuringDrag.until &&
+      hasSelectChanges
+    ) {
+      const nonSelectChanges = changes.filter((c) => c.type !== 'select')
+      const reassertSelected = selectedEdgeIds.map((id) => ({ type: 'select' as const, id, selected: true }))
+      logSelectionDebug('onEdgesChange/preserveMultiSelectionDuringDrag', {
+        selectCount: selectChanges.length,
+        forwardedNonSelectCount: nonSelectChanges.length,
+        reassertCount: reassertSelected.length,
+      })
+      onEdgesChange([...reassertSelected, ...nonSelectChanges])
+      return
+    }
+
+    // Mirror the node guard: while Shift is held, ignore suspicious edge
+    // deselect-all batches that can arrive after marquee + rapid toggle.
+    if (
+      shiftHeldRef.current &&
+      selectChanges.length > 1 &&
+      selectChanges.every((c) => c.selected === false)
+    ) {
+      const nonSelectChanges = changes.filter((c) => c.type !== 'select')
+      const reassertSelected = selectedEdgeIds.map((id) => ({ type: 'select' as const, id, selected: true }))
+      suppressSelectEchoRef.current = { until: Date.now() + 300 }
+      logSelectionDebug('onEdgesChange/blockedShiftDeselectAllBatch', {
+        blockedCount: selectChanges.length,
+        forwardedNonSelectCount: nonSelectChanges.length,
+        reassertCount: reassertSelected.length,
+        suppressEchoMs: 300,
+      })
+      if (reassertSelected.length > 0) onEdgesChange(reassertSelected)
+      if (nonSelectChanges.length > 0) onEdgesChange(nonSelectChanges)
+      return
+    }
+
+    if (
+      shiftHeldRef.current &&
+      selectChanges.some((c) => c.selected === true) &&
+      selectChanges.some((c) => c.selected === false)
+    ) {
+      const nonSelectChanges = changes.filter((c) => c.type !== 'select') as EdgeChange[]
+      suppressSelectEchoRef.current = { until: Date.now() + 300 }
+      logSelectionDebug('onEdgesChange/ignoredShiftMixedBatch', {
+        originalCount: changes.length,
+        selectCount: selectChanges.length,
+        forwardedNonSelectCount: nonSelectChanges.length,
+        suppressEchoMs: 300,
+      })
+      if (nonSelectChanges.length > 0) onEdgesChange(nonSelectChanges)
+      return
+    }
+
+    if (suppressEcho && Date.now() <= suppressEcho.until && hasSelectChanges) {
+      const nonSelectChanges = changes.filter((c) => c.type !== 'select')
+      logSelectionDebug('onEdgesChange/suppressedSelectEcho', { forwardedNonSelectCount: nonSelectChanges.length })
+      if (nonSelectChanges.length > 0) onEdgesChange(nonSelectChanges)
+      return
+    }
+
+    onEdgesChange(changes)
+    logSelectionDebug('onEdgesChange/forwarded', { changeCount: changes.length })
+  }, [logSelectionDebug, onEdgesChange, selectedEdgeIds])
+
+  const onPaneClick = useCallback((event: ReactMouseEvent) => {
+    // Ignore Shift-modified pane clicks (they may occur as part of add-to-selection gestures).
+    if (event.shiftKey) {
+      logSelectionDebug('onPaneClick/ignoredShift')
+      return
+    }
+    // Ignore pane clicks that arrive right after a node click due to event sequencing.
+    const now = Date.now()
+    const sinceNodeClick = now - lastNodeClickAtRef.current
+    const sinceEdgeClick = now - lastEdgeClickAtRef.current
+    if (sinceNodeClick < 250 || sinceEdgeClick < 250) {
+      logSelectionDebug('onPaneClick/ignoredRecentElementClick', {
+        sinceNodeClickMs: sinceNodeClick,
+        sinceEdgeClickMs: sinceEdgeClick,
+      })
+      return
+    }
+    suppressSelectEchoRef.current = null
+    if (selectedNodeIds.length + selectedEdgeIds.length > 0) {
+      logSelectionDebug('onPaneClick/clearSelection')
+      clearSelection()
+      return
+    }
+    logSelectionDebug('onPaneClick/noop')
+  }, [clearSelection, logSelectionDebug, selectedNodeIds, selectedEdgeIds])
 
   const [pendingAction, setPendingAction] = useState<null | {
     nodeIds: string[]
@@ -514,14 +924,34 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         { duration: 220 },
       )
     },
-    [selectedNode],
+    [selectedNode, selectedEdge, selectedNodeIds, selectedEdgeIds],
   )
 
+  // Auto-pan to keep the selected node visible. No state dispatches — selection
+  // is derived from the `selected` flags managed by onNodesChange/onEdgesChange.
   const onSelectionChangeWithPan: OnSelectionChangeFunc<CaseEditorNodeType> = useCallback(
     (params) => {
-      onSelectionChange(params)
-      const selected = params.nodes?.[0]
-      if (!selected) return
+      const selectedNodes = params.nodes ?? []
+      const selectedEdges = params.edges ?? []
+      const suppressEcho = suppressSelectEchoRef.current
+      const suppressActive = Boolean(suppressEcho && Date.now() <= suppressEcho.until)
+      const countMismatch =
+        selectedNodes.length !== selectedNodeIds.length ||
+        selectedEdges.length !== selectedEdgeIds.length
+      logSelectionDebug('onSelectionChange', {
+        nodeCount: selectedNodes.length,
+        edgeCount: selectedEdges.length,
+        nodeIds: selectedNodes.map((n) => n.id),
+        edgeIds: selectedEdges.map((e) => e.id),
+        shiftHeld: shiftHeldRef.current,
+        suppressActive,
+        countMismatch,
+      })
+      // React Flow can briefly emit stale selection snapshots during rapid Shift
+      // interactions; ignore those to prevent side effects from transient states.
+      if (shiftHeldRef.current || suppressActive || countMismatch) return
+      if (selectedNodes.length !== 1 || selectedEdges.length !== 0) return
+      const selected = selectedNodes[0]
 
       // Two rAFs: selection state and node measurements may settle after the event.
       globalThis.requestAnimationFrame(() => {
@@ -530,7 +960,7 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         })
       })
     },
-    [onSelectionChange, ensureNodeVisible],
+    [ensureNodeVisible, logSelectionDebug, selectedNodeIds.length, selectedEdgeIds.length],
   )
 
   const fitToContents = useCallback(() => {
@@ -673,20 +1103,27 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         onSetGroupingFilter={setActiveGroupingFilter}
       />
 
-      <div ref={reactFlowWrapRef} className="h-full w-full">
+      <div ref={reactFlowWrapRef} className="h-full w-full" onPointerDownCapture={onCanvasPointerDownCapture}>
         <ReactFlow<CaseEditorNodeType>
           nodes={nodesWithCallbacks}
           edges={edgesWithType}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          onNodesChange={onNodesChangeWithSelectionGuard}
+          onEdgesChange={onEdgesChangeWithSelectionGuard}
           onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDragStop={onNodeDragStop}
+          onEdgeClick={onEdgeClick}
+          onPaneClick={onPaneClick}
           isValidConnection={isValidConnection}
           onSelectionChange={onSelectionChangeWithPan}
           onBeforeDelete={onBeforeDelete}
           selectionMode={SelectionMode.Full}
-          multiSelectionKeyCode="Shift"
+          multiSelectionKeyCode="Meta"
+          selectionOnDrag={false}
           selectionKeyCode="Shift"
-          selectNodesOnDrag={false}
+          panOnDrag
+          nodesDraggable={!shiftHeldForInteractions}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           edgesFocusable
@@ -731,6 +1168,12 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         onViewCFPackage={handleViewCFPackage}
         isPublishedToOpenCase={isPublishedToOpenCase}
         availableLicenses={availableLicenses}
+        cfItemTypes={cfItemTypes}
+        ensureCfItemType={ensureCfItemType}
+        cfSubjects={cfSubjects}
+        ensureCfSubject={ensureCfSubject}
+        cfConcepts={cfConcepts}
+        ensureCfConcept={ensureCfConcept}
       />
 
       <EdgePropertiesPanel
@@ -739,6 +1182,8 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         onClose={clearSelection}
         onChangeEdge={updateEdgeData}
         onFlipEdge={flipEdge}
+        cfAssociationGroupings={cfAssociationGroupings}
+        ensureCfAssociationGrouping={ensureCfAssociationGrouping}
       />
 
       <MultiSelectionPanel
@@ -748,14 +1193,14 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         edges={editorEdges}
         onClose={clearSelection}
         onDeleteSelected={() => {
-          // Trigger the same delete flow as pressing Delete key
-          // Build the selected nodes/edges arrays and invoke onBeforeDelete logic
           const selectedNodes = nodesWithCallbacks.filter((n) => selectedNodeIds.includes(n.id))
           const selectedEdgesForDelete = editorEdges.filter((e) => selectedEdgeIds.includes(e.id))
           void onBeforeDelete({ nodes: selectedNodes, edges: selectedEdgesForDelete })
         }}
         onChangeEdge={updateEdgeData}
         onChangeNode={updateNodeData}
+        cfAssociationGroupings={cfAssociationGroupings}
+        ensureCfAssociationGrouping={ensureCfAssociationGrouping}
       />
 
       <AddItemDialog
@@ -775,6 +1220,8 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         onChange={setAddItemDraft}
         onCancel={cancelAddItem}
         onCreate={confirmAddItem}
+        cfItemTypes={cfItemTypes}
+        cfSubjects={cfSubjects}
       />
 
       <ConfirmActionDialog
