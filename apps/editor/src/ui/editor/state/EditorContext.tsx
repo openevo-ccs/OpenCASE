@@ -40,6 +40,8 @@ type EditorContextValue = {
   edges: CaseEditorEdge[]
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  selectedNodeIds: string[]
+  selectedEdgeIds: string[]
   selectedNode: CaseEditorNodeType | null
   selectedEdge: CaseEditorEdge | null
   nodesWithCallbacks: CaseEditorNodeType[]
@@ -228,7 +230,7 @@ export function EditorProvider({
   // ── Reducer state ────────────────────────────────────────────────────
   const seed = useMemo(() => initialGraph ?? DEFAULT_GRAPH, [initialGraph])
   const initialState: EditorState = useMemo(
-    () => ({ nodes: seed.nodes, edges: seed.edges, selectedNodeId: null, selectedEdgeId: null, layoutVersion: 0, dirty: false }),
+    () => ({ nodes: seed.nodes, edges: seed.edges, selectedNodeId: null, selectedEdgeId: null, selectedNodeIds: [], selectedEdgeIds: [], layoutVersion: 0, dirty: false }),
     [seed],
   )
   const [state, dispatch] = useReducer(editorReducer, initialState)
@@ -391,7 +393,9 @@ export function EditorProvider({
       CFItemTypeURI: typeDefinition ? { title: typeDefinition.title ?? '', identifier: typeDefinition.identifier, uri: typeDefinition.uri } : undefined,
       subject: subjectStrings,
       subjectURI: subjectURIs.length > 0 ? subjectURIs : undefined,
-      educationLevel: parseCsv(addItemDialog.draft.educationLevelCsv),
+      educationLevel: addItemDialog.draft.educationLevels?.length
+        ? addItemDialog.draft.educationLevels
+        : parseCsv(addItemDialog.draft.educationLevelCsv),
       conceptKeywords: parseCsv(addItemDialog.draft.conceptKeywordsCsv),
       notes: addItemDialog.draft.notes?.trim() || undefined,
     }
@@ -465,12 +469,23 @@ export function EditorProvider({
   // ── React Flow event handlers ────────────────────────────────────────
 
   const onSelectionChange: OnSelectionChangeFunc<CaseEditorNodeType> = useCallback(({ nodes, edges }) => {
-    if (nodes?.[0]?.id) {
+    const nodeCount = nodes?.length ?? 0
+    const edgeCount = edges?.length ?? 0
+    const totalCount = nodeCount + edgeCount
+
+    if (totalCount === 0) {
+      dispatch({ type: 'selection/clear' })
+    } else if (totalCount === 1 && nodeCount === 1) {
       dispatch({ type: 'selection/setNode', nodeId: nodes[0].id })
-    } else if (edges?.[0]?.id) {
+    } else if (totalCount === 1 && edgeCount === 1) {
       dispatch({ type: 'selection/setEdge', edgeId: edges[0].id })
     } else {
-      dispatch({ type: 'selection/clear' })
+      // Multi-selection: track all selected IDs
+      dispatch({
+        type: 'selection/setMulti',
+        nodeIds: nodes.map((n) => n.id),
+        edgeIds: edges.map((e) => e.id),
+      })
     }
   }, [])
 
@@ -508,6 +523,8 @@ export function EditorProvider({
       edges: state.edges,
       selectedNodeId: state.selectedNodeId,
       selectedEdgeId: state.selectedEdgeId,
+      selectedNodeIds: state.selectedNodeIds,
+      selectedEdgeIds: state.selectedEdgeIds,
       selectedNode,
       selectedEdge,
       nodesWithCallbacks,
@@ -549,7 +566,7 @@ export function EditorProvider({
       applyStarLayout,
     }),
     [
-      state.nodes, state.edges, state.selectedNodeId, state.selectedEdgeId,
+      state.nodes, state.edges, state.selectedNodeId, state.selectedEdgeId, state.selectedNodeIds, state.selectedEdgeIds,
       selectedNode, selectedEdge, nodesWithCallbacks, frameworkInfo,
       state.layoutVersion, state.dirty, clearDirty,
       caseVersion, cfItemTypes, addCfItemType, ensureCfItemType,

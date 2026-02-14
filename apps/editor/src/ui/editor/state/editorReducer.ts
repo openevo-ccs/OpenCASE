@@ -38,6 +38,10 @@ export type EditorState = {
   edges: CaseEditorEdge[]
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  /** IDs of all selected nodes (for multi-selection) */
+  selectedNodeIds: string[]
+  /** IDs of all selected edges (for multi-selection) */
+  selectedEdgeIds: string[]
   layoutVersion: number
   dirty: boolean
 }
@@ -47,6 +51,7 @@ export type EditorState = {
 export type Action =
   | { type: 'selection/setNode'; nodeId: string | null }
   | { type: 'selection/setEdge'; edgeId: string | null }
+  | { type: 'selection/setMulti'; nodeIds: string[]; edgeIds: string[] }
   | { type: 'selection/clear' }
   | { type: 'nodes/applyChanges'; changes: NodeChange<CaseEditorNodeType>[] }
   | { type: 'edges/applyChanges'; changes: EdgeChange[] }
@@ -70,14 +75,24 @@ export type Action =
 export function editorReducer(state: EditorState, action: Action): EditorState {
   switch (action.type) {
     case 'selection/setNode':
-      return { ...state, selectedNodeId: action.nodeId, selectedEdgeId: null }
+      return { ...state, selectedNodeId: action.nodeId, selectedEdgeId: null, selectedNodeIds: action.nodeId ? [action.nodeId] : [], selectedEdgeIds: [] }
     case 'selection/setEdge':
-      return { ...state, selectedEdgeId: action.edgeId, selectedNodeId: null }
+      return { ...state, selectedEdgeId: action.edgeId, selectedNodeId: null, selectedNodeIds: [], selectedEdgeIds: action.edgeId ? [action.edgeId] : [] }
+    case 'selection/setMulti':
+      return {
+        ...state,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        selectedNodeIds: action.nodeIds,
+        selectedEdgeIds: action.edgeIds,
+      }
     case 'selection/clear':
       return {
         ...state,
         selectedNodeId: null,
         selectedEdgeId: null,
+        selectedNodeIds: [],
+        selectedEdgeIds: [],
         nodes: state.nodes.map((n) => ({ ...n, selected: false })),
         edges: state.edges.map((e) => ({ ...e, selected: false })),
       }
@@ -431,7 +446,7 @@ export function editorReducer(state: EditorState, action: Action): EditorState {
         },
       ]
 
-      return { ...state, nodes: nextNodes, edges: nextEdges, selectedNodeId: childId, selectedEdgeId: null, dirty: true }
+      return { ...state, nodes: nextNodes, edges: nextEdges, selectedNodeId: childId, selectedEdgeId: null, selectedNodeIds: [childId], selectedEdgeIds: [], dirty: true }
     }
     case 'node/addDetachedItem': {
       const existingNodes = state.nodes
@@ -461,7 +476,7 @@ export function editorReducer(state: EditorState, action: Action): EditorState {
       }
 
       const nextNodes = [...state.nodes.map((n) => ({ ...n, selected: false })), { ...newNode, selected: true }]
-      return { ...state, nodes: nextNodes, selectedNodeId: action.nodeId, selectedEdgeId: null, dirty: true }
+      return { ...state, nodes: nextNodes, selectedNodeId: action.nodeId, selectedEdgeId: null, selectedNodeIds: [action.nodeId], selectedEdgeIds: [], dirty: true }
     }
     case 'node/addExternalFramework': {
       const existingNodes = state.nodes
@@ -491,7 +506,7 @@ export function editorReducer(state: EditorState, action: Action): EditorState {
       }
 
       const nextNodes = [...state.nodes.map((n) => ({ ...n, selected: false })), { ...newNode, selected: true }]
-      return { ...state, nodes: nextNodes, selectedNodeId: action.nodeId, selectedEdgeId: null, dirty: true }
+      return { ...state, nodes: nextNodes, selectedNodeId: action.nodeId, selectedEdgeId: null, selectedNodeIds: [action.nodeId], selectedEdgeIds: [], dirty: true }
     }
     case 'graph/delete': {
       const deleteNodeIds = new Set(action.nodeIds)
@@ -552,10 +567,14 @@ export function editorReducer(state: EditorState, action: Action): EditorState {
 
       const selectedNodeId = state.selectedNodeId && deleteNodeIds.has(state.selectedNodeId) ? null : state.selectedNodeId
       const selectedEdgeId = state.selectedEdgeId && deleteEdgeIds.has(state.selectedEdgeId) ? null : state.selectedEdgeId
+      const selectedNodeIds = state.selectedNodeIds.filter((id) => !deleteNodeIds.has(id))
+      const selectedEdgeIds = state.selectedEdgeIds.filter((id) => !deleteEdgeIds.has(id))
       return {
         ...state,
         selectedNodeId,
         selectedEdgeId,
+        selectedNodeIds,
+        selectedEdgeIds,
         nodes: remainingNodes.map((n) => ({ ...n, selected: selectedNodeId ? n.id === selectedNodeId : false })),
         edges: remainingEdges.map((e) => ({ ...e, selected: selectedEdgeId ? e.id === selectedEdgeId : false })) as CaseEditorEdge[],
         dirty: true,
@@ -591,6 +610,8 @@ export function editorReducer(state: EditorState, action: Action): EditorState {
         edges: action.graph.edges,
         selectedNodeId: null,
         selectedEdgeId: null,
+        selectedNodeIds: [],
+        selectedEdgeIds: [],
         layoutVersion: 0,
         dirty: false,
       }

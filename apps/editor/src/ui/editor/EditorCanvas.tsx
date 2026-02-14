@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactFlowInstance, Connection, Edge } from '@xyflow/react'
 import type { OnBeforeDelete } from '@xyflow/react'
 import type { OnSelectionChangeFunc } from '@xyflow/react'
-import { Background, BackgroundVariant, ConnectionMode, Controls, MiniMap, ReactFlow } from '@xyflow/react'
+import { Background, BackgroundVariant, ConnectionMode, Controls, MiniMap, ReactFlow, SelectionMode } from '@xyflow/react'
 import { nodeTypes } from '@/ui/editor/reactflow/nodeTypes'
 import { edgeTypes } from '@/ui/editor/reactflow/edgeTypes'
 import CanvasHeader from '@/ui/editor/components/CanvasHeader'
 import NodePropertiesPanel from '@/ui/editor/components/NodePropertiesPanel'
 import EdgePropertiesPanel from '@/ui/editor/components/EdgePropertiesPanel'
+import MultiSelectionPanel from '@/ui/editor/components/MultiSelectionPanel'
 import AddItemDialog from '@/ui/editor/components/AddItemDialog'
 import ConfirmActionDialog from '@/ui/editor/components/ConfirmActionDialog'
 import ConfirmLeaveDialog from '@/ui/editor/components/ConfirmLeaveDialog'
@@ -46,6 +47,8 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
     onSelectionChange,
     selectedNode,
     selectedEdge,
+    selectedNodeIds,
+    selectedEdgeIds,
     frameworkInfo,
     clearSelection,
     updateNodeData,
@@ -410,7 +413,8 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         220
 
       const wrapRect = wrap.getBoundingClientRect()
-      const panelWidth = (selectedNode || selectedEdge) ? Math.min(460, globalThis.innerWidth * 0.92) : 0
+      const isMultiSelect = selectedNodeIds.length + selectedEdgeIds.length > 1
+      const panelWidth = (selectedNode || selectedEdge || isMultiSelect) ? Math.min(460, globalThis.innerWidth * 0.92) : 0
 
       const margin = 24
       const safeTop = 96 // leave room for the floating header
@@ -575,7 +579,7 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         userName={userName ?? undefined}
         tenantId={tenantId ?? undefined}
         onChangePassword={authStatus === 'authenticated' ? () => void changePassword() : undefined}
-        reserveRightForPanel={Boolean(selectedNode || selectedEdge)}
+        reserveRightForPanel={Boolean(selectedNode || selectedEdge || (selectedNodeIds.length + selectedEdgeIds.length > 1))}
         showSettings
         isDirty={isDirty}
         saveStatus={saveStatus}
@@ -612,6 +616,9 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
           isValidConnection={isValidConnection}
           onSelectionChange={onSelectionChangeWithPan}
           onBeforeDelete={onBeforeDelete}
+          selectionMode={SelectionMode.Partial}
+          multiSelectionKeyCode="Shift"
+          selectionKeyCode="Shift"
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           edgesFocusable
@@ -662,6 +669,22 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
         onClose={clearSelection}
         onChangeEdge={updateEdgeData}
         onFlipEdge={flipEdge}
+      />
+
+      <MultiSelectionPanel
+        selectedNodeIds={selectedNodeIds}
+        selectedEdgeIds={selectedEdgeIds}
+        nodes={nodesWithCallbacks}
+        edges={editorEdges}
+        onClose={clearSelection}
+        onDeleteSelected={() => {
+          // Trigger the same delete flow as pressing Delete key
+          // Build the selected nodes/edges arrays and invoke onBeforeDelete logic
+          const selectedNodes = nodesWithCallbacks.filter((n) => selectedNodeIds.includes(n.id))
+          const selectedEdgesForDelete = editorEdges.filter((e) => selectedEdgeIds.includes(e.id))
+          void onBeforeDelete({ nodes: selectedNodes, edges: selectedEdgesForDelete })
+        }}
+        onChangeEdge={updateEdgeData}
       />
 
       <AddItemDialog
@@ -742,7 +765,7 @@ export default function EditorCanvas({ onBack, onSaveToServer, isPublishedToOpen
           setExternalFwViewportCenter(viewportCenter)
           setExternalFwDialogOpen(true)
         }}
-        sidePanelOpen={Boolean(selectedNode || selectedEdge)}
+        sidePanelOpen={Boolean(selectedNode || selectedEdge || (selectedNodeIds.length + selectedEdgeIds.length > 1))}
       />
 
       <AddExternalFrameworkDialog

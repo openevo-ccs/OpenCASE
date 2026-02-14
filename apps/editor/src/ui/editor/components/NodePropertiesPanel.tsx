@@ -15,6 +15,8 @@ import type {
 import type { CFDocument, CFItem, CFLicense } from '@/domain/case/types'
 import type { ComboboxOption } from '@/ui/shared/components/ui/combobox-input'
 import { useEditor } from '@/ui/editor/state/EditorContext'
+import { EDUCATION_LEVEL_OPTIONS } from '@/ui/editor/terminology/educationLevels'
+import type { EducationLevelOption } from '@/ui/editor/terminology/educationLevels'
 import { getAppConfig } from '@/app/config'
 
 type Props = {
@@ -105,6 +107,11 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
   const cfConceptOptions: ComboboxOption[] = useMemo(
     () => dedup(cfConcepts.map((c) => ({ value: c.title ?? c.identifier, label: c.title ?? c.identifier, description: c.description }))),
     [cfConcepts],
+  )
+
+  const educationLevelOptions: TagComboboxOption[] = useMemo(
+    () => (EDUCATION_LEVEL_OPTIONS as readonly EducationLevelOption[]).map((o) => ({ value: o.value, label: o.label })),
+    [],
   )
 
   const updateItem = (patch: Partial<CFItem>) => {
@@ -483,12 +490,13 @@ export default function NodePropertiesPanel({ node, onClose, onChangeNode, onVie
                       className="w-full"
                     />
                   ) : (
-                    <input
+                    <TagComboboxInput
                       id="node-educationLevel"
-                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
-                      value={joinCsv(cfItem?.educationLevel)}
-                      onChange={(e) => updateItem({ educationLevel: parseCsv(e.target.value) })}
-                      placeholder="Example: Grade 3"
+                      values={cfItem?.educationLevel ?? []}
+                      onChange={(vals) => updateItem({ educationLevel: vals })}
+                      options={educationLevelOptions}
+                      placeholder="Select or type levels…"
+                      className="w-full"
                     />
                   )}
                 </div>

@@ -9,6 +9,8 @@ import { Input } from '@/ui/shared/components/ui/input'
 import { Label } from '@/ui/shared/components/ui/label'
 import { Textarea } from '@/ui/shared/components/ui/textarea'
 import { useEditor } from '@/ui/editor/state/EditorContext'
+import { EDUCATION_LEVEL_OPTIONS } from '@/ui/editor/terminology/educationLevels'
+import type { EducationLevelOption } from '@/ui/editor/terminology/educationLevels'
 
 export type AddItemDraft = {
   fullStatement: string
@@ -20,7 +22,10 @@ export type AddItemDraft = {
   subjectCsv?: string
   /** Subjects as a string array (preferred over subjectCsv) */
   subjects?: string[]
+  /** @deprecated Use educationLevels array instead */
   educationLevelCsv?: string
+  /** Education levels as a string array (preferred over educationLevelCsv) */
+  educationLevels?: string[]
   conceptKeywordsCsv?: string
   notes?: string
 }
@@ -56,6 +61,11 @@ export default function AddItemDialog({ open, parentLabel, draft, onChange, onCa
   const cfSubjectOptions: TagComboboxOption[] = useMemo(
     () => dedup(cfSubjects.map((s) => ({ value: s.title ?? s.identifier, label: s.title ?? s.identifier, description: s.description }))),
     [cfSubjects],
+  )
+
+  const educationLevelOptions: TagComboboxOption[] = useMemo(
+    () => (EDUCATION_LEVEL_OPTIONS as readonly EducationLevelOption[]).map((o) => ({ value: o.value, label: o.label })),
+    [],
   )
 
   const statementError = useMemo(() => {
@@ -160,12 +170,14 @@ export default function AddItemDialog({ open, parentLabel, draft, onChange, onCa
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="add-item-edlevel">Education level (comma-separated)</Label>
-                <Input
+                <Label htmlFor="add-item-edlevel">Education level(s)</Label>
+                <TagComboboxInput
                   id="add-item-edlevel"
-                  value={draft.educationLevelCsv ?? ''}
-                  onChange={(e) => onChange({ educationLevelCsv: e.target.value })}
-                  placeholder="e.g. Grade 3, Grade 4"
+                  values={draft.educationLevels ?? []}
+                  onChange={(vals) => onChange({ educationLevels: vals, educationLevelCsv: vals.join(', ') })}
+                  options={educationLevelOptions}
+                  placeholder="Select or type levels…"
+                  className="w-full"
                 />
               </div>
             </div>

@@ -1,0 +1,206 @@
+import { useMemo } from 'react'
+import { Button } from '@/ui/shared/components/ui/button'
+import type { CaseEditorEdge, CaseEditorNodeType, CaseEdgeDataPatch } from '../reactflow/types'
+import { CASE_ASSOCIATION_TYPES, FRAMEWORK_ROOT_ASSOCIATION_TYPE } from '../reactflow/types'
+
+/** Human-friendly labels for CASE association types */
+const ASSOCIATION_TYPE_LABELS: Record<string, string> = {
+  [FRAMEWORK_ROOT_ASSOCIATION_TYPE]: 'Starts',
+  isChildOf: 'Is Child Of',
+  isPeerOf: 'Is Peer Of',
+  isPartOf: 'Is Part Of',
+  exactMatchOf: 'Exact Match Of',
+  precedes: 'Precedes',
+  isRelatedTo: 'Is Related To',
+  isTranslationOf: 'Is Translation Of',
+}
+
+type Props = {
+  selectedNodeIds: string[]
+  selectedEdgeIds: string[]
+  nodes: CaseEditorNodeType[]
+  edges: CaseEditorEdge[]
+  onClose?: () => void
+  onDeleteSelected?: () => void
+  onChangeEdge?: (_edgeId: string, _patch: CaseEdgeDataPatch) => void
+}
+
+export default function MultiSelectionPanel({
+  selectedNodeIds,
+  selectedEdgeIds,
+  nodes,
+  edges,
+  onClose,
+  onDeleteSelected,
+  onChangeEdge,
+}: Readonly<Props>) {
+  const nodeCount = selectedNodeIds.length
+  const edgeCount = selectedEdgeIds.length
+  const totalCount = nodeCount + edgeCount
+
+  const isOpen = totalCount > 1
+
+  // Get the selected edges for bulk editing
+  const selectedEdges = useMemo(() => {
+    const idSet = new Set(selectedEdgeIds)
+    return edges.filter((e) => idSet.has(e.id))
+  }, [edges, selectedEdgeIds])
+
+  // Filter out framework root connections (not editable)
+  const editableEdges = useMemo(
+    () => selectedEdges.filter((e) => !e.data?.isFrameworkRootConnection),
+    [selectedEdges],
+  )
+
+  // Check if all editable edges have the same association type
+  const commonAssocType = useMemo(() => {
+    if (editableEdges.length === 0) return null
+    const firstType = editableEdges[0].data?.associationType
+    return editableEdges.every((e) => e.data?.associationType === firstType) ? firstType : null
+  }, [editableEdges])
+
+  // Count selected item types for the summary
+  const selectedNodes = useMemo(() => {
+    const idSet = new Set(selectedNodeIds)
+    return nodes.filter((n) => idSet.has(n.id))
+  }, [nodes, selectedNodeIds])
+
+  // Count by type
+  const counts = useMemo(() => {
+    let items = 0, frameworks = 0, externals = 0
+    for (const n of selectedNodes) {
+      if (n.type === 'caseItemNode') items++
+      else if (n.type === 'caseFrameworkNode') frameworks++
+      else if (n.type === 'externalFrameworkNode') externals++
+    }
+    return { items, frameworks, externals }
+  }, [selectedNodes])
+
+  const { items: itemCount, frameworks: frameworkCount, externals: externalCount } = counts
+
+  const handleBulkAssocTypeChange = (newType: string) => {
+    if (!onChangeEdge) return
+    for (const edge of editableEdges) {
+      onChangeEdge(edge.id, { associationType: newType })
+    }
+  }
+
+  return (
+    <aside
+      className={[
+        'fixed right-0 top-0 z-20 flex h-screen w-[min(460px,92vw)] flex-col border-l border-black/10 bg-gradient-to-b from-white to-slate-50 text-slate-900 shadow-[-16px_0_40px_rgba(0,0,0,0.18)] transition-transform duration-200 ease-out',
+        isOpen ? 'translate-x-0' : 'translate-x-full',
+      ].join(' ')}
+      aria-label="Multi-selection"
+    >
+      <div className="flex items-center justify-between border-b border-black/10 bg-white/70 px-4 py-3 backdrop-blur">
+        <div>
+          <div className="text-sm font-bold">Selection</div>
+          <div className="text-xs text-slate-500">
+            {totalCount} items selected
+          </div>
+        </div>
+        <Button variant="secondary" size="xs" onClick={() => onClose?.()}>
+          Close
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-auto p-4">
+        <div className="space-y-3">
+          {/* Selection summary */}
+          <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-slate-900">Selected items</div>
+            </div>
+            <div className="space-y-1.5">
+              {itemCount > 0 ? (
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-violet-100 text-xs font-bold text-violet-700">
+                    {itemCount}
+                  </div>
+                  <span>{itemCount === 1 ? 'item' : 'items'}</span>
+                </div>
+              ) : null}
+              {frameworkCount > 0 ? (
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-xs font-bold text-blue-700">
+                    {frameworkCount}
+                  </div>
+                  <span>{frameworkCount === 1 ? 'framework' : 'frameworks'}</span>
+                </div>
+              ) : null}
+              {externalCount > 0 ? (
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 text-xs font-bold text-amber-700">
+                    {externalCount}
+                  </div>
+                  <span>{externalCount === 1 ? 'external framework' : 'external frameworks'}</span>
+                </div>
+              ) : null}
+              {edgeCount > 0 ? (
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700">
+                    {edgeCount}
+                  </div>
+                  <span>{edgeCount === 1 ? 'association' : 'associations'}</span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Bulk edge type change */}
+          {editableEdges.length > 0 ? (
+            <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+              <div className="mb-3">
+                <div className="text-sm font-semibold text-slate-900">Change association type</div>
+                <div className="text-xs text-slate-500">
+                  Apply to {editableEdges.length} selected {editableEdges.length === 1 ? 'association' : 'associations'}
+                </div>
+              </div>
+              <select
+                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                value={commonAssocType ?? ''}
+                onChange={(e) => {
+                  if (e.target.value) handleBulkAssocTypeChange(e.target.value)
+                }}
+              >
+                {commonAssocType === null ? (
+                  <option value="">Mixed types — select to change all</option>
+                ) : null}
+                {CASE_ASSOCIATION_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {ASSOCIATION_TYPE_LABELS[t] ?? t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          {/* Delete action */}
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-red-900">Danger zone</div>
+              <div className="text-xs text-red-700">
+                Delete all {totalCount} selected items. This cannot be undone.
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={onDeleteSelected}
+              className="w-full border-red-200 bg-white text-red-700 hover:bg-red-100 hover:text-red-800"
+            >
+              Delete selected ({totalCount})
+            </Button>
+          </div>
+
+          {/* Tip */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="text-xs text-slate-500">
+              <strong>Tip:</strong> Hold <kbd className="mx-0.5 rounded border border-slate-300 bg-white px-1 py-0.5 font-mono text-[10px]">Shift</kbd> and click to add or remove items from the selection. Use <kbd className="mx-0.5 rounded border border-slate-300 bg-white px-1 py-0.5 font-mono text-[10px]">Shift</kbd> + drag to box-select.
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  )
+}
