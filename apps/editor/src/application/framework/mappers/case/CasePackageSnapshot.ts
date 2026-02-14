@@ -11,6 +11,8 @@ export type CaseDocumentSnapshot = {
   title?: string
   creator?: string
   description?: string
+  /** Entity that publishes / distributes the framework */
+  publisher?: string
   /** v1p1: Framework type classification */
   frameworkType?: string
   /** Status in adoption lifecycle */
@@ -21,6 +23,16 @@ export type CaseDocumentSnapshot = {
   language?: string
   /** Document version string */
   version?: string
+  /** Free-text notes about the framework */
+  notes?: string
+  /** URL to the official source document */
+  officialSourceURL?: string
+  /** Document-level subject */
+  subject?: string[]
+  subjectURI?: Array<{ title?: string; identifier?: string; uri: string }>
+  /** Lifecycle dates */
+  statusStartDate?: string
+  statusEndDate?: string
   lastChangeDateTime?: string
   /** Link to the CFLicense governing this framework */
   licenseURI?: { title?: string; identifier?: string; uri: string }

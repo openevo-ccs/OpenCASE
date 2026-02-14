@@ -370,21 +370,171 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                   {isFramework ? 'High-level details for the framework.' : 'Helps people find and organize items.'}
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-humanCodingScheme">
-                    {isFramework ? 'Title' : 'Code'}
-                  </label>
-                  {isFramework ? (
+              {isFramework ? (
+                /* ── Framework-specific fields ── */
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-title">
+                      Title
+                    </label>
                     <input
-                      id="node-humanCodingScheme"
+                      id="node-fw-title"
                       className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
                       value={cfDocument?.title ?? ''}
                       onChange={(e) => updateDocument({ title: e.target.value })}
                       placeholder="Framework title"
                     />
-                  ) : (
-                    <>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-creator">
+                      Creator
+                    </label>
+                    <input
+                      id="node-fw-creator"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.creator ?? ''}
+                      onChange={(e) => updateDocument({ creator: e.target.value })}
+                      placeholder="Who authored this framework"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-publisher">
+                      Publisher
+                    </label>
+                    <input
+                      id="node-fw-publisher"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.publisher ?? ''}
+                      onChange={(e) => updateDocument({ publisher: e.target.value })}
+                      placeholder="Who distributes this framework"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-type">
+                      Framework type
+                    </label>
+                    <input
+                      id="node-fw-type"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.frameworkType ?? ''}
+                      onChange={(e) => updateDocument({ frameworkType: e.target.value })}
+                      placeholder="e.g., K-12, Workforce"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-status">
+                      Adoption status
+                    </label>
+                    <ComboboxInput
+                      id="node-fw-status"
+                      value={cfDocument?.adoptionStatus ?? ''}
+                      onChange={(v) => updateDocument({ adoptionStatus: v })}
+                      options={ADOPTION_STATUS_OPTIONS}
+                      placeholder="Select or type a status"
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-language">
+                      Language
+                    </label>
+                    <input
+                      id="node-fw-language"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.language ?? ''}
+                      onChange={(e) => updateDocument({ language: e.target.value })}
+                      placeholder="e.g., en, fr, es"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-subject">
+                      Subject(s)
+                    </label>
+                    <TagComboboxInput
+                      id="node-fw-subject"
+                      values={cfDocument?.subject ?? []}
+                      onChange={(vals) => updateDocument({ subject: vals })}
+                      onCommit={(addedValue) => {
+                        const subDef = ensureCfSubject?.(addedValue)
+                        if (subDef) {
+                          const currentSubjects = cfDocument?.subject ?? []
+                          const allSubjects = currentSubjects.includes(addedValue) ? currentSubjects : [...currentSubjects, addedValue]
+                          const uris = allSubjects
+                            .map((s) => {
+                              const def = ensureCfSubject?.(s)
+                              return def ? { title: def.title ?? '', identifier: def.identifier, uri: def.uri } : null
+                            })
+                            .filter((u): u is NonNullable<typeof u> => u !== null)
+                          updateDocument({ subjectURI: uris.length > 0 ? uris : undefined })
+                        }
+                      }}
+                      options={cfSubjectOptions}
+                      placeholder="Select or type subjects…"
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-source-url">
+                      Official source URL
+                    </label>
+                    <input
+                      id="node-fw-source-url"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.officialSourceURL ?? ''}
+                      onChange={(e) => updateDocument({ officialSourceURL: e.target.value })}
+                      placeholder="https://…"
+                    />
+                    <div className="mt-1 text-xs text-slate-500">Link to the authoritative source for this framework.</div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-start-date">
+                      Status start date
+                    </label>
+                    <input
+                      id="node-fw-start-date"
+                      type="date"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.statusStartDate ?? ''}
+                      onChange={(e) => updateDocument({ statusStartDate: e.target.value || undefined })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-fw-end-date">
+                      Status end date
+                    </label>
+                    <input
+                      id="node-fw-end-date"
+                      type="date"
+                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
+                      value={cfDocument?.statusEndDate ?? ''}
+                      onChange={(e) => updateDocument({ statusEndDate: e.target.value || undefined })}
+                    />
+                  </div>
+
+                  {cfDocument?.version ? (
+                    <div className="sm:col-span-2">
+                      <div className="text-xs font-semibold text-slate-700">Version</div>
+                      <div className="mt-1 text-sm text-slate-600">{cfDocument.version}</div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                /* ── Item-specific fields ── */
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-humanCodingScheme">
+                    Code
+                  </label>
+                  <>
                       <div className="flex gap-2">
                         <input
                           id="node-humanCodingScheme"
@@ -407,28 +557,18 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                       </div>
                       <div className="mt-1 text-xs text-slate-500">Example: 3.NBT.A.2</div>
                     </>
-                  )}
                 </div>
 
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-type">
-                    {isFramework ? 'Creator' : 'Type'}
+                    Type
                   </label>
-                  {isFramework ? (
-                    <input
-                      id="node-type"
-                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
-                      value={cfDocument?.creator ?? ''}
-                      onChange={(e) => updateDocument({ creator: e.target.value })}
-                      placeholder="Who authored this framework"
-                    />
-                  ) : (
                     <ComboboxInput
                       id="node-type"
                       value={cfItem?.CFItemType ?? ''}
                       onChange={(v) => updateItem({ CFItemType: v })}
                       onCommit={(v) => {
-                        const typeDef = ensureCfItemType(v)
+                        const typeDef = ensureCfItemType?.(v)
                         if (typeDef) {
                           updateItem({
                             CFItemType: v,
@@ -440,42 +580,29 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                       placeholder="Select or type a type…"
                       className="w-full"
                     />
-                  )}
                 </div>
 
-                {!isFramework ? (
-                  <ColorBandPicker
+                <ColorBandPicker
                     value={cfItem?.colorBand}
                     onChange={(color) => updateItem({ colorBand: color ?? '' })}
                   />
-                ) : null}
 
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-subject">
-                    {isFramework ? 'Framework type' : 'Subject(s)'}
+                    Subject(s)
                   </label>
-                  {isFramework ? (
-                    <input
-                      id="node-subject"
-                      className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-violet-700/40 focus-visible:outline-offset-2"
-                      value={cfDocument?.frameworkType ?? ''}
-                      onChange={(e) => updateDocument({ frameworkType: e.target.value })}
-                      placeholder="Example: K-12"
-                    />
-                  ) : (
                     <TagComboboxInput
                       id="node-subject"
                       values={cfItem?.subject ?? []}
                       onChange={(vals) => updateItem({ subject: vals })}
                       onCommit={(addedValue) => {
-                        const subDef = ensureCfSubject(addedValue)
+                        const subDef = ensureCfSubject?.(addedValue)
                         if (subDef) {
-                          // Rebuild the full subjectURI array from current subjects + the new one
                           const currentSubjects = cfItem?.subject ?? []
                           const allSubjects = currentSubjects.includes(addedValue) ? currentSubjects : [...currentSubjects, addedValue]
                           const uris = allSubjects
                             .map((s) => {
-                              const def = ensureCfSubject(s)
+                              const def = ensureCfSubject?.(s)
                               return def ? { title: def.title ?? '', identifier: def.identifier, uri: def.uri } : null
                             })
                             .filter((u): u is NonNullable<typeof u> => u !== null)
@@ -486,23 +613,12 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                       placeholder="Select or type subjects…"
                       className="w-full"
                     />
-                  )}
                 </div>
 
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-educationLevel">
-                    {isFramework ? 'Adoption status' : 'Education level(s)'}
+                    Education level(s)
                   </label>
-                  {isFramework ? (
-                    <ComboboxInput
-                      id="node-educationLevel"
-                      value={cfDocument?.adoptionStatus ?? ''}
-                      onChange={(v) => updateDocument({ adoptionStatus: v })}
-                      options={ADOPTION_STATUS_OPTIONS}
-                      placeholder="Select or type a status"
-                      className="w-full"
-                    />
-                  ) : (
                     <TagComboboxInput
                       id="node-educationLevel"
                       values={cfItem?.educationLevel ?? []}
@@ -511,10 +627,8 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                       placeholder="Select or type levels…"
                       className="w-full"
                     />
-                  )}
                 </div>
 
-                {!isFramework ? (
                   <div className="sm:col-span-2">
                   <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-alternativeLabel">
                     Short label
@@ -527,9 +641,7 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                     placeholder="A short, human-friendly title"
                   />
                   </div>
-                ) : null}
 
-                {!isFramework ? (
                   <div className="sm:col-span-2">
                   <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-concept">
                     Concept
@@ -549,7 +661,7 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                         updateItem({ conceptKeywordsURI: undefined })
                         return
                       }
-                      const conceptDef = ensureCfConcept(v)
+                      const conceptDef = ensureCfConcept?.(v)
                       if (conceptDef) {
                         setConceptInput(conceptDef.title ?? v)
                         updateItem({
@@ -563,9 +675,7 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                   />
                   <div className="mt-1 text-xs text-slate-500">Formal concept from a taxonomy (e.g., Bloom&apos;s).</div>
                   </div>
-                ) : null}
 
-                {!isFramework ? (
                   <div className="sm:col-span-2">
                   <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="node-keywords">
                     Keywords
@@ -591,8 +701,8 @@ export default memo(function NodePropertiesPanel({ node, onClose, onChangeNode, 
                     </div>
                   ) : null}
                   </div>
-                ) : null}
               </div>
+              )}
             </div>
 
             {isFramework && availableLicenses && availableLicenses.length > 0 ? (

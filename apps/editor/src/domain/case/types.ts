@@ -52,6 +52,14 @@ export interface CFDocument {
   language?: string
   version?: string
   adoptionStatus?: string
+  /** Entity that publishes / distributes the framework */
+  publisher?: string
+  /** URL to the official source document */
+  officialSourceURL?: string
+
+  /** Document-level subject */
+  subject?: string[]
+  subjectURI?: LinkURI[]
 
   /** lifecycle */
   statusStartDate?: string

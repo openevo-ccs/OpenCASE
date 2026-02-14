@@ -10,10 +10,24 @@ export type FrameworkMetadata = {
   title?: string
   description?: string
   creator?: string
+  /** Entity that publishes / distributes the framework */
+  publisher?: string
   frameworkType?: string
   adoptionStatus?: string
   caseVersion?: string
   version?: string
+  /** Document language (e.g. "en") */
+  language?: string
+  /** Free-text notes about the framework */
+  notes?: string
+  /** URL to the official source document */
+  officialSourceURL?: string
+  /** Document-level subject */
+  subject?: string[]
+  subjectURI?: Array<{ title?: string; identifier?: string; uri: string }>
+  /** Lifecycle dates */
+  statusStartDate?: string
+  statusEndDate?: string
   lastChangeDateTime?: string
   /** CASE licenseURI — link to the CFLicense governing this framework */
   licenseURI?: { title?: string; identifier?: string; uri: string }

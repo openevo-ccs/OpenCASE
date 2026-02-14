@@ -168,15 +168,19 @@ function frameworkToCfDocument(
     creator: meta.creator ?? 'OpenCASE',
     title: docTitle,
     description: meta.description,
-    notes: undefined, // Will add if we have notes in metadata
-    language: undefined,
+    publisher: meta.publisher,
+    notes: meta.notes,
+    language: meta.language,
     version: documentVersion,
     adoptionStatus: meta.adoptionStatus,
     frameworkType: meta.frameworkType,
+    officialSourceURL: meta.officialSourceURL,
+    subject: meta.subject,
+    subjectURI: meta.subjectURI,
     // v1p1: include caseVersion field
     caseVersion: effectiveVersion === '1.1' ? '1.1' : undefined,
-    statusStartDate: undefined,
-    statusEndDate: undefined,
+    statusStartDate: meta.statusStartDate,
+    statusEndDate: meta.statusEndDate,
     licenseURI: meta.licenseURI ?? undefined,
     lastChangeDateTime: nowIso(), // Always update timestamp on export
     CFPackageURI: { 
@@ -506,7 +510,10 @@ export type CaseV1p1Document = {
   creator: string
   lastChangeDateTime: string
   description?: string
+  publisher?: string
+  officialSourceURL?: string
   subject?: string | string[]
+  subjectURI?: CaseLinkURI[]
   language?: string
   frameworkType?: string
   version?: string
@@ -604,6 +611,14 @@ export function toOpenCaseFormat(cfPackage: CFPackage): CaseV1p1Package {
     creator: doc.creator,
     lastChangeDateTime: doc.lastChangeDateTime,
     description: doc.description,
+    publisher: doc.publisher,
+    officialSourceURL: doc.officialSourceURL,
+    subject: doc.subject,
+    subjectURI: doc.subjectURI?.map((s) => ({
+      title: s.title ?? '',
+      identifier: s.identifier ?? '',
+      uri: s.uri,
+    })),
     language: doc.language,
     frameworkType: doc.frameworkType,
     version: doc.version,
