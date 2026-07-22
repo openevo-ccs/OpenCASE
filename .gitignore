@@ -1,4 +1,19 @@
 .env
+.env.*
 AGENTS.md
 CLAUDE.md
 .DS_Store
+
+# Node/JS monorepo (apps/editor, apps/opencase) — not previously covered,
+# a real gap given real package.json files exist in both apps.
+node_modules/
+dist/
+build/
+.next/
+npm-debug.log*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+Thumbs.db
